@@ -13,6 +13,7 @@
     "baseUrl": "./",
     "paths": {
       "@config/*": ["src/config/*"],
+      "@types": ["src/types/index.d.ts"],
       "@modules/*": [
         "src/modules/users/*",
         "src/modules/auth/*",

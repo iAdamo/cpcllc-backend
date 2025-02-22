@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { MongooseModule } from '@nestjs/mongoose';
 import databaseConfig from '@config/database.config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { UsersModule } from './modules/users/users.module';
+import { DatabaseConfig } from '@types';
 
 @Module({
   imports: [
@@ -16,8 +17,19 @@ import { UsersModule } from './modules/users/users.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig],
+      cache: true,
     }),
-    MongooseModule.forRoot(process.env.MONGO_URI),
+    MongooseModule.forRootAsync({
+      useFactory: async (configService: ConfigService) => {
+        const databaseConfig =
+          configService.get<DatabaseConfig['database']>('database');
+        if (!databaseConfig) {
+          throw new Error('Database configuration not found');
+        }
+        return databaseConfig;
+      },
+      inject: [ConfigService],
+    }),
     UsersModule,
   ],
   controllers: [],
