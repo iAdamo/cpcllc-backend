@@ -32,13 +32,13 @@
         "src/modules/media/dto/*"
       ],
       "@controllers/*": [
-        "src/modules/users/v1/user/*",
+        "src/modules/users/*",
         "src/modules/auth/*",
         "src/modules/zones/v1/map/*",
         "src/modules/media/*"
       ],
       "@services/*": [
-        "src/modules/users/v1/user/*",
+        "src/modules/users/*",
         "src/modules/auth/*",
         "src/modules/zones/v1/map/*",
         "src/modules/media/*",

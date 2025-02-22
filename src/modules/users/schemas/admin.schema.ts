@@ -6,17 +6,7 @@ export type AdminDocument = HydratedDocument<Admin>;
 
 @Schema()
 export class Admin {
-  @Prop({
-    required: true,
-    unique: true,
-    match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
-  })
-  email: string;
-
-  @Prop({ required: true })
-  password: string;
-
-  comparePassword: (password: string) => Promise<boolean>;
+  role: string;
 }
 
 export const AdminSchema = SchemaFactory.createForClass(Admin);

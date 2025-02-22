@@ -7,9 +7,6 @@ import * as cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Set Global Prefix
-  app.setGlobalPrefix('api');
-
   // Enable Versioning
   app.enableVersioning({
     type: VersioningType.URI,
@@ -30,7 +27,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    origin: 'http://localhost:3000',
     credentials: true,
   });
 
