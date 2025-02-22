@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 
 export type CompanyDocument = HydratedDocument<Company>;
 
-@Schema({ discriminatorKey: 'role' })
+@Schema()
 export class Company {
   @Prop({
     required: true,
