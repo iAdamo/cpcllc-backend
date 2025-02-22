@@ -1,0 +1,56 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@config/*": ["src/config/*"],
+      "@modules/*": [
+        "src/modules/users/*",
+        "src/modules/auth/*",
+        "src/modules/zones/*",
+        "src/modules/media/*"
+      ],
+      "@schemas/*": [
+        "src/modules/users/schemas/*",
+        "src/modules/zones/schemas/*",
+        "src/modules/media/schemas/*"
+      ],
+      "@dto/*": [
+        "src/modules/users/v1/user/dto/*",
+        "src/modules/zones/dto/*",
+        "src/modules/auth/dto/*",
+        "src/modules/media/dto/*"
+      ],
+      "@controllers/*": [
+        "src/modules/users/v1/user/*",
+        "src/modules/auth/*",
+        "src/modules/zones/v1/map/*",
+        "src/modules/media/*"
+      ],
+      "@services/*": [
+        "src/modules/users/v1/user/*",
+        "src/modules/auth/*",
+        "src/modules/zones/v1/map/*",
+        "src/modules/media/*",
+        "src/modules/media/dbstorage/*",
+        "src/modules/media/cloudstorage/*"
+      ]
+    },
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": false
+  }
+}
