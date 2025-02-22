@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import databaseConfig from '@config/database.config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { join } from 'path';
       load: [databaseConfig],
     }),
     MongooseModule.forRoot(process.env.MONGO_URI),
+    UsersModule,
   ],
   controllers: [],
   providers: [],
