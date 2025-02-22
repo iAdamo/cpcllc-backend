@@ -26,7 +26,7 @@
         "src/modules/media/schemas/*"
       ],
       "@dto/*": [
-        "src/modules/users/v1/user/dto/*",
+        "src/modules/users/dto/*",
         "src/modules/zones/dto/*",
         "src/modules/auth/dto/*",
         "src/modules/media/dto/*"
