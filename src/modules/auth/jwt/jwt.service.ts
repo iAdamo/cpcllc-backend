@@ -83,8 +83,8 @@ export class JwtService {
     try {
       await client.send({
         from: {
-          email: 'safetypro@adamocode.me',
-          name: 'SafetyPro',
+          email: 'noreply@adamocode.me',
+          name: 'CompanyCenter LLC',
         },
         to: [{ email }],
         template_uuid: process.env.VERIFICATION_TEMPLATE_UUID,

@@ -24,6 +24,7 @@ export class Users {
     type: String,
     required: true,
     enum: [Admin.name, Client.name, Company.name],
+    default: Client.name,
   })
   role: string;
 
@@ -59,3 +60,19 @@ UsersSchema.methods.comparePassword = async function (
 ): Promise<boolean> {
   return await bcrypt.compare(UsersPassword, this.password);
 };
+
+
+// Remove sensitive fields before sending to the client
+UsersSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    delete ret.__v;
+    delete ret.createdAt;
+    delete ret.updatedAt;
+    delete ret.code;
+    delete ret.codeAt;
+    delete ret.verified;
+    delete ret.forgetPassword;
+    return ret;
+  },
+});
