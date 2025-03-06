@@ -22,12 +22,12 @@
       ],
       "@schemas/*": [
         "src/modules/users/schemas/*",
-        "src/modules/zones/schemas/*",
-        "src/modules/media/schemas/*"
+        "src/modules/services/schemas/*",
+        "src/modules/media/schemas/*",
       ],
       "@dto/*": [
         "src/modules/users/dto/*",
-        "src/modules/zones/dto/*",
+        "src/modules/services/dto/*",
         "src/modules/auth/dto/*",
         "src/modules/media/dto/*"
       ],
@@ -40,7 +40,7 @@
       "@services/*": [
         "src/modules/users/*",
         "src/modules/auth/*",
-        "src/modules/zones/v1/map/*",
+        "src/modules/services/*",
         "src/modules/media/*",
         "src/modules/media/dbstorage/*",
         "src/modules/media/cloudstorage/*"

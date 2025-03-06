@@ -26,9 +26,7 @@ export class JwtController {
 
     return res.status(200).json({
       message: 'Login successful',
-      id: user['_id'],
-      email: user.email,
-      verified: user.verified,
+      user: user,
     });
   }
 
