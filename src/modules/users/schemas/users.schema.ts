@@ -19,7 +19,6 @@ export class Users {
   @Prop({ required: true })
   password: string;
 
-  @Prop({ required: true })
   @Prop({
     type: String,
     required: true,
