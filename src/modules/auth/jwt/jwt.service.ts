@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import { Users, UsersDocument } from '@schemas/users.schema';
+import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Model } from 'mongoose';
 import { MailtrapClient } from 'mailtrap';
 import * as bcrypt from 'bcrypt';
@@ -16,14 +16,14 @@ import * as bcrypt from 'bcrypt';
 export class JwtService {
   constructor(
     private readonly jwtService: NestJwtService,
-    @InjectModel(Users.name) private readonly userModel: Model<UsersDocument>,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
   /**
    * Retrieve all users.
    * @returns List of users
    */
-  async findAll(): Promise<Users[]> {
+  async findAll(): Promise<User[]> {
     return this.userModel.find().exec();
   }
 
@@ -33,7 +33,7 @@ export class JwtService {
    * @param password User password
    * @returns Validated user
    */
-  async validateUser(email: string, password: string): Promise<Users> {
+  async validateUser(email: string, password: string): Promise<User> {
     if (!email || !password)
       throw new BadRequestException('Email and password are required');
 
@@ -52,8 +52,8 @@ export class JwtService {
    * @param user User object
    * @returns JWT access token
    */
-  async login(user: Users) {
-    const payload = { email: user.email, sub: user["_id"] };
+  async login(user: User) {
+    const payload = { email: user.email, sub: user['_id'] };
     return { access_token: this.jwtService.sign(payload) };
   }
 

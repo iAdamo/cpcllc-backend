@@ -6,9 +6,6 @@ export type CompanyDocument = HydratedDocument<Company>;
 @Schema()
 export class Company {
   @Prop({ required: true })
-  role: string;
-
-  @Prop({ required: false })
   companyName: string;
 
   @Prop({ required: false })
@@ -43,6 +40,12 @@ export class Company {
 
   @Prop({ required: false })
   country: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  owner: Types.ObjectId;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  clients: Types.ObjectId[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Service' }] })
   services: Types.ObjectId[];

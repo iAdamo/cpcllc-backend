@@ -1,4 +1,3 @@
-import { PartialType } from '@nestjs/mapped-types';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
@@ -8,32 +7,30 @@ import {
   IsMongoId,
   IsArray,
 } from 'class-validator';
-import { CreateUserDto } from '@modules/dto/create-user.dto';
 
-export class UpdateCompanyUserDto extends PartialType(CreateUserDto) {
-  @ApiProperty({ description: 'Company name', required: false })
+export class CreateCompanyDto {
+  @ApiProperty({ description: 'Company name', required: true })
   @IsString()
-  @IsOptional()
-  companyName?: string;
+  companyName: string;
 
   @ApiProperty({ description: 'Company description', required: false })
-  @IsString()
   @IsOptional()
+  @IsString()
   companyDescription?: string;
 
   @ApiProperty({ description: 'Company email', required: false })
-  @IsEmail()
   @IsOptional()
+  @IsEmail()
   companyEmail?: string;
 
   @ApiProperty({ description: 'Company phone number', required: false })
-  @IsString()
   @IsOptional()
+  @IsString()
   companyPhoneNumber?: string;
 
   @ApiProperty({ description: 'Company address', required: false })
-  @IsString()
   @IsOptional()
+  @IsString()
   companyAddress?: string;
 
   @ApiProperty({
@@ -46,33 +43,33 @@ export class UpdateCompanyUserDto extends PartialType(CreateUserDto) {
   companyLogo?: File | null;
 
   @ApiProperty({ description: 'ZIP code', required: false })
-  @IsString()
   @IsOptional()
+  @IsString()
   zip?: string;
 
   @ApiProperty({ description: 'City', required: false })
-  @IsString()
   @IsOptional()
+  @IsString()
   city?: string;
 
   @ApiProperty({ description: 'Latitude', required: false })
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   latitude?: number;
 
   @ApiProperty({ description: 'Longitude', required: false })
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   longitude?: number;
 
   @ApiProperty({ description: 'State', required: false })
-  @IsString()
   @IsOptional()
+  @IsString()
   state?: string;
 
   @ApiProperty({ description: 'Country', required: false })
-  @IsString()
   @IsOptional()
+  @IsString()
   country?: string;
 
   @ApiProperty({ description: 'Owner ID', required: true })

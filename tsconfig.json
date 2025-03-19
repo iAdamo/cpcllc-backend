@@ -44,7 +44,10 @@
         "src/modules/media/*",
         "src/modules/media/dbstorage/*",
         "src/modules/media/cloudstorage/*"
-      ]
+      ],
+      "@guards/*": [
+        "src/modules/auth/jwt/*"
+      ],
     },
     "incremental": true,
     "skipLibCheck": true,

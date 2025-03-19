@@ -1,27 +1,20 @@
 import { Module } from '@nestjs/common';
-import { Users, UsersSchema } from './schemas/users.schema';
+import { User, UserSchema } from '@schemas/user.schema';
 import { Admin, AdminSchema } from '@schemas/admin.schema';
-import { Client, ClientSchema } from '@schemas/client.schema';
 import { Company, CompanySchema } from '@schemas/company.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-
+import { DbStorageService } from '../../utils/dbStorage';
 @Module({
   imports: [
     MongooseModule.forFeature([
-      {
-        name: Users.name,
-        schema: UsersSchema,
-        discriminators: [
-          { name: Admin.name, schema: AdminSchema },
-          { name: Client.name, schema: ClientSchema },
-          { name: Company.name, schema: CompanySchema },
-        ],
-      },
+      { name: User.name, schema: UserSchema },
+      { name: Admin.name, schema: AdminSchema },
+      { name: Company.name, schema: CompanySchema },
     ]),
   ],
-  providers: [UsersService],
+  providers: [UsersService, DbStorageService],
   controllers: [UsersController],
   exports: [UsersService, MongooseModule],
 })
