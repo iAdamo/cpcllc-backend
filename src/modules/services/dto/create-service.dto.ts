@@ -30,6 +30,15 @@ export class CreateServiceDto {
   category: string;
 
   @ApiProperty({
+    description: 'The list of pictures associated with the service',
+    type: [String],
+    required: false,
+  })
+  @IsArray()
+  @IsOptional()
+  pictures?: string[];
+
+  @ApiProperty({
     description: 'The ID of the company providing the service',
     type: String,
   })

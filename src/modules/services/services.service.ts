@@ -41,7 +41,10 @@ export class ServicesService {
     );
   }
 
-  async createService(createServiceDto: CreateServiceDto): Promise<Services> {
+  async createService(
+    createServiceDto: CreateServiceDto,
+    files: Express.Multer.File[],
+  ): Promise<Services> {
     const { title, description, price, category, company } = createServiceDto;
 
     if (!title || !description || !price || !category || !company) {
@@ -49,6 +52,19 @@ export class ServicesService {
         'Title, description, price, category, and company are required',
       );
     }
+
+    // Handle file uploads
+    const uploadedPictures = await Promise.all(
+      files.map(async (file) => {
+        return await this.dbStorageService.saveFile(
+          createServiceDto.company.toString(),
+          file,
+        );
+      }),
+    );
+
+    // Add uploaded picture URLs to the DTO
+    createServiceDto.pictures = uploadedPictures;
 
     return await this.serviceModel.create(createServiceDto);
   }
