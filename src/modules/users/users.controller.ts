@@ -24,7 +24,7 @@ import { JwtAuthGuard } from '@guards/jwt.guard';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post('')
+  @Post(':id?')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'profilePicture', maxCount: 1 },
@@ -34,18 +34,23 @@ export class UsersController {
   async createUsers(
     @Body() userDto: CreateUserDto | CreateCompanyDto | CreateAdminDto,
     @Param('id') id?: string,
+    @UploadedFiles()
     files?: {
-      profilePicture?: Express.Multer.File[];
-      companyLogo?: Express.Multer.File[];
+      profilePicture?: Express.Multer.File;
+      companyLogo?: Express.Multer.File;
     },
   ) {
     if (!id) {
       return this.usersService.createUsers(userDto as CreateUserDto);
     } else if ('companyName' in userDto) {
+      const fileArray: Express.Multer.File[] = [
+        ...(files?.profilePicture ? [files.profilePicture[0]] : []),
+        ...(files?.companyLogo ? [files.companyLogo[0]] : []),
+      ];
       return this.usersService.createCompany(
         id,
         userDto as CreateCompanyDto,
-        files.companyLogo,
+        fileArray,
       );
     } else {
       return this.usersService.createAdmin(id, userDto as CreateAdminDto);

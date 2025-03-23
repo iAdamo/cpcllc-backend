@@ -14,14 +14,17 @@ export class DbStorageService {
 
   constructor() {}
 
-  async saveFile(email: string, file: Express.Multer.File): Promise<string> {
+  async saveFile(folder: string, file: Express.Multer.File): Promise<string> {
+    // Replace spaces with underscores in the folder name
+    const sanitizedFolder = folder.replace(/\s+/g, '_');
+
     const { buffer, originalname } = file;
-    const storagePath = join(this.baseStoragePath, email);
+    const storagePath = join(this.baseStoragePath, sanitizedFolder);
     await mkdir(storagePath, { recursive: true });
 
     const filePath = join(storagePath, originalname);
     await writeFile(filePath, buffer);
 
-    return `${this.baseUrl}/${email}/${originalname}`;
+    return `${this.baseUrl}/${sanitizedFolder}/${originalname}`;
   }
 }

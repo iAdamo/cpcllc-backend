@@ -16,6 +16,9 @@ export class Services {
 
   @Prop({ required: true })
   category: string;
+  
+  @Prop({ type: [String], required: true })
+  pictures: string[];
 
   @Prop({ required: true, type: Types.ObjectId, ref: 'Company' })
   company: Types.ObjectId;
@@ -26,6 +29,6 @@ export class Services {
 
 export const ServicesSchema = SchemaFactory.createForClass(Services);
 
-ServicesSchema.index({ category: 1} );
-ServicesSchema.index({ company: 1} );
-ServicesSchema.index({ clients: 1} );
+ServicesSchema.index({ category: 1 });
+ServicesSchema.index({ company: 1 });
+ServicesSchema.index({ clients: 1 });
