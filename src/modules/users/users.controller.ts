@@ -56,4 +56,9 @@ export class UsersController {
       return this.usersService.createAdmin(id, userDto as CreateAdminDto);
     }
   }
+
+  @Get(':id')
+  async getUserById(@Param('id') id: string) {
+    return this.usersService.userProfile(id);
+  }
 }

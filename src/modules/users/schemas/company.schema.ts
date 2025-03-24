@@ -1,9 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { Location, LocationSchema } from '@schemas/location.schema';
 
 export type CompanyDocument = HydratedDocument<Company>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class Company {
   @Prop({ required: true })
   companyName: string;
@@ -18,28 +19,14 @@ export class Company {
   companyPhoneNumber: string;
 
   @Prop({ required: false })
-  companyAddress: string;
-
-  @Prop({ required: false })
   companyLogo: string;
 
-  @Prop({ required: false })
-  zip: string;
-
-  @Prop({ required: false })
-  city: string;
-
-  @Prop({ required: false })
-  latitude: number;
-
-  @Prop({ required: false })
-  longitude: number;
-
-  @Prop({ required: false })
-  state: string;
-
-  @Prop({ required: false })
-  country: string;
+  @Prop({ type: LocationSchema, required: true })
+  location: {
+    primary: Location;
+    secondary: Location;
+    tertiary: Location;
+  };
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   owner: Types.ObjectId;

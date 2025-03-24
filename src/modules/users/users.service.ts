@@ -123,7 +123,7 @@ export class UsersService {
         existingCompany._id,
         {
           ...createCompanyDto,
-          companyLogo: mediaEntries[0]?.url || existingCompany.companyLogo,
+          companyLogo: mediaEntries[1]?.url || existingCompany.companyLogo,
         },
         { new: true, runValidators: true },
       );
@@ -132,7 +132,7 @@ export class UsersService {
     await this.userModel.findByIdAndUpdate(id, {
       firstName: createCompanyDto["firstName"],
       lastName: createCompanyDto["lastName"],
-      profilePicture: mediaEntries[1]?.url,
+      profilePicture: mediaEntries[0]?.url,
       activeRole: 'Company',
       activeRoleId: existingCompany._id,
     });
@@ -164,5 +164,17 @@ export class UsersService {
     });
 
     return admin;
+  }
+
+  /**
+   * User Profile
+   * @param id User ID
+   * @returns User Profile
+   */
+  async userProfile(id: string): Promise<User> {
+    return await this.userModel
+      .findById(id)
+      .populate('purchasedServices') // Populate purchasedServices references
+      .populate('hiredCompanies');   // Populate hiredCompanies references
   }
 }
