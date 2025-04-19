@@ -21,11 +21,18 @@ export class Company {
   @Prop({ required: false })
   companyLogo: string;
 
-  @Prop({ type: LocationSchema, required: true })
+  @Prop({
+    type: {
+      primary: { type: LocationSchema, required: true },
+      secondary: { type: LocationSchema, required: false },
+      tertiary: { type: LocationSchema, required: false },
+    },
+    required: true,
+  })
   location: {
     primary: Location;
-    secondary: Location;
-    tertiary: Location;
+    secondary?: Location;
+    tertiary?: Location;
   };
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })

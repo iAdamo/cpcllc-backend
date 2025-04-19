@@ -54,9 +54,9 @@ export class UsersService {
    * @returns Created User
    */
   async createUsers(createUsersDto: CreateUserDto): Promise<User> {
-    const { email, password } = createUsersDto;
+    const { username, email, password } = createUsersDto;
 
-    if (!email || !password) {
+    if (!username || !email || !password) {
       throw new BadRequestException(this.ERROR_MESSAGES.EMAIL_REQUIRED);
     }
 
@@ -101,45 +101,78 @@ export class UsersService {
   async createCompany(
     id: string,
     createCompanyDto: CreateCompanyDto,
-    files: Express.Multer.File[],
+    files?: {
+      profilePicture?: Express.Multer.File[];
+      companyLogo?: Express.Multer.File[];
+    },
   ): Promise<Company> {
-    if (!id)
+    if (!id) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
+    }
 
+    // Check if the user already owns a company
     let existingCompany = await this.companyModel.findOne({ owner: id });
-    const mediaEntries = await this.handleFileUpload(
-      createCompanyDto.companyName,
-      files,
-    );
+
+    // Handle file uploads
+    const profilePictureUrl = files?.profilePicture?.[0]
+      ? await this.dbStorageService.saveFile(id, files.profilePicture[0])
+      : null;
+
+    const companyLogoUrl = files?.companyLogo?.[0]
+      ? await this.dbStorageService.saveFile(id, files.companyLogo[0])
+      : null;
+
+    // Construct the location object
+    const location = {
+      primary: {
+        coordinates: {
+          lat: createCompanyDto.latitude || null,
+          long: createCompanyDto.longitude || null,
+        },
+        address: {
+          zip: createCompanyDto.zip || '',
+          city: createCompanyDto.city || '',
+          state: createCompanyDto.state || '',
+          country: createCompanyDto.country || '',
+          address: createCompanyDto.companyAddress || '',
+        },
+      },
+      secondary: null, // Set secondary location to null (or populate if needed)
+      tertiary: null, // Set tertiary location to null (or populate if needed)
+    };
 
     if (!existingCompany) {
+      // Create a new company
       existingCompany = await this.companyModel.create({
         ...createCompanyDto,
         owner: id,
-        companyLogo: mediaEntries[0]?.url,
+        companyLogo: companyLogoUrl,
+        location,
       });
     } else {
+      // Update the existing company
       existingCompany = await this.companyModel.findByIdAndUpdate(
         existingCompany._id,
         {
           ...createCompanyDto,
-          companyLogo: mediaEntries[1]?.url || existingCompany.companyLogo,
+          companyLogo: companyLogoUrl || existingCompany.companyLogo,
+          location, // Update the location object
         },
         { new: true, runValidators: true },
       );
     }
 
+    // Update the user's active role to 'Company'
     await this.userModel.findByIdAndUpdate(id, {
-      firstName: createCompanyDto["firstName"],
-      lastName: createCompanyDto["lastName"],
-      profilePicture: mediaEntries[0]?.url,
+      firstName: createCompanyDto['firstName'],
+      lastName: createCompanyDto['lastName'],
+      profilePicture: profilePictureUrl,
       activeRole: 'Company',
       activeRoleId: existingCompany._id,
     });
 
     return existingCompany;
   }
-
   /**
    * Create an Admin
    * @param id User ID
@@ -172,9 +205,28 @@ export class UsersService {
    * @returns User Profile
    */
   async userProfile(id: string): Promise<User> {
-    return await this.userModel
+    const populatedUser = await this.userModel
       .findById(id)
-      .populate('purchasedServices') // Populate purchasedServices references
-      .populate('hiredCompanies');   // Populate hiredCompanies references
+      .populate('purchasedServices')
+      .populate('hiredCompanies')
+      .populate({
+        path: 'activeRoleId',
+        model: 'Company',
+        populate: [
+          { path: 'clients', select: 'firstName lastName email' },
+          {
+            path: 'services',
+            model: 'Services',
+            populate: { path: 'clients', select: 'firstName lastName email' },
+          },
+        ],
+      })
+      .exec();
+
+    if (!populatedUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    return populatedUser;
   }
 }

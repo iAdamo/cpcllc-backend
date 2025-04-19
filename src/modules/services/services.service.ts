@@ -24,6 +24,12 @@ export class ServicesService {
     USER_ID_REQUIRED: 'User id is required',
   };
 
+  /**
+   * Handle file upload
+   * @param identifier The identifier of the file
+   * @param files The file to upload
+   * @returns The URL of the uploaded file
+   */
   private async handleFileUpload(
     identifier: string,
     files: Express.Multer.File | Express.Multer.File[],
@@ -41,34 +47,82 @@ export class ServicesService {
     );
   }
 
+  /**
+   * Create a Service
+   * @param createServiceDto
+   * @param files
+   * @returns
+   */
   async createService(
     createServiceDto: CreateServiceDto,
     files: Express.Multer.File[],
   ): Promise<Services> {
-    const { title, description, price, category, company } = createServiceDto;
+    const { title, description, price, category, company, location } =
+      createServiceDto;
 
-    if (!title || !description || !price || !category || !company) {
+    if (
+      !title ||
+      !description ||
+      !price ||
+      !category ||
+      !company ||
+      !location
+    ) {
+      console.log('error');
       throw new BadRequestException(
         'Title, description, price, category, and company are required',
       );
     }
 
-    // Handle file uploads
-    const uploadedPictures = await Promise.all(
-      files.map(async (file) => {
-        return await this.dbStorageService.saveFile(
-          createServiceDto.company.toString(),
-          file,
-        );
-      }),
+    // Separate image and video files
+    const imageFiles = files.filter((file) =>
+      file.mimetype.startsWith('image/'),
+    );
+    const videoFiles = files.filter((file) =>
+      file.mimetype.startsWith('video/'),
     );
 
-    // Add uploaded picture URLs to the DTO
-    createServiceDto.pictures = uploadedPictures;
+    const mediaEntries = await this.handleFileUpload(
+      createServiceDto.company.toString(),
+      files,
+    );
+
+    // Handle image uploads
+    const uploadedImages = await this.handleFileUpload(
+      createServiceDto.company.toString(),
+      imageFiles,
+    );
+
+    // Handle video uploads
+    const uploadedVideos = await this.handleFileUpload(
+      createServiceDto.company.toString(),
+      videoFiles,
+    );
+
+    // Map uploaded files to the media structure
+    createServiceDto.media = {
+      image: {
+        primary: uploadedImages[0]?.url || null,
+        secondary: uploadedImages[1]?.url || null,
+        tertiary: uploadedImages[2]?.url || null,
+      },
+      video: {
+        primary: uploadedVideos[0]?.url,
+        secondary: uploadedVideos[1]?.url,
+        tertiary: uploadedVideos[2]?.url,
+      },
+    };
 
     return await this.serviceModel.create(createServiceDto);
   }
 
+  /**
+   * Update a Service
+   * @param id The ID of the service to update
+   * @param updateServiceDto The updated service data
+   * @param files The files to upload
+   * @returns The updated service
+   */
   async updateService(
     id: string,
     updateServiceDto: CreateServiceDto,
@@ -80,22 +134,67 @@ export class ServicesService {
       throw new NotFoundException('Service not found');
     }
 
-    // Handle file uploads
-    const uploadedPictures = await Promise.all(
-      files.map(async (file) => {
-        return await this.dbStorageService.saveFile(
-          updateServiceDto.company.toString(),
-          file,
-        );
-      }),
+    // Separate image and video files
+    const imageFiles = files.filter((file) =>
+      file.mimetype.startsWith('image/'),
+    );
+    const videoFiles = files.filter((file) =>
+      file.mimetype.startsWith('video/'),
     );
 
-    // Add uploaded picture URLs to the DTO
-    updateServiceDto.pictures = uploadedPictures;
+    // Handle image uploads
+    const uploadedImages = await this.handleFileUpload(
+      updateServiceDto.company.toString(),
+      imageFiles,
+    );
+
+    // Handle video uploads
+    const uploadedVideos = await this.handleFileUpload(
+      updateServiceDto.company.toString(),
+      videoFiles,
+    );
+
+    // Map uploaded files to the media structure
+    updateServiceDto.media = {
+      image: {
+        primary: uploadedImages[0]?.url || service.media.image.primary,
+        secondary: uploadedImages[1]?.url || service.media.image.secondary,
+        tertiary: uploadedImages[2]?.url || service.media.image.tertiary,
+      },
+      video: {
+        primary: uploadedVideos[0]?.url || service.media.video.primary,
+        secondary: uploadedVideos[1]?.url || service.media.video.secondary,
+        tertiary: uploadedVideos[2]?.url || service.media.video.tertiary,
+      },
+    };
 
     return await this.serviceModel.findByIdAndUpdate(id, updateServiceDto, {
       new: true,
     });
+  }
+
+  /**
+   * get services by category
+   * @param category category to filter by
+   * @returns services in the category
+   */
+  async getServicesByCategory(category: string): Promise<Services[]> {
+    return await this.serviceModel.find({ category }).exec();
+  }
+
+  /**
+   *
+   * @param id service id
+   * @returns
+   */
+  async getServiceById(id: string): Promise<Services> {
+    const service = await this.serviceModel.findById(id);
+
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+
+    return service;
   }
 
   async deleteService(id: string): Promise<Services> {
@@ -110,19 +209,6 @@ export class ServicesService {
 
   async getServices(): Promise<Services[]> {
     return await this.serviceModel.find().exec();
-  }
-
-  async getServiceById(id: string): Promise<Services> {
-    return await this.serviceModel.findById(id);
-  }
-
-  /**
-   * get services by category
-   * @param category category to filter by
-   * @returns services in the category
-   */
-  async getServicesByCategory(category: string): Promise<Services[]> {
-    return await this.serviceModel.find({ category }).exec();
   }
 
   /**
@@ -148,14 +234,36 @@ export class ServicesService {
    * @returns random services
    */
 
-  async getRandomServices(count: number): Promise<Services[]> {
-    const sampleSize = Number(count); // Ensure count is converted to a number
-    if (isNaN(sampleSize) || sampleSize <= 0) {
-      throw new BadRequestException('Count must be a positive number');
+  async getRandomServices(
+    page: string,
+    limit: string,
+  ): Promise<{ services: Services[]; totalPages: number }> {
+    const pageN = parseInt(page);
+    const limitN = parseInt(limit);
+
+    if (isNaN(pageN) || pageN <= 0) {
+      throw new BadRequestException('Page must be a positive number');
     }
 
-    return await this.serviceModel.aggregate([
-      { $sample: { size: sampleSize } },
+    if (isNaN(limitN) || limitN <= 0) {
+      throw new BadRequestException('Limit must be a positive number');
+    }
+
+    const totalCount = await this.serviceModel.countDocuments(); // Get total services count
+    if (totalCount === 0) {
+      return { services: [], totalPages: 0 };
+    }
+
+    const totalPages = Math.ceil(totalCount / limitN); // Calculate total pages
+    const skip = (pageN - 1) * limitN;
+
+    // Randomly shuffle all documents and apply pagination
+    const services = await this.serviceModel.aggregate([
+      { $sample: { size: limitN } },
+      { $skip: skip },
+      { $limit: limitN },
     ]);
+
+    return { services, totalPages };
   }
 }

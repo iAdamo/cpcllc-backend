@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { Location, LocationSchema } from '@schemas/location.schema';
+// import { Location, LocationSchema } from '@schemas/location.schema';
 
 export type ServicesDocument = HydratedDocument<Services>;
 
@@ -21,12 +21,8 @@ export class Services {
   @Prop({ required: false, default: 0 })
   ratings: number;
 
-  @Prop({ type: LocationSchema, required: true })
-  location: {
-    primary: Location;
-    secondary: Location;
-    tertiary: Location;
-  };
+  @Prop({ required: true })
+  location: string;
 
   @Prop({
     type: {
@@ -56,13 +52,10 @@ export class Services {
     };
   };
 
-  @Prop({ required: true })
-  link: string;
-
   @Prop({ required: true, type: Types.ObjectId, ref: 'Company' })
   company: Types.ObjectId;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Client' }] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }] })
   clients: Types.ObjectId[];
 }
 

@@ -4,9 +4,13 @@ import {
   IsNumber,
   IsArray,
   IsOptional,
+  ValidateNested,
+  IsObject,
 } from 'class-validator';
 import { Types } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { LocationDto, MediaGroupDto } from '@dto/create-location.dto';
 
 export class CreateServiceDto {
   @ApiProperty({ description: 'The title of the service' })
@@ -29,14 +33,23 @@ export class CreateServiceDto {
   @IsNotEmpty()
   category: string;
 
-  @ApiProperty({
-    description: 'The list of pictures associated with the service',
-    type: [String],
-    required: false,
-  })
-  @IsArray()
+  @ApiProperty({ description: 'The ratings of the service', required: false })
+  @IsNumber()
   @IsOptional()
-  pictures?: string[];
+  ratings?: number;
+
+  @ApiProperty({ description: 'The location of the service', required: false })
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @ApiProperty({
+    description: 'The media details of the service',
+    type: MediaGroupDto,
+  })
+  @ValidateNested()
+  @Type(() => MediaGroupDto)
+  media: MediaGroupDto;
 
   @ApiProperty({
     description: 'The ID of the company providing the service',

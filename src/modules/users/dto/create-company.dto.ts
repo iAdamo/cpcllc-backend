@@ -13,7 +13,7 @@ export class CreateCompanyDto {
   @IsString()
   companyName: string;
 
-  @ApiProperty({ description: 'Company description', required: false })
+  @ApiProperty({ description: 'Company description', required: true })
   @IsOptional()
   @IsString()
   companyDescription?: string;

@@ -3,11 +3,15 @@ import { JwtService } from './jwt.service';
 import { Response } from 'express';
 import { LoginDto } from '@dto/login.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { UsersService } from '@modules/users.service';
 
 @Controller('auth')
 @ApiTags('auth')
 export class JwtController {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly userService: UsersService,
+  ) {}
 
   @Post('login')
   async login(@Body() loginDto: LoginDto, @Res() res: Response) {
@@ -26,7 +30,7 @@ export class JwtController {
 
     return res.status(200).json({
       message: 'Login successful',
-      user: user,
+      user: await this.userService.userProfile(user["_id"])
     });
   }
 

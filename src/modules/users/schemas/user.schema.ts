@@ -7,6 +7,9 @@ export type UserDocument = HydratedDocument<User>;
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: false })
+  username: string;
+
+  @Prop({ required: false })
   firstName: string;
 
   @Prop({ required: false })
@@ -85,7 +88,6 @@ UserSchema.set('toJSON', {
     delete ret.codeAt;
     delete ret.verified;
     delete ret.forgetPassword;
-    delete ret.createdAt;
     delete ret.updatedAt;
     return ret;
   },
