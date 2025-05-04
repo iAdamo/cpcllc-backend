@@ -12,7 +12,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { ServicesService } from './services.service';
+import { ServicesService } from '../services/services.service';
 import { CreateServiceDto } from '@dto/create-service.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { Services } from '@schemas/services.schema';
@@ -114,8 +114,6 @@ export class ServicesController {
     @Query('page') page: string,
     @Query('limit') limit: string,
   ): Promise<{ services: Services[]; totalPages: number }> {
-
-
     return this.servicesService.getRandomServices(page, limit);
   }
 

@@ -35,13 +35,19 @@ export class Company {
     tertiary?: Location;
   };
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    unique: true,
+    required: true,
+    index: true,
+  })
   owner: Types.ObjectId;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   clients: Types.ObjectId[];
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Service' }] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Services' }] })
   services: Types.ObjectId[];
 }
 

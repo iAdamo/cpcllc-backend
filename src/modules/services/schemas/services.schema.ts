@@ -64,6 +64,4 @@ export const ServicesSchema = SchemaFactory.createForClass(Services);
 ServicesSchema.index({ category: 1 });
 ServicesSchema.index({ company: 1 });
 ServicesSchema.index({ clients: 1 });
-ServicesSchema.index({ 'location.primary': '2dsphere' });
-ServicesSchema.index({ 'location.secondary': '2dsphere' });
-ServicesSchema.index({ 'location.tertiary': '2dsphere' });
+ServicesSchema.index({ location: 1 });

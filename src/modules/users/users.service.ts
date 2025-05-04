@@ -3,6 +3,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -14,6 +15,7 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateCompanyUserDto } from './dto/update-company.dto';
 import { DbStorageService } from '../../utils/dbStorage';
+import path from 'path';
 
 @Injectable()
 export class UsersService {
@@ -29,6 +31,7 @@ export class UsersService {
     EMAIL_REQUIRED: 'Email and password are required',
     EMAIL_EXISTS: 'Email already exists',
     USER_ID_REQUIRED: 'User id is required',
+    FILE_UPLOAD_FAILED: 'File upload failed',
   };
 
   private async handleFileUpload(
@@ -110,19 +113,21 @@ export class UsersService {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
     }
 
-    // Check if the user already owns a company
-    let existingCompany = await this.companyModel.findOne({ owner: id });
+    let profilePictureUrl = null;
+    let companyLogoUrl = null;
 
-    // Handle file uploads
-    const profilePictureUrl = files?.profilePicture?.[0]
-      ? await this.dbStorageService.saveFile(id, files.profilePicture[0])
-      : null;
+    try {
+      profilePictureUrl = files?.profilePicture?.[0]
+        ? await this.dbStorageService.saveFile(id, files.profilePicture[0])
+        : null;
 
-    const companyLogoUrl = files?.companyLogo?.[0]
-      ? await this.dbStorageService.saveFile(id, files.companyLogo[0])
-      : null;
+      companyLogoUrl = files?.companyLogo?.[0]
+        ? await this.dbStorageService.saveFile(id, files.companyLogo[0])
+        : null;
+    } catch (error) {
+      throw new InternalServerErrorException(this.ERROR_MESSAGES.FILE_UPLOAD_FAILED);
+    }
 
-    // Construct the location object
     const location = {
       primary: {
         coordinates: {
@@ -137,35 +142,25 @@ export class UsersService {
           address: createCompanyDto.companyAddress || '',
         },
       },
-      secondary: null, // Set secondary location to null (or populate if needed)
-      tertiary: null, // Set tertiary location to null (or populate if needed)
+      secondary: null,
+      tertiary: null,
     };
 
-    if (!existingCompany) {
-      // Create a new company
-      existingCompany = await this.companyModel.create({
-        ...createCompanyDto,
-        owner: id,
-        companyLogo: companyLogoUrl,
-        location,
-      });
-    } else {
-      // Update the existing company
-      existingCompany = await this.companyModel.findByIdAndUpdate(
-        existingCompany._id,
-        {
+    const existingCompany = await this.companyModel.findOneAndUpdate(
+      { owner: id },
+      {
+        $set: {
           ...createCompanyDto,
-          companyLogo: companyLogoUrl || existingCompany.companyLogo,
-          location, // Update the location object
+          companyLogo: companyLogoUrl,
+          location,
         },
-        { new: true, runValidators: true },
-      );
-    }
+      },
+      { new: true, upsert: true, runValidators: true },
+    );
 
-    // Update the user's active role to 'Company'
     await this.userModel.findByIdAndUpdate(id, {
-      firstName: createCompanyDto['firstName'],
-      lastName: createCompanyDto['lastName'],
+      firstName: createCompanyDto["firstName"],
+      lastName: createCompanyDto["lastName"],
       profilePicture: profilePictureUrl,
       activeRole: 'Company',
       activeRoleId: existingCompany._id,
@@ -173,6 +168,7 @@ export class UsersService {
 
     return existingCompany;
   }
+
   /**
    * Create an Admin
    * @param id User ID
@@ -212,14 +208,11 @@ export class UsersService {
       .populate({
         path: 'activeRoleId',
         model: 'Company',
-        populate: [
-          { path: 'clients', select: 'firstName lastName email' },
-          {
-            path: 'services',
-            model: 'Services',
-            populate: { path: 'clients', select: 'firstName lastName email' },
-          },
-        ],
+        populate: {
+          path: 'services',
+          model: 'Services',
+          select: 'title price media',
+        },
       })
       .exec();
 

@@ -7,13 +7,15 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Services } from '@schemas/services.schema';
+import { Company } from '@schemas/company.schema';
 import { CreateServiceDto } from '@dto/create-service.dto';
-import { DbStorageService } from '../../utils/dbStorage';
+import { DbStorageService } from '../../../utils/dbStorage';
 
 @Injectable()
 export class ServicesService {
   constructor(
     @InjectModel(Services.name) private serviceModel: Model<Services>,
+    @InjectModel(Company.name) private companyModel: Model<Company>,
     private readonly dbStorageService: DbStorageService,
   ) {}
 
@@ -113,7 +115,21 @@ export class ServicesService {
       },
     };
 
-    return await this.serviceModel.create(createServiceDto);
+    const service = await this.serviceModel.create(createServiceDto);
+    if (!service) {
+      throw new ConflictException('Service already exists');
+    }
+
+    console.log('service', createServiceDto.company);
+
+    await this.companyModel.findByIdAndUpdate(
+      createServiceDto.company,
+      {
+        $addToSet: { services: service._id },
+      },
+    );
+
+    return service;
   }
 
   /**
