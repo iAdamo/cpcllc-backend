@@ -1,5 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { createKeyv } from '@keyv/redis';
+import KeyvRedis from '@keyv/redis';
+import Keyv from 'keyv';
+import { CacheableMemory } from 'cacheable';
+import { CacheModule } from '@nestjs/cache-manager';
+import { Cacheable } from 'cacheable';
 
 import { MongooseModule } from '@nestjs/mongoose';
 import databaseConfig from '@config/database.config';
@@ -32,11 +38,27 @@ import { ServicesModule } from './modules/services/services.module';
       },
       inject: [ConfigService],
     }),
+    CacheModule.registerAsync({
+      useFactory: async () => {
+        return {
+          stores: [
+            new Keyv({
+              store: new CacheableMemory({ ttl: 60000, lruSize: 5000 }),
+            }),
+            createKeyv('redis://127.0.0.1:6379'),
+          ],
+        };
+      },
+      inject: [ConfigService],
+      isGlobal: true,
+    }),
+
     UsersModule,
     AuthModule,
     ServicesModule,
   ],
   controllers: [],
   providers: [],
+  exports: [CacheModule],
 })
 export class AppModule {}

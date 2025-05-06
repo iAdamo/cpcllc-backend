@@ -21,7 +21,7 @@ export class JwtController {
     );
     const token = await this.jwtService.login(user);
 
-    res.cookie('Authentication', token.access_token, {
+    res.cookie('authentication', token.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 90 * 24 * 60 * 60 * 1000,

@@ -3,17 +3,21 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Services } from '@schemas/services.schema';
 import { Company } from '@schemas/company.schema';
 import { CreateServiceDto } from '@dto/create-service.dto';
 import { DbStorageService } from '../../../utils/dbStorage';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class ServicesService {
   constructor(
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @InjectModel(Services.name) private serviceModel: Model<Services>,
     @InjectModel(Company.name) private companyModel: Model<Company>,
     private readonly dbStorageService: DbStorageService,
@@ -25,6 +29,8 @@ export class ServicesService {
     EMAIL_EXISTS: 'Email already exists',
     USER_ID_REQUIRED: 'User id is required',
   };
+
+  private readonly TTL_SECONDS = 6000;
 
   /**
    * Handle file upload
@@ -122,12 +128,9 @@ export class ServicesService {
 
     console.log('service', createServiceDto.company);
 
-    await this.companyModel.findByIdAndUpdate(
-      createServiceDto.company,
-      {
-        $addToSet: { services: service._id },
-      },
-    );
+    await this.companyModel.findByIdAndUpdate(createServiceDto.company, {
+      $addToSet: { services: service._id },
+    });
 
     return service;
   }
@@ -204,12 +207,20 @@ export class ServicesService {
    * @returns
    */
   async getServiceById(id: string): Promise<Services> {
-    const service = await this.serviceModel.findById(id);
+    const service = await this.serviceModel
+      .findById(id)
+      .populate({
+        path: 'company', // Populate the company data
+        populate: {
+          path: 'owner', // Populate the owner (user) data from the company
+          select: 'firstName lastName email profilePicture', // Include specific fields from the User schema
+        },
+      })
+      .exec();
 
     if (!service) {
       throw new NotFoundException('Service not found');
     }
-
     return service;
   }
 
@@ -223,8 +234,66 @@ export class ServicesService {
     return await this.serviceModel.findByIdAndDelete(id);
   }
 
-  async getServices(): Promise<Services[]> {
-    return await this.serviceModel.find().exec();
+  /**
+   * get all services
+   * @param page page number
+   * @param limit number of services per page
+   * @returns services and total pages
+   */
+  async getServices(
+    page: string,
+    limit: string,
+  ): Promise<{ services: Services[]; totalPages: number }> {
+    const pageN = Number(page);
+    const limitN = Number(limit);
+
+    if (!Number.isInteger(pageN) || pageN <= 0) {
+      throw new BadRequestException('Page must be a positive integer');
+    }
+
+    if (!Number.isInteger(limitN) || limitN <= 0) {
+      throw new BadRequestException('Limit must be a positive integer');
+    }
+
+    const cacheKey = `services_page_${pageN}_limit_${limitN}`;
+    const cached = await this.cacheManager.get<{
+      services: Services[];
+      totalPages: number;
+    }>(cacheKey);
+    if (cached) {
+      console.log('Cache hit');
+      return cached
+    }
+
+    console.log('Cache miss');
+    const totalCount = await this.serviceModel.countDocuments();
+    if (totalCount === 0) {
+      return { services: [], totalPages: 0 };
+    }
+
+    const totalPages = Math.ceil(totalCount / limitN);
+    if (pageN > totalPages) {
+      return { services: [], totalPages };
+    }
+
+    const skip = (pageN - 1) * limitN;
+
+    const services = await this.serviceModel
+      .find()
+      .populate({
+        path: 'company',
+        select: 'companyName companyLogo',
+      })
+      .skip(skip)
+      .limit(limitN)
+      .exec();
+
+    const result = { services, totalPages };
+    // ts-error ignore
+    const data = await this.cacheManager.set(cacheKey, result, this.TTL_SECONDS);
+    // console.log(data);
+
+    return result;
   }
 
   /**
@@ -281,5 +350,28 @@ export class ServicesService {
     ]);
 
     return { services, totalPages };
+  }
+
+  async toggleFavorite(serviceId: string, userId: string): Promise<Services> {
+    const service = await this.serviceModel.findById(serviceId);
+    if (!service) throw new NotFoundException('Service not found');
+
+    const hasFavorited = service.favoritedBy.includes(
+      new Types.ObjectId(userId),
+    );
+
+    const update = hasFavorited
+      ? {
+          $pull: { favoritedBy: userId },
+          $inc: { favoriteCount: -1 },
+        }
+      : {
+          $addToSet: { favoritedBy: userId },
+          $inc: { favoriteCount: 1 },
+        };
+
+    await this.serviceModel.updateOne({ _id: serviceId }, update);
+
+    return await this.serviceModel.findById(serviceId);
   }
 }

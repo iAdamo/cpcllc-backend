@@ -57,6 +57,12 @@ export class Services {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }] })
   clients: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  favoritedBy: Types.ObjectId[];
+
+  @Prop({ default: 0 })
+  favoriteCount: number;
 }
 
 export const ServicesSchema = SchemaFactory.createForClass(Services);

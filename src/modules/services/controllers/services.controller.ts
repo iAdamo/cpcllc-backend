@@ -10,13 +10,21 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '@guards/jwt.guard';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ServicesService } from '../services/services.service';
 import { CreateServiceDto } from '@dto/create-service.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { Services } from '@schemas/services.schema';
+import { Request } from 'express';
+import { User } from '@schemas/user.schema'; // Adjust path as needed
 
+export interface RequestWithUser extends Request {
+  user: User & { _id: string };
+}
 @ApiTags('Services')
 @Controller('services')
 export class ServicesController {
@@ -88,9 +96,13 @@ export class ServicesController {
     return this.servicesService.deleteService(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
-  async getServices() {
-    return this.servicesService.getServices();
+  async getServices(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ): Promise<{ services: Services[]; totalPages: number }> {
+    return this.servicesService.getServices(page, limit);
   }
 
   @Get('category/:category')
@@ -108,7 +120,7 @@ export class ServicesController {
    * @param count number of services to return
    * @returns random services
    */
-
+  @UseGuards(JwtAuthGuard)
   @Get('random')
   async getRandomServices(
     @Query('page') page: string,
@@ -120,5 +132,13 @@ export class ServicesController {
   @Get(':id')
   async getServiceById(@Param('id') id: string) {
     return this.servicesService.getServiceById(id);
+  }
+
+  @Patch(':id/favorite')
+  async toggleFavorite(
+    @Param('id') serviceId: string,
+    @Req() req: RequestWithUser,
+  ): Promise<Services> {
+    return this.servicesService.toggleFavorite(serviceId, req.user._id);
   }
 }

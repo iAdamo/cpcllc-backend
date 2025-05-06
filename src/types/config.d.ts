@@ -7,4 +7,7 @@ export interface DatabaseConfig {
   database: {
     uri: string;
   };
+  redis: {
+    uri: string;
+  };
 }

@@ -9,4 +9,8 @@ export default (): DatabaseConfig => ({
   database: {
     uri: process.env.MONGO_URI,
   },
+  redis: {
+    uri: process.env.REDIS_URL,
+  },
+
 });
