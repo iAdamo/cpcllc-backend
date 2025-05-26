@@ -213,7 +213,7 @@ export class ServicesService {
         path: 'company', // Populate the company data
         populate: {
           path: 'owner', // Populate the owner (user) data from the company
-          select: 'firstName lastName email profilePicture', // Include specific fields from the User schema
+          select: '_id firstName lastName email profilePicture', // Include specific fields from the User schema
         },
       })
       .exec();
@@ -282,7 +282,7 @@ export class ServicesService {
       .find()
       .populate({
         path: 'company',
-        select: 'companyName companyLogo',
+        select: 'owner companyName companyLogo',
       })
       .skip(skip)
       .limit(limitN)

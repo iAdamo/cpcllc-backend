@@ -6,7 +6,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
 import { Company, CompanyDocument } from '@schemas/company.schema';
 import { Admin, AdminDocument } from '@schemas/admin.schema';
@@ -57,9 +57,9 @@ export class UsersService {
    * @returns Created User
    */
   async createUsers(createUsersDto: CreateUserDto): Promise<User> {
-    const { username, email, password } = createUsersDto;
+    const { email, password } = createUsersDto;
 
-    if (!username || !email || !password) {
+    if (!email || !password) {
       throw new BadRequestException(this.ERROR_MESSAGES.EMAIL_REQUIRED);
     }
 
@@ -106,26 +106,38 @@ export class UsersService {
     createCompanyDto: CreateCompanyDto,
     files?: {
       profilePicture?: Express.Multer.File[];
-      companyLogo?: Express.Multer.File[];
+      companyImages?: Express.Multer.File[];
     },
   ): Promise<Company> {
     if (!id) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
     }
 
-    let profilePictureUrl = null;
-    let companyLogoUrl = null;
+    let profilePictureUrl: string | null = null;
+    let companyImagesUrl: string[] | null = null;
 
     try {
-      profilePictureUrl = files?.profilePicture?.[0]
-        ? await this.dbStorageService.saveFile(id, files.profilePicture[0])
-        : null;
+      // Upload profile picture (use the first one)
+      if (files?.profilePicture?.length) {
+        const [uploaded] = await this.handleFileUpload(
+          id,
+          files.profilePicture[0],
+        );
+        profilePictureUrl = uploaded?.url || null;
+      }
 
-      companyLogoUrl = files?.companyLogo?.[0]
-        ? await this.dbStorageService.saveFile(id, files.companyLogo[0])
-        : null;
+      // Upload all company images
+      if (files?.companyImages?.length) {
+        const uploadedCompanyImages = await this.handleFileUpload(
+          id,
+          files.companyImages,
+        );
+        companyImagesUrl = uploadedCompanyImages.map((item) => item.url);
+      }
     } catch (error) {
-      throw new InternalServerErrorException(this.ERROR_MESSAGES.FILE_UPLOAD_FAILED);
+      throw new InternalServerErrorException(
+        this.ERROR_MESSAGES.FILE_UPLOAD_FAILED,
+      );
     }
 
     const location = {
@@ -151,7 +163,8 @@ export class UsersService {
       {
         $set: {
           ...createCompanyDto,
-          companyLogo: companyLogoUrl,
+          owner: id,
+          companyImages: companyImagesUrl,
           location,
         },
       },
@@ -221,5 +234,103 @@ export class UsersService {
     }
 
     return populatedUser;
+  }
+
+  /**
+   * Get all Users
+   * @returns List of Users
+   */
+  async getAllUsers(
+    page: string,
+    limit: string,
+  ): Promise<{ users: User[]; totalPages: number }> {
+    const pageN = parseInt(page);
+    const limitN = parseInt(limit);
+
+    if (isNaN(pageN) || pageN <= 0) {
+      throw new BadRequestException('Page must be a positive number');
+    }
+
+    if (isNaN(limitN) || limitN <= 0) {
+      throw new BadRequestException('Limit must be a positive number');
+    }
+    const totalUsers = await this.userModel.countDocuments();
+    if (totalUsers === 0) {
+      return { users: [], totalPages: 0 };
+    }
+    const totalPages = Math.ceil(totalUsers / limitN);
+    const users = await this.userModel
+      .find()
+      .skip((pageN - 1) * limitN)
+      .limit(limitN)
+      .populate('purchasedServices')
+      .populate('hiredCompanies')
+      .populate({
+        path: 'activeRoleId',
+        model: 'Company',
+        populate: {
+          path: 'services',
+          model: 'Services',
+          select: 'title price media',
+        },
+      })
+      .exec();
+    return { users, totalPages };
+  }
+
+  /**
+   * Get all Companies
+   * @returns List of Compani
+   */
+  async getAllCompanies(
+    page: string,
+    limit: string,
+  ): Promise<{ companies: Company[]; totalPages: number }> {
+    const pageN = parseInt(page);
+    const limitN = parseInt(limit);
+
+    if (isNaN(pageN) || pageN <= 0) {
+      throw new BadRequestException('Page must be a positive number');
+    }
+
+    if (isNaN(limitN) || limitN <= 0) {
+      throw new BadRequestException('Limit must be a positive number');
+    }
+
+    const totalCompanies = await this.companyModel.countDocuments();
+    if (totalCompanies === 0) {
+      return { companies: [], totalPages: 0 };
+    }
+
+    const totalPages = Math.ceil(totalCompanies / limitN);
+    const companies = await this.companyModel
+      .find()
+
+      .exec();
+    console.log('Companies:', companies);
+    return { companies, totalPages };
+  }
+
+  async toggleFavorite(companyId: string, userId: string): Promise<Company> {
+    const company = await this.companyModel.findById(companyId);
+    if (!company) throw new NotFoundException('User not found');
+
+    const hasFavorited = company.favoritedBy.includes(
+      new Types.ObjectId(userId),
+    );
+
+    const update = hasFavorited
+      ? {
+          $pull: { favoritedBy: userId },
+          $inc: { favoriteCount: -1 },
+        }
+      : {
+          $addToSet: { favoritedBy: userId },
+          $inc: { favoriteCount: 1 },
+        };
+
+    return await this.companyModel.findByIdAndUpdate(companyId, update, {
+      new: true,
+    });
   }
 }

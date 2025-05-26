@@ -18,8 +18,16 @@ export class Company {
   @Prop({ required: false })
   companyPhoneNumber: string;
 
-  @Prop({ required: false })
-  companyLogo: string;
+  @Prop({ type: [String], required: false })
+  companyImages: string[];
+
+  @Prop({
+    type: [String],
+    required: true,
+    index: true,
+    default: [],
+  })
+  selectedServices: string[];
 
   @Prop({
     type: {
@@ -27,7 +35,6 @@ export class Company {
       secondary: { type: LocationSchema, required: false },
       tertiary: { type: LocationSchema, required: false },
     },
-    required: true,
   })
   location: {
     primary: Location;
@@ -49,6 +56,12 @@ export class Company {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Services' }] })
   services: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  favoritedBy: Types.ObjectId[];
+
+  @Prop({ default: 0 })
+  favoriteCount: number;
 }
 
 export const CompanySchema = SchemaFactory.createForClass(Company);

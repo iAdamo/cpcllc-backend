@@ -17,6 +17,7 @@
       "@modules/*": [
         "src/modules/users/*",
         "src/modules/auth/*",
+        "src/modules/services/*",
         "src/modules/zones/*",
         "src/modules/media/*"
       ],

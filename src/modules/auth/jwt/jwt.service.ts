@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
+import { UsersService } from '@modules/users.service';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Model } from 'mongoose';
 import { MailtrapClient } from 'mailtrap';
@@ -17,6 +18,7 @@ export class JwtService {
   constructor(
     private readonly jwtService: NestJwtService,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    private readonly usersService: UsersService,
   ) {}
 
   /**
@@ -52,9 +54,22 @@ export class JwtService {
    * @param user User object
    * @returns JWT access token
    */
-  async login(user: User) {
-    const payload = { email: user.email, sub: user['_id'] };
-    return { access_token: this.jwtService.sign(payload) };
+
+  async login(user: User, res: any) {
+    const userId = user['_id'];
+    const payload = { sub: userId, email: user.email };
+    const accessToken = this.jwtService.sign(payload);
+    res.cookie('authentication', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 90 * 24 * 60 * 60 * 1000,
+      sameSite: 'strict',
+    });
+
+     return res.status(200).json({
+       message: 'Login successful',
+       user: await this.usersService.userProfile(userId),
+     });
   }
 
   /**

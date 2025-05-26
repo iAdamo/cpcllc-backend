@@ -3,14 +3,12 @@ import { JwtService } from './jwt.service';
 import { Response } from 'express';
 import { LoginDto } from '@dto/login.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { UsersService } from '@modules/users.service';
 
 @Controller('auth')
 @ApiTags('auth')
 export class JwtController {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly userService: UsersService,
   ) {}
 
   @Post('login')
@@ -19,24 +17,12 @@ export class JwtController {
       loginDto.email,
       loginDto.password,
     );
-    const token = await this.jwtService.login(user);
-
-    res.cookie('authentication', token.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 90 * 24 * 60 * 60 * 1000,
-      sameSite: 'none',
-    });
-
-    return res.status(200).json({
-      message: 'Login successful',
-      user: await this.userService.userProfile(user["_id"])
-    });
+    return this.jwtService.login(user, res);
   }
 
   @Post('logout')
   async logout(@Res() res: Response) {
-    res.clearCookie('Authentication');
+    res.clearCookie('authentication');
     return res.status(200).json({
       message: 'Logout successful',
     });

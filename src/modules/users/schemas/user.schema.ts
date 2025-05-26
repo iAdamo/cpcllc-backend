@@ -7,9 +7,6 @@ export type UserDocument = HydratedDocument<User>;
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: false })
-  username: string;
-
-  @Prop({ required: false })
   firstName: string;
 
   @Prop({ required: false })
@@ -56,7 +53,7 @@ export class User {
   })
   activeRole: string;
 
-  @Prop({ type: Types.ObjectId, refPath: 'activeRole' })
+  @Prop({ type: Types.ObjectId, refPath: 'activeRole', index: true })
   activeRoleId: Types.ObjectId;
 
   async comparePassword(password: string): Promise<boolean> {

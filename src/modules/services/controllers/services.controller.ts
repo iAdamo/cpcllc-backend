@@ -23,8 +23,12 @@ import { Request } from 'express';
 import { User } from '@schemas/user.schema'; // Adjust path as needed
 
 export interface RequestWithUser extends Request {
-  user: User & { _id: string };
+  user: {
+    email: string;
+    userId: string;
+  };
 }
+
 @ApiTags('Services')
 @Controller('services')
 export class ServicesController {
@@ -134,11 +138,12 @@ export class ServicesController {
     return this.servicesService.getServiceById(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/favorite')
   async toggleFavorite(
     @Param('id') serviceId: string,
     @Req() req: RequestWithUser,
   ): Promise<Services> {
-    return this.servicesService.toggleFavorite(serviceId, req.user._id);
+    return this.servicesService.toggleFavorite(serviceId, req.user.userId);
   }
 }
