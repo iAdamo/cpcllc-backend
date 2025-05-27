@@ -4,12 +4,7 @@ import { join } from 'path';
 
 @Injectable()
 export class DbStorageService {
-  private readonly baseStoragePath = join(
-    __dirname,
-    '..',
-    '..',
-    'uploads',
-  );
+  private readonly baseStoragePath = join(__dirname, '..', '..', 'uploads');
   private readonly baseUrl = `${process.env.BASE_URL}/uploads`;
 
   constructor() {}
@@ -18,13 +13,19 @@ export class DbStorageService {
     // Replace spaces with underscores in the folder name
     const sanitizedFolder = folder.replace(/\s+/g, '_');
 
-    const { buffer, originalname } = file;
+    // Sanitize the filename by replacing spaces and special characters with underscores
+    const sanitizedFilename = file.originalname.replace(
+      /[^a-zA-Z0-9.\-_]/g,
+      '_',
+    );
+
+    const { buffer } = file;
     const storagePath = join(this.baseStoragePath, sanitizedFolder);
     await mkdir(storagePath, { recursive: true });
 
-    const filePath = join(storagePath, originalname);
+    const filePath = join(storagePath, sanitizedFilename);
     await writeFile(filePath, buffer);
 
-    return `${this.baseUrl}/${sanitizedFolder}/${originalname}`;
+    return `${this.baseUrl}/${sanitizedFolder}/${sanitizedFilename}`;
   }
 }

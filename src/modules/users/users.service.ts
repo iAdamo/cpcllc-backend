@@ -172,8 +172,8 @@ export class UsersService {
     );
 
     await this.userModel.findByIdAndUpdate(id, {
-      firstName: createCompanyDto["firstName"],
-      lastName: createCompanyDto["lastName"],
+      firstName: createCompanyDto['firstName'],
+      lastName: createCompanyDto['lastName'],
       profilePicture: profilePictureUrl,
       activeRole: 'Company',
       activeRoleId: existingCompany._id,
@@ -303,10 +303,7 @@ export class UsersService {
     }
 
     const totalPages = Math.ceil(totalCompanies / limitN);
-    const companies = await this.companyModel
-      .find()
-
-      .exec();
+    const companies = await this.companyModel.find();
     console.log('Companies:', companies);
     return { companies, totalPages };
   }

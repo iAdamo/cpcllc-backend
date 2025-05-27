@@ -64,12 +64,6 @@ export class UsersController {
     }
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  async getUserById(@Param('id') id: string) {
-    return this.usersService.userProfile(id);
-  }
-
   /**
    * Get all companies with pagination
    * @param page Page number
@@ -82,6 +76,12 @@ export class UsersController {
     @Query('limit') limit: string,
   ) {
     return this.usersService.getAllCompanies(page, limit);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async getUserById(@Param('id') id: string) {
+    return this.usersService.userProfile(id);
   }
 
   /**
