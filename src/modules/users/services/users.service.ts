@@ -11,11 +11,10 @@ import { User, UserDocument } from '@schemas/user.schema';
 import { Company, CompanyDocument } from '@schemas/company.schema';
 import { Admin, AdminDocument } from '@schemas/admin.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
-import { CreateCompanyDto } from './dto/create-company.dto';
-import { CreateAdminDto } from './dto/create-admin.dto';
-import { UpdateCompanyUserDto } from './dto/update-company.dto';
-import { DbStorageService } from '../../utils/dbStorage';
-import path from 'path';
+import { CreateCompanyDto } from '../dto/create-company.dto';
+import { CreateAdminDto } from '../dto/create-admin.dto';
+import { UpdateCompanyUserDto } from '../dto/update-company.dto';
+import { handleFileUpload } from 'src/utils/fileUpload';
 
 @Injectable()
 export class UsersService {
@@ -23,7 +22,6 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Company.name) private companyModel: Model<CompanyDocument>,
     @InjectModel(Admin.name) private adminModel: Model<AdminDocument>,
-    private readonly dbStorageService: DbStorageService,
   ) {}
 
   private readonly ERROR_MESSAGES = {
@@ -33,23 +31,6 @@ export class UsersService {
     USER_ID_REQUIRED: 'User id is required',
     FILE_UPLOAD_FAILED: 'File upload failed',
   };
-
-  private async handleFileUpload(
-    identifier: string,
-    files: Express.Multer.File | Express.Multer.File[],
-  ): Promise<{ url: string; index: number }[]> {
-    const fileArray = Array.isArray(files) ? files : [files]; // Ensure files is always an array
-
-    return Promise.all(
-      fileArray.map(async (file, index) => ({
-        url:
-          process.env.STORAGETYPE === 'local'
-            ? await this.dbStorageService.saveFile(identifier, file)
-            : 'cloud-storage-url-placeholder', // Implement cloud storage logic
-        index,
-      })),
-    );
-  }
 
   /**
    * Create a User
@@ -85,7 +66,7 @@ export class UsersService {
     const user = await this.userModel.findById(id);
     if (!user) throw new NotFoundException(this.ERROR_MESSAGES.USER_NOT_FOUND);
 
-    const mediaEntries = await this.handleFileUpload(user.email, files);
+    const mediaEntries = await handleFileUpload(user.email, files);
 
     return await this.userModel.findByIdAndUpdate(
       id,
@@ -119,16 +100,13 @@ export class UsersService {
     try {
       // Upload profile picture (use the first one)
       if (files?.profilePicture?.length) {
-        const [uploaded] = await this.handleFileUpload(
-          id,
-          files.profilePicture[0],
-        );
+        const [uploaded] = await handleFileUpload(id, files.profilePicture[0]);
         profilePictureUrl = uploaded?.url || null;
       }
 
       // Upload all company images
       if (files?.companyImages?.length) {
-        const uploadedCompanyImages = await this.handleFileUpload(
+        const uploadedCompanyImages = await handleFileUpload(
           id,
           files.companyImages,
         );
@@ -214,18 +192,24 @@ export class UsersService {
    * @returns User Profile
    */
   async userProfile(id: string): Promise<User> {
+    if (!id) {
+      throw new BadRequestException('User ID is required');
+    }
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid User ID format');
+    }
     const populatedUser = await this.userModel
-      .findById(id)
+      .findOne({
+        $or: [
+          { _id: new Types.ObjectId(id) },
+          { activeRoleId: new Types.ObjectId(id) },
+        ],
+      })
       .populate('purchasedServices')
       .populate('hiredCompanies')
       .populate({
         path: 'activeRoleId',
         model: 'Company',
-        populate: {
-          path: 'services',
-          model: 'Services',
-          select: 'title price media',
-        },
       })
       .exec();
 
@@ -304,7 +288,6 @@ export class UsersService {
 
     const totalPages = Math.ceil(totalCompanies / limitN);
     const companies = await this.companyModel.find();
-    console.log('Companies:', companies);
     return { companies, totalPages };
   }
 
@@ -329,5 +312,73 @@ export class UsersService {
     return await this.companyModel.findByIdAndUpdate(companyId, update, {
       new: true,
     });
+  }
+
+  async searchCompanies(
+    searchInput?: string,
+    lat?: string,
+    long?: string,
+    address?: string,
+  ): Promise<Company[]> {
+    const radius = 1000; // 1km range
+    const filter: any = {};
+
+    const geoConditions: any[] = [];
+
+    // Validate and use coordinates if provided
+    if (lat && long) {
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(long);
+
+      if (isNaN(latitude) || isNaN(longitude)) {
+        throw new BadRequestException('Invalid Latitude or Longitude');
+      }
+
+      geoConditions.push({
+        'location.primary.coordinates': {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [longitude, latitude],
+            },
+            $maxDistance: radius,
+          },
+        },
+      });
+    }
+
+    // If address is given (even without search input)
+    if (address) {
+      console.log('Address provided:', address);
+      geoConditions.push({
+        'location.primary.address.address': { $regex: address, $options: 'i' },
+      });
+    }
+
+    // Text search across companyName or selectedServices
+    const textConditions: any[] = [];
+    if (searchInput) {
+      textConditions.push(
+        { selectedServices: { $regex: searchInput, $options: 'i' } },
+        { companyName: { $regex: searchInput, $options: 'i' } },
+      );
+    }
+
+    // Merge filters smartly
+    if (geoConditions.length > 0 && textConditions.length > 0) {
+      filter.$and = [{ $or: geoConditions }, { $or: textConditions }];
+    } else if (geoConditions.length > 0) {
+      filter.$or = geoConditions;
+    } else if (textConditions.length > 0) {
+      filter.$or = textConditions;
+    }
+
+    const companies = await this.companyModel.find(filter);
+
+    if (!companies || companies.length === 0) {
+      return [];
+    }
+
+    return companies;
   }
 }

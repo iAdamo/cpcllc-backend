@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Location, LocationSchema } from '@schemas/location.schema';
+import { Reviews } from '@schemas/reviews.schema';
 
 export type CompanyDocument = HydratedDocument<Company>;
 
@@ -60,8 +61,24 @@ export class Company {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   favoritedBy: Types.ObjectId[];
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Reviews' }], default: [] })
+  reviews: Reviews[];
+
   @Prop({ default: 0 })
   favoriteCount: number;
 }
 
 export const CompanySchema = SchemaFactory.createForClass(Company);
+
+CompanySchema.set('toJSON', {
+  transform: (_doc, ret) => {
+    delete ret.password;
+    delete ret.__v;
+    delete ret.code;
+    delete ret.codeAt;
+    delete ret.verified;
+    delete ret.forgetPassword;
+    delete ret.updatedAt;
+    return ret;
+  },
+});

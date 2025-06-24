@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import { UsersService } from '@modules/users.service';
+import { UsersService } from '@modules/services/users.service';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Model } from 'mongoose';
 import { MailtrapClient } from 'mailtrap';
@@ -66,10 +66,10 @@ export class JwtService {
       sameSite: 'strict',
     });
 
-     return res.status(200).json({
-       message: 'Login successful',
-       user: await this.usersService.userProfile(userId),
-     });
+    return res.status(200).json({
+      message: 'Login successful',
+      user: await this.usersService.userProfile(userId),
+    });
   }
 
   /**

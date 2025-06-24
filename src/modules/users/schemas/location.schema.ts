@@ -39,3 +39,19 @@ export class Location {
 export const LocationSchema = SchemaFactory.createForClass(Location);
 export const CoordinatesSchema = SchemaFactory.createForClass(Coordinates);
 export const AddressSchema = SchemaFactory.createForClass(Address);
+
+AddressSchema.set('toJSON', {
+  transform: (_doc, ret) => {
+    delete ret.__v;
+    delete ret._id;
+    return ret;
+  },
+});
+
+CoordinatesSchema.set('toJSON', {
+  transform: (_doc, ret) => {
+    delete ret.__v;
+    delete ret._id;
+    return ret;
+  },
+});

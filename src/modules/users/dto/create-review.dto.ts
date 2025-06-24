@@ -15,11 +15,6 @@ import { LocationDto, MediaGroupDto } from '@dto/create-location.dto';
 import { Reviews } from '../schemas/reviews.schema';
 
 export class CreateReviewDto {
-  @ApiProperty({ description: 'The title of the review' })
-  @IsString()
-  @IsNotEmpty()
-  title: string;
-
   @ApiProperty({ description: 'The description of the review' })
   @IsString()
   @IsNotEmpty()
@@ -27,9 +22,11 @@ export class CreateReviewDto {
 
   @ApiProperty({
     description: 'The rating of the review',
+    required: false,
     minimum: 1,
     maximum: 5,
   })
+  @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(5)
@@ -55,5 +52,6 @@ export class CreateReviewDto {
 
   @ApiProperty({ description: 'The service ID' })
   @IsMongoId()
-  service: Types.ObjectId;
+  @IsOptional()
+  service?: Types.ObjectId;
 }

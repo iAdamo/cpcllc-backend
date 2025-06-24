@@ -14,10 +14,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { User } from '@schemas/user.schema';
-import { UsersService } from '@services/users.service';
+import { UsersService } from '@modules/services/users.service';
 import { CreateUserDto } from '@modules/dto/create-user.dto';
-import { CreateCompanyDto } from './dto/create-company.dto';
-import { CreateAdminDto } from './dto/create-admin.dto';
+import { CreateCompanyDto } from '../dto/create-company.dto';
+import { CreateAdminDto } from '../dto/create-admin.dto';
 import { UpdateCompanyUserDto } from '@dto/update-company.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
@@ -78,7 +78,22 @@ export class UsersController {
     return this.usersService.getAllCompanies(page, limit);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Get('search')
+  async searchCompanies(
+    @Query('searchInput') searchInput?: string,
+    @Query('lat') lat?: string,
+    @Query('long') long?: string,
+    @Query('address') address?: string,
+  ): Promise<Company[]> {
+    return await this.usersService.searchCompanies(
+      searchInput,
+      lat,
+      long,
+      address,
+    );
+  }
+
+  // @UseGuards(JwtAuthGuard)
   @Get(':id')
   async getUserById(@Param('id') id: string) {
     return this.usersService.userProfile(id);

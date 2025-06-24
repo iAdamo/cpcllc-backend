@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ServicesService } from './services/services.service';
-import { ReviewsService } from './services/reviews.service';
 import { ServicesController } from './controllers/services.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Services, ServicesSchema } from '@schemas/services.schema';
 import { Company, CompanySchema } from '@schemas/company.schema';
-import { Reviews, ReviewsSchema } from './schemas/reviews.schema';
+import { Reviews, ReviewsSchema } from '../users/schemas/reviews.schema';
 import { DbStorageService } from '../../utils/dbStorage';
 import { CacheModule } from '@nestjs/cache-manager';
 
@@ -23,8 +22,8 @@ import { CacheModule } from '@nestjs/cache-manager';
       ttl: 60, // seconds
     }),
   ],
-  providers: [ServicesService, DbStorageService, ReviewsService],
+  providers: [ServicesService, DbStorageService],
   controllers: [ServicesController],
-  exports: [ServicesService, MongooseModule, ReviewsService],
+  exports: [ServicesService, MongooseModule],
 })
 export class ServicesModule {}

@@ -9,12 +9,9 @@ export type ReviewsDocument = HydratedDocument<Reviews>;
 @Schema({ timestamps: true })
 export class Reviews {
   @Prop({ required: true })
-  title: string;
-
-  @Prop({ required: true })
   description: string;
 
-  @Prop({ required: true, min: 1, max: 5 })
+  @Prop({ required: false, min: 1, max: 5 })
   rating: number;
 
   @Prop([String])
@@ -38,7 +35,7 @@ export class Reviews {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   user: User;
 
-  @Prop({ type: Types.ObjectId, ref: 'Company' })
+  @Prop({ type: Types.ObjectId, ref: 'Company', index: true })
   company: Company;
 
   @Prop({ type: Types.ObjectId, ref: 'Services' })
@@ -46,3 +43,13 @@ export class Reviews {
 }
 
 export const ReviewsSchema = SchemaFactory.createForClass(Reviews);
+
+ReviewsSchema.set('toJSON', {
+  virtuals: true,
+  transform: (doc, ret) => {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  },
+});
