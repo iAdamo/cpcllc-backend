@@ -14,16 +14,16 @@ export class Coordinates {
 
 @Schema()
 export class Address {
-  @Prop({ required: true })
+  @Prop({ required: false })
   zip: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   city: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   country: string;
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   address: string;
 }
 

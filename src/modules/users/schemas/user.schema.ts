@@ -37,9 +37,6 @@ export class User {
   @Prop({ default: false })
   forgetPassword: boolean;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Service' }] })
-  purchasedServices: Types.ObjectId[];
-
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Company' }], default: [] })
   hiredCompanies: Types.ObjectId[];
 
@@ -83,7 +80,6 @@ UserSchema.set('toJSON', {
     delete ret.__v;
     delete ret.code;
     delete ret.codeAt;
-    delete ret.verified;
     delete ret.forgetPassword;
     delete ret.updatedAt;
     return ret;

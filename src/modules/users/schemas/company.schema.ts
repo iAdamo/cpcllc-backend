@@ -23,12 +23,12 @@ export class Company {
   companyImages: string[];
 
   @Prop({
-    type: [String],
-    required: true,
+    type: [Types.ObjectId],
+    ref: 'Subcategory',
     index: true,
     default: [],
   })
-  selectedServices: string[];
+  subcategories: Types.ObjectId[];
 
   @Prop({
     type: {
@@ -54,9 +54,6 @@ export class Company {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   clients: Types.ObjectId[];
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Services' }] })
-  services: Types.ObjectId[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   favoritedBy: Types.ObjectId[];

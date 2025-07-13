@@ -19,6 +19,7 @@ import { CreateUserDto } from '@modules/dto/create-user.dto';
 import { CreateCompanyDto } from '../dto/create-company.dto';
 import { CreateAdminDto } from '../dto/create-admin.dto';
 import { UpdateCompanyUserDto } from '@dto/update-company.dto';
+import { UpdateUserDto } from '@modules/dto/update-user.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
 import { Company } from '@schemas/company.schema';
@@ -44,13 +45,14 @@ export class UsersController {
   )
   async createUsers(
     @Body() userDto: CreateUserDto | CreateCompanyDto | CreateAdminDto,
-    @Param('id') id?: string,
+    @Req() req: RequestWithUser,
     @UploadedFiles()
     files?: {
       profilePicture?: Express.Multer.File[];
       companyImages?: Express.Multer.File[];
     },
   ) {
+    const id = req.user.userId;
     if (!id) {
       return this.usersService.createUsers(userDto as CreateUserDto);
     } else if ('companyName' in userDto) {
@@ -62,6 +64,26 @@ export class UsersController {
     } else {
       return this.usersService.createAdmin(id, userDto as CreateAdminDto);
     }
+  }
+
+  @Patch()
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'profilePicture', maxCount: 1 },
+      { name: 'companyImages', maxCount: 10 },
+    ]),
+  )
+  async updateUser(
+    @Body() userDto: UpdateUserDto,
+    @Req() req: RequestWithUser,
+    @UploadedFiles()
+    files?: {
+      profilePicture?: Express.Multer.File[];
+    },
+  ) {
+    const id = req.user.userId;
+    return this.usersService.updateUser(id, userDto, files?.profilePicture);
   }
 
   /**

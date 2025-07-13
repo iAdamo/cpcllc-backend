@@ -10,10 +10,12 @@ import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
 import { Company, CompanyDocument } from '@schemas/company.schema';
 import { Admin, AdminDocument } from '@schemas/admin.schema';
+import { Subcategory, SubcategoryDocument } from '@schemas/service.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
+import { UpdateUserDto } from '@dto/update-user.dto';
+import { UpdateCompanyUserDto } from '../dto/update-company.dto';
 import { CreateCompanyDto } from '../dto/create-company.dto';
 import { CreateAdminDto } from '../dto/create-admin.dto';
-import { UpdateCompanyUserDto } from '../dto/update-company.dto';
 import { handleFileUpload } from 'src/utils/fileUpload';
 
 @Injectable()
@@ -22,6 +24,8 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Company.name) private companyModel: Model<CompanyDocument>,
     @InjectModel(Admin.name) private adminModel: Model<AdminDocument>,
+    @InjectModel(Subcategory.name)
+    private subcategoryModel: Model<SubcategoryDocument>,
   ) {}
 
   private readonly ERROR_MESSAGES = {
@@ -60,16 +64,18 @@ export class UsersService {
    */
   async updateUser(
     id: string,
-    updateUserDto: UpdateCompanyUserDto,
+    updateUserDto: UpdateUserDto,
     files: Express.Multer.File | Express.Multer.File[],
   ): Promise<User> {
-    const user = await this.userModel.findById(id);
+    const userId = new Types.ObjectId(id);
+    console.log('Update User ID:', userId);
+    const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException(this.ERROR_MESSAGES.USER_NOT_FOUND);
 
     const mediaEntries = await handleFileUpload(user.email, files);
 
     return await this.userModel.findByIdAndUpdate(
-      id,
+      userId,
       { ...updateUserDto, profilePicture: mediaEntries[0]?.url },
       { new: true, runValidators: true },
     );
@@ -83,31 +89,71 @@ export class UsersService {
    * @returns Created or Updated Company
    */
   async createCompany(
-    id: string,
+    userId: string,
     createCompanyDto: CreateCompanyDto,
     files?: {
       profilePicture?: Express.Multer.File[];
       companyImages?: Express.Multer.File[];
     },
   ): Promise<Company> {
-    if (!id) {
+    if (!userId) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
+    }
+
+    let validSubcategoryIds: Types.ObjectId[] = [];
+    // console.log(typeof createCompanyDto.subcategories);
+
+    if (typeof createCompanyDto.subcategories === 'string') {
+      createCompanyDto.subcategories = JSON.parse(
+        createCompanyDto.subcategories,
+      );
+    }
+    if (!Array.isArray(createCompanyDto.subcategories)) {
+      throw new BadRequestException('Subcategories must be an array');
+    }
+    if (
+      createCompanyDto.subcategories &&
+      createCompanyDto.subcategories.length
+    ) {
+      const subcategories = await this.subcategoryModel.find({
+        _id: {
+          $in: createCompanyDto.subcategories.map(
+            (id) => new Types.ObjectId(id),
+          ),
+        },
+      });
+
+      if (!subcategories.length) {
+        throw new BadRequestException('No valid subcategories found');
+      }
+
+      if (subcategories.length !== createCompanyDto.subcategories.length) {
+        const invalidIds = createCompanyDto.subcategories.filter(
+          (id) => !subcategories.find((s) => s._id.equals(id)),
+        );
+        throw new BadRequestException(
+          `Invalid subcategory IDs: ${invalidIds.join(', ')}`,
+        );
+      }
+
+      validSubcategoryIds = subcategories.map((s) => s._id);
     }
 
     let profilePictureUrl: string | null = null;
     let companyImagesUrl: string[] | null = null;
 
     try {
-      // Upload profile picture (use the first one)
       if (files?.profilePicture?.length) {
-        const [uploaded] = await handleFileUpload(id, files.profilePicture[0]);
+        const [uploaded] = await handleFileUpload(
+          userId,
+          files.profilePicture[0],
+        );
         profilePictureUrl = uploaded?.url || null;
       }
 
-      // Upload all company images
       if (files?.companyImages?.length) {
         const uploadedCompanyImages = await handleFileUpload(
-          id,
+          userId,
           files.companyImages,
         );
         companyImagesUrl = uploadedCompanyImages.map((item) => item.url);
@@ -121,8 +167,16 @@ export class UsersService {
     const location = {
       primary: {
         coordinates: {
-          lat: createCompanyDto.latitude || null,
-          long: createCompanyDto.longitude || null,
+          lat:
+            createCompanyDto.latitude &&
+            !isNaN(Number(createCompanyDto.latitude))
+              ? Number(createCompanyDto.latitude)
+              : null,
+          long:
+            createCompanyDto.longitude &&
+            !isNaN(Number(createCompanyDto.longitude))
+              ? Number(createCompanyDto.longitude)
+              : null,
         },
         address: {
           zip: createCompanyDto.zip || '',
@@ -136,28 +190,31 @@ export class UsersService {
       tertiary: null,
     };
 
-    const existingCompany = await this.companyModel.findOneAndUpdate(
-      { owner: id },
-      {
-        $set: {
-          ...createCompanyDto,
-          owner: id,
-          companyImages: companyImagesUrl,
-          location,
-        },
-      },
+    /** 🔹 Step 4. Upsert Company */
+    const companyData = {
+      ...createCompanyDto,
+      subcategories: validSubcategoryIds,
+      owner: userId,
+      companyImages: companyImagesUrl,
+      location,
+    };
+
+    const company = await this.companyModel.findOneAndUpdate(
+      { owner: userId },
+      { $set: companyData },
       { new: true, upsert: true, runValidators: true },
     );
 
-    await this.userModel.findByIdAndUpdate(id, {
+    /** 🔹 Step 5. Update User Profile Info */
+    await this.userModel.findByIdAndUpdate(userId, {
       firstName: createCompanyDto['firstName'],
       lastName: createCompanyDto['lastName'],
       profilePicture: profilePictureUrl,
       activeRole: 'Company',
-      activeRoleId: existingCompany._id,
+      activeRoleId: company._id,
     });
 
-    return existingCompany;
+    return company;
   }
 
   /**
@@ -205,7 +262,6 @@ export class UsersService {
           { activeRoleId: new Types.ObjectId(id) },
         ],
       })
-      .populate('purchasedServices')
       .populate('hiredCompanies')
       .populate({
         path: 'activeRoleId',
@@ -247,16 +303,10 @@ export class UsersService {
       .find()
       .skip((pageN - 1) * limitN)
       .limit(limitN)
-      .populate('purchasedServices')
       .populate('hiredCompanies')
       .populate({
         path: 'activeRoleId',
         model: 'Company',
-        populate: {
-          path: 'services',
-          model: 'Services',
-          select: 'title price media',
-        },
       })
       .exec();
     return { users, totalPages };
@@ -291,6 +341,12 @@ export class UsersService {
     return { companies, totalPages };
   }
 
+  /**
+   *
+   * @param companyId
+   * @param userId
+   * @returns
+   */
   async toggleFavorite(companyId: string, userId: string): Promise<Company> {
     const company = await this.companyModel.findById(companyId);
     if (!company) throw new NotFoundException('User not found');
@@ -349,7 +405,7 @@ export class UsersService {
 
     // If address is given (even without search input)
     if (address) {
-      console.log('Address provided:', address);
+      //console.log('Address provided:', address);
       geoConditions.push({
         'location.primary.address.address': { $regex: address, $options: 'i' },
       });

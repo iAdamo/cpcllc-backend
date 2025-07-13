@@ -81,7 +81,7 @@ export class ReviewsService {
     }
     const reviews = await this.reviewsModel
       .find({ company: new Types.ObjectId(companyId) })
-      .populate('user', 'name email profilePicture');
+      .populate('user', 'firstName lastName email profilePicture');
 
     if (!reviews || reviews.length === 0) {
       return [];

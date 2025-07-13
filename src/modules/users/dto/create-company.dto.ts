@@ -33,7 +33,7 @@ export class CreateCompanyDto {
   @IsString()
   companyAddress?: string;
 
-   @ApiProperty({
+  @ApiProperty({
     description: 'Array of links to company images',
     type: 'array',
     items: {
@@ -45,6 +45,16 @@ export class CreateCompanyDto {
   @IsArray()
   @IsString({ each: true })
   companyImages?: string[];
+
+  @ApiProperty({
+    description: 'Subcategories (ServiceCategory IDs)',
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  subcategories?: string[];
 
   @ApiProperty({ description: 'ZIP code', required: false })
   @IsOptional()
@@ -80,7 +90,11 @@ export class CreateCompanyDto {
   @IsMongoId()
   owner: string;
 
-  @ApiProperty({ description: 'Selected services', type: [String], required: false })
+  @ApiProperty({
+    description: 'Selected services',
+    type: [String],
+    required: false,
+  })
   @IsArray()
   selectedServices?: string[];
 

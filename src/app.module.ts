@@ -14,7 +14,6 @@ import { join } from 'path';
 import { UsersModule } from './modules/users/users.module';
 import { DatabaseConfig } from '@types';
 import { AuthModule } from './modules/auth/auth.module';
-import { ServicesModule } from './modules/services/services.module';
 
 @Module({
   imports: [
@@ -55,7 +54,6 @@ import { ServicesModule } from './modules/services/services.module';
 
     UsersModule,
     AuthModule,
-    ServicesModule,
   ],
   controllers: [],
   providers: [],
