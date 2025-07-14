@@ -45,14 +45,13 @@ export class UsersController {
   )
   async createUsers(
     @Body() userDto: CreateUserDto | CreateCompanyDto | CreateAdminDto,
-    @Req() req: RequestWithUser,
+    @Param('id') id?: string,
     @UploadedFiles()
     files?: {
       profilePicture?: Express.Multer.File[];
       companyImages?: Express.Multer.File[];
     },
   ) {
-    const id = req.user.userId;
     if (!id) {
       return this.usersService.createUsers(userDto as CreateUserDto);
     } else if ('companyName' in userDto) {
