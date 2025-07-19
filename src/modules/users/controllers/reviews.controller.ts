@@ -35,8 +35,8 @@ export interface RequestWithUser extends Request {
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post(':companyId')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'images', maxCount: 10 }]))
   async createReview(
     @Body() reviewDto: CreateReviewDto,
@@ -44,7 +44,6 @@ export class ReviewsController {
     @Req() req: RequestWithUser,
     @UploadedFiles() files?: { images?: Express.Multer.File[] },
   ) {
-    console.log('Review DTO:', reviewDto);
     return this.reviewsService.createReview(
       reviewDto,
       req.user.userId,

@@ -27,15 +27,14 @@ export class ReviewsService {
     companyId: string,
     images?: Express.Multer.File[],
   ): Promise<Reviews> {
-    const user = await this.userModel.findById(userId);
-    console.log('User:', user);
+    const newUserId = new Types.ObjectId(userId);
+    const newCompanyId = new Types.ObjectId(companyId);
+    const user = await this.userModel.findById(newUserId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Validate company existence
-    const company = await this.companyModel.findById(companyId);
-    console.log('Company:', company);
+    const company = await this.companyModel.findById(newCompanyId);
     if (!company) {
       throw new NotFoundException('Company not found');
     }
@@ -61,12 +60,32 @@ export class ReviewsService {
       images: imageLinks,
     });
 
-    console.log('Review:', review);
-
     try {
-      return await review.save();
+      const savedReview = await review.save();
+
+      // Calculate the new average rating
+      const reviews = await this.reviewsModel.find({
+        company: newCompanyId,
+      });
+      const totalRating = reviews.reduce(
+        (sum, review) => sum + (review.rating || 0),
+        0,
+      );
+      const averageRating =
+        reviews.length > 0 ? totalRating / reviews.length : 0;
+
+      // Update the company's review count and average rating
+      await this.companyModel.findByIdAndUpdate(
+        companyId,
+        {
+          $inc: { reviewCount: 1 },
+          $set: { averageRating },
+        },
+        { new: true },
+      );
+      return savedReview;
     } catch (error) {
-      throw new InternalServerErrorException('Error creating review');
+      throw new InternalServerErrorException('Error creating review' + error);
     }
   }
 
@@ -81,12 +100,40 @@ export class ReviewsService {
     }
     const reviews = await this.reviewsModel
       .find({ company: new Types.ObjectId(companyId) })
-      .populate('user', 'firstName lastName email profilePicture');
+      .sort({ createdAt: -1 })
+      .populate('user', 'firstName lastName email profilePicture')
+      .populate('company', 'companyName');
 
     if (!reviews || reviews.length === 0) {
       return [];
     }
 
     return reviews;
+  }
+
+  async deleteReview(reviewId: string): Promise<void> {
+    const review = await this.reviewsModel.findByIdAndDelete(reviewId);
+    if (review) {
+      const companyId = review.company;
+
+      // Recalculate the average rating
+      const reviews = await this.reviewsModel.find({ company: companyId });
+      const totalRating = reviews.reduce(
+        (sum, review) => sum + (review.rating || 0),
+        0,
+      );
+      const averageRating =
+        reviews.length > 0 ? totalRating / reviews.length : 0;
+
+      // Update the company's review count and average rating
+      await this.companyModel.findByIdAndUpdate(
+        companyId,
+        {
+          $inc: { reviewCount: -1 },
+          $set: { averageRating },
+        },
+        { new: true },
+      );
+    }
   }
 }

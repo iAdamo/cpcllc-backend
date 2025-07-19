@@ -22,6 +22,34 @@ export class Company {
   @Prop({ type: [String], required: false })
   companyImages: string[];
 
+  @Prop({ required: false })
+  companyWebsite: string;
+
+  @Prop({
+    type: {
+      facebook: { type: String, required: false },
+      twitter: { type: String, required: false },
+      instagram: { type: String, required: false },
+      linkedin: { type: String, required: false },
+    },
+    required: false,
+  })
+  companySocialMedia: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+  };
+
+  @Prop({ default: 0 })
+  reviewCount: number;
+
+  @Prop({ default: 0 })
+  favoriteCount: number;
+
+  @Prop({ default: 0 })
+  averageRating: number;
+
   @Prop({
     type: [Types.ObjectId],
     ref: 'Subcategory',
@@ -60,21 +88,14 @@ export class Company {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Reviews' }], default: [] })
   reviews: Reviews[];
-
-  @Prop({ default: 0 })
-  favoriteCount: number;
 }
 
 export const CompanySchema = SchemaFactory.createForClass(Company);
 
 CompanySchema.set('toJSON', {
   transform: (_doc, ret) => {
-    delete ret.password;
     delete ret.__v;
-    delete ret.code;
-    delete ret.codeAt;
-    delete ret.verified;
-    delete ret.forgetPassword;
+    delete ret.reviews;
     delete ret.updatedAt;
     return ret;
   },

@@ -6,7 +6,32 @@ import {
   IsNumber,
   IsMongoId,
   IsArray,
+  IsObject,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class CompanySocialMediaDto {
+  @ApiProperty({ description: 'Facebook URL', required: false })
+  @IsOptional()
+  @IsString()
+  facebook?: string;
+
+  @ApiProperty({ description: 'Twitter URL', required: false })
+  @IsOptional()
+  @IsString()
+  twitter?: string;
+
+  @ApiProperty({ description: 'Instagram URL', required: false })
+  @IsOptional()
+  @IsString()
+  instagram?: string;
+
+  @ApiProperty({ description: 'LinkedIn URL', required: false })
+  @IsOptional()
+  @IsString()
+  linkedin?: string;
+}
 
 export class CreateCompanyDto {
   @ApiProperty({ description: 'Company name', required: true })
@@ -45,6 +70,22 @@ export class CreateCompanyDto {
   @IsArray()
   @IsString({ each: true })
   companyImages?: string[];
+
+  @ApiProperty({ description: 'Company website', required: false })
+  @IsOptional()
+  @IsString()
+  companyWebsite?: string;
+
+  @ApiProperty({
+    description: 'Company social media links',
+    required: false,
+    type: CompanySocialMediaDto,
+  })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CompanySocialMediaDto)
+  companySocialMedia?: CompanySocialMediaDto;
 
   @ApiProperty({
     description: 'Subcategories (ServiceCategory IDs)',
