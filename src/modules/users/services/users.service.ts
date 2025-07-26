@@ -6,14 +6,14 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { model, Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
 import { Company, CompanyDocument } from '@schemas/company.schema';
 import { Admin, AdminDocument } from '@schemas/admin.schema';
 import { Subcategory, SubcategoryDocument } from '@schemas/service.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
-import { UpdateCompanyUserDto } from '../dto/update-company.dto';
+import { UpdateCompanyDto } from '@modules/dto/update-company.dto';
 import { CreateCompanyDto } from '../dto/create-company.dto';
 import { CreateAdminDto } from '../dto/create-admin.dto';
 import { handleFileUpload } from 'src/utils/fileUpload';
@@ -67,18 +67,31 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
     files: Express.Multer.File | Express.Multer.File[],
   ): Promise<User> {
-    const userId = new Types.ObjectId(id);
-    console.log('Update User ID:', userId);
-    const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException(this.ERROR_MESSAGES.USER_NOT_FOUND);
+    try {
+      const userId = new Types.ObjectId(id);
+      const user = await this.userModel.findById(userId);
+      if (!user)
+        throw new NotFoundException(this.ERROR_MESSAGES.USER_NOT_FOUND);
 
-    const mediaEntries = await handleFileUpload(user.email, files);
+      let mediaEntries: { url: string }[] = [];
+      if (Array.isArray(files) && files.length > 0) {
+        mediaEntries = await handleFileUpload(user.email, files);
+      }
 
-    return await this.userModel.findByIdAndUpdate(
-      userId,
-      { ...updateUserDto, profilePicture: mediaEntries[0]?.url },
-      { new: true, runValidators: true },
-    );
+      return await this.userModel.findByIdAndUpdate(
+        userId,
+        {
+          ...updateUserDto,
+          profilePicture: mediaEntries[0]?.url || user.profilePicture,
+        },
+        { new: true, runValidators: true },
+      );
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw new InternalServerErrorException(
+        'Failed to update user. Please try again later.',
+      );
+    }
   }
 
   /**
@@ -101,7 +114,6 @@ export class UsersService {
     }
 
     let validSubcategoryIds: Types.ObjectId[] = [];
-    // console.log(typeof createCompanyDto.subcategories);
 
     if (typeof createCompanyDto.subcategories === 'string') {
       createCompanyDto.subcategories = JSON.parse(
@@ -168,22 +180,22 @@ export class UsersService {
       primary: {
         coordinates: {
           lat:
-            createCompanyDto.latitude &&
-            !isNaN(Number(createCompanyDto.latitude))
-              ? Number(createCompanyDto.latitude)
+            createCompanyDto.location.primary.coordinates.lat &&
+            !isNaN(Number(createCompanyDto.location.primary.coordinates.lat))
+              ? Number(createCompanyDto.location.primary.coordinates.lat)
               : null,
           long:
-            createCompanyDto.longitude &&
-            !isNaN(Number(createCompanyDto.longitude))
-              ? Number(createCompanyDto.longitude)
+            createCompanyDto.location.primary.coordinates.long &&
+            !isNaN(Number(createCompanyDto.location.primary.coordinates.long))
+              ? Number(createCompanyDto.location.primary.coordinates.long)
               : null,
         },
         address: {
-          zip: createCompanyDto.zip || '',
-          city: createCompanyDto.city || '',
-          state: createCompanyDto.state || '',
-          country: createCompanyDto.country || '',
-          address: createCompanyDto.companyAddress || '',
+          zip: createCompanyDto.location.primary.address.zip || '',
+          city: createCompanyDto.location.primary.address.city || '',
+          state: createCompanyDto.location.primary.address.state || '',
+          country: createCompanyDto.location.primary.address.country || '',
+          address: createCompanyDto.location.primary.address.address || '',
         },
       },
       secondary: null,
@@ -215,6 +227,232 @@ export class UsersService {
     });
 
     return company;
+  }
+
+  /**
+   * Update a Company
+   * @param userId User ID
+   * @param updateCompanyDto Company Data
+   * @param files Files to upload
+   * @returns Updated Company
+   */
+  async updateCompany(
+    userId: string,
+    updateCompanyDto: UpdateCompanyDto,
+    files?: {
+      profilePicture?: Express.Multer.File[];
+      companyImages?: Express.Multer.File[];
+    },
+  ): Promise<Company> {
+    if (!userId) {
+      throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
+    }
+
+    // Initialize update data object
+    const companyUpdateData: Partial<UpdateCompanyDto> = {};
+
+    const existingCompany = await this.companyModel.findOne({ owner: userId });
+
+    if (!existingCompany) {
+      throw new NotFoundException('Company not found');
+    }
+
+    console.log(updateCompanyDto.companySocialMedia.linkedin);
+    if (updateCompanyDto.companySocialMedia) {
+      const existingSocialMedia = existingCompany.companySocialMedia
+        ? JSON.parse(JSON.stringify(existingCompany.companySocialMedia))
+        : {};
+
+      companyUpdateData.companySocialMedia = {
+        ...existingSocialMedia,
+        ...updateCompanyDto.companySocialMedia,
+      };
+    }
+
+    console.log(companyUpdateData.companySocialMedia);
+
+    // Process subcategories if provided
+    if (updateCompanyDto.subcategories) {
+      await this.processSubcategories(updateCompanyDto, companyUpdateData);
+    }
+
+    // Handle file uploads
+    const { profilePictureUrl, companyImagesUrl } =
+      await this.handleFileUploads(userId, files);
+    if (companyImagesUrl) companyUpdateData.companyImages = companyImagesUrl;
+
+    // Process location data if provided
+    this.processLocationData(updateCompanyDto, companyUpdateData);
+
+    // Merge with other DTO data and clean undefined values
+    const { companySocialMedia, ...restDto } = updateCompanyDto;
+    Object.assign(companyUpdateData, restDto);
+    this.cleanUndefinedFields(companyUpdateData);
+
+    // Update company document
+    const company = await this.companyModel.findOneAndUpdate(
+      { owner: userId },
+      { $set: companyUpdateData },
+      { new: true, runValidators: true },
+    );
+
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    // Update user data if needed
+    await this.updateUserData(userId, {
+      firstName: updateCompanyDto['firstName'],
+      lastName: updateCompanyDto['lastName'],
+      ...(profilePictureUrl ? { profilePicture: profilePictureUrl } : {}),
+    });
+
+    return company;
+  }
+
+  // Helper methods:
+
+  private async processSubcategories(
+    updateCompanyDto: UpdateCompanyDto,
+    companyUpdateData: Partial<UpdateCompanyDto>,
+  ): Promise<void> {
+    let subcategoriesInput = updateCompanyDto.subcategories;
+
+    if (typeof subcategoriesInput === 'string') {
+      subcategoriesInput = JSON.parse(subcategoriesInput);
+    }
+
+    if (!Array.isArray(subcategoriesInput)) {
+      throw new BadRequestException('Subcategories must be an array');
+    }
+
+    if (subcategoriesInput.length === 0) return;
+
+    const subcategoryIds = subcategoriesInput.map(
+      (id) => new Types.ObjectId(id),
+    );
+    const subcategories = await this.subcategoryModel.find({
+      _id: { $in: subcategoryIds },
+    });
+
+    if (subcategories.length === 0) {
+      throw new BadRequestException('No valid subcategories found');
+    }
+
+    if (subcategories.length !== subcategoryIds.length) {
+      const invalidIds = subcategoriesInput.filter(
+        (id) => !subcategories.some((s) => s._id.equals(id)),
+      );
+      throw new BadRequestException(
+        `Invalid subcategory IDs: ${invalidIds.join(', ')}`,
+      );
+    }
+
+    companyUpdateData.subcategories = subcategories.map((s) =>
+      s._id.toString(),
+    );
+  }
+
+  private async handleFileUploads(
+    userId: string,
+    files?: {
+      profilePicture?: Express.Multer.File[];
+      companyImages?: Express.Multer.File[];
+    },
+  ): Promise<{
+    profilePictureUrl: string | null;
+    companyImagesUrl: string[] | null;
+  }> {
+    let profilePictureUrl: string | null = null;
+    let companyImagesUrl: string[] | null = null;
+
+    try {
+      if (files?.profilePicture?.[0]) {
+        const [uploaded] = await handleFileUpload(
+          userId,
+          files.profilePicture[0],
+        );
+        profilePictureUrl = uploaded?.url || null;
+      }
+
+      if (files?.companyImages?.length) {
+        const uploadedCompanyImages = await handleFileUpload(
+          userId,
+          files.companyImages,
+        );
+        companyImagesUrl = uploadedCompanyImages.map((item) => item.url);
+      }
+    } catch (error) {
+      throw new InternalServerErrorException(
+        this.ERROR_MESSAGES.FILE_UPLOAD_FAILED,
+      );
+    }
+
+    return { profilePictureUrl, companyImagesUrl };
+  }
+
+  private processLocationData(
+    updateCompanyDto: UpdateCompanyDto,
+    companyUpdateData: Partial<UpdateCompanyDto>,
+  ): void {
+    if (!updateCompanyDto.location) return;
+
+    const locationTypes = ['primary', 'secondary', 'tertiary'] as const;
+    const location: Record<string, any> = {};
+
+    for (const type of locationTypes) {
+      const locData = updateCompanyDto.location[type];
+      if (!locData) continue;
+
+      const coordinates = locData.coordinates
+        ? {
+            lat: this.parseCoordinate(locData.coordinates.lat),
+            long: this.parseCoordinate(locData.coordinates.long),
+          }
+        : undefined;
+
+      const address = locData.address
+        ? {
+            zip: locData.address.zip || '',
+            city: locData.address.city || '',
+            state: locData.address.state || '',
+            country: locData.address.country || '',
+            address: locData.address.address || '',
+          }
+        : undefined;
+
+      if (coordinates || address) {
+        location[type] = { coordinates, address };
+      }
+    }
+
+    if (Object.keys(location).length > 0) {
+      companyUpdateData.location = location;
+    }
+  }
+
+  private parseCoordinate(value: any): number | null {
+    return value && !isNaN(Number(value)) ? Number(value) : null;
+  }
+
+  private cleanUndefinedFields(obj: Record<string, any>): void {
+    Object.keys(obj).forEach(
+      (key) => obj[key] === undefined && delete obj[key],
+    );
+  }
+
+  private async updateUserData(
+    userId: string,
+    userUpdateData: Partial<UpdateUserDto>,
+  ): Promise<void> {
+    this.cleanUndefinedFields(userUpdateData);
+
+    if (Object.keys(userUpdateData).length > 0) {
+      await this.userModel.findByIdAndUpdate(userId, userUpdateData, {
+        new: true,
+        runValidators: true,
+      });
+    }
   }
 
   /**
@@ -266,12 +504,21 @@ export class UsersService {
       .populate({
         path: 'activeRoleId',
         model: 'Company',
+        populate: {
+          path: 'subcategories',
+          model: 'Subcategory',
+          populate: {
+            path: 'category',
+            model: 'Category',
+          },
+        },
       })
-      .exec();
+      .lean();
 
     if (!populatedUser) {
       throw new NotFoundException('User not found');
     }
+    // console.log(populatedUser);
 
     return populatedUser;
   }

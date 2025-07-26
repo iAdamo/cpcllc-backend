@@ -18,7 +18,7 @@ import { UsersService } from '@modules/services/users.service';
 import { CreateUserDto } from '@modules/dto/create-user.dto';
 import { CreateCompanyDto } from '../dto/create-company.dto';
 import { CreateAdminDto } from '../dto/create-admin.dto';
-import { UpdateCompanyUserDto } from '@dto/update-company.dto';
+import { UpdateCompanyDto } from '@dto/update-company.dto';
 import { UpdateUserDto } from '@modules/dto/update-user.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
@@ -44,7 +44,8 @@ export class UsersController {
     ]),
   )
   async createUsers(
-    @Body() userDto: CreateUserDto | CreateCompanyDto | CreateAdminDto,
+    @Body()
+    userDto: CreateUserDto | CreateCompanyDto | CreateAdminDto,
     @Param('id') id?: string,
     @UploadedFiles()
     files?: {
@@ -68,10 +69,7 @@ export class UsersController {
   @Patch()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'profilePicture', maxCount: 1 },
-      { name: 'companyImages', maxCount: 10 },
-    ]),
+    FileFieldsInterceptor([{ name: 'profilePicture', maxCount: 1 }]),
   )
   async updateUser(
     @Body() userDto: UpdateUserDto,
@@ -141,5 +139,25 @@ export class UsersController {
     @Req() req: RequestWithUser,
   ): Promise<Company> {
     return this.usersService.toggleFavorite(companyId, req.user.userId);
+  }
+  @Patch('/company')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'profilePicture', maxCount: 1 },
+      { name: 'companyImages', maxCount: 10 },
+    ]),
+  )
+  async updateCompany(
+    @Body() companyDto: UpdateCompanyDto,
+    @Req() req: RequestWithUser,
+    @UploadedFiles()
+    files?: {
+      profilePicture?: Express.Multer.File[];
+      companyImages?: Express.Multer.File[];
+    },
+  ) {
+    const id = req.user.userId;
+    return this.usersService.updateCompany(id, companyDto, files);
   }
 }

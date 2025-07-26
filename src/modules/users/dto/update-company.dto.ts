@@ -9,6 +9,6 @@ import {
   IsArray,
 } from 'class-validator';
 import { CreateUserDto } from '@modules/dto/create-user.dto';
+import { CreateCompanyDto } from './create-company.dto';
 
-export class UpdateCompanyUserDto extends PartialType(CreateUserDto) {}
- 
+export class UpdateCompanyDto extends PartialType(CreateCompanyDto) {}

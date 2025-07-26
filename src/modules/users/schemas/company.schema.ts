@@ -27,18 +27,23 @@ export class Company {
 
   @Prop({
     type: {
+      website: { type: String, required: false },
       facebook: { type: String, required: false },
       twitter: { type: String, required: false },
       instagram: { type: String, required: false },
       linkedin: { type: String, required: false },
+      other: { type: String, required: false },
     },
+    _id: false, // Prevent `_id` creation
     required: false,
   })
   companySocialMedia: {
+    website?: string;
     facebook?: string;
     twitter?: string;
     instagram?: string;
     linkedin?: string;
+    other?: string;
   };
 
   @Prop({ default: 0 })
@@ -60,7 +65,7 @@ export class Company {
 
   @Prop({
     type: {
-      primary: { type: LocationSchema, required: true },
+      primary: { type: LocationSchema, required: false },
       secondary: { type: LocationSchema, required: false },
       tertiary: { type: LocationSchema, required: false },
     },

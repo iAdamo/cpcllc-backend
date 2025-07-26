@@ -19,7 +19,7 @@ import { CreateUserDto } from '@modules/dto/create-user.dto';
 import { CreateCompanyDto } from '../dto/create-company.dto';
 import { CreateAdminDto } from '../dto/create-admin.dto';
 import { CreateReviewDto } from '@modules/dto/create-review.dto';
-import { UpdateCompanyUserDto } from '@dto/update-company.dto';
+import { UpdateCompanyDto } from '@dto/update-company.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
 import { Company } from '@schemas/company.schema';

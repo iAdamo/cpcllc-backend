@@ -29,7 +29,7 @@ import {
   CreateSubcategoryDto,
   CreateServiceDto,
 } from '@modules/dto/create-service.dto';
-import { UpdateCompanyUserDto } from '@dto/update-company.dto';
+import { UpdateCompanyDto } from '@dto/update-company.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
 import { Company } from '@schemas/company.schema';

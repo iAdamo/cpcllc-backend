@@ -4,14 +4,15 @@ import {
   IsOptional,
   IsEmail,
   IsNumber,
-  IsMongoId,
   IsArray,
-  IsObject,
+  IsMongoId,
   ValidateNested,
+  IsObject,
+  IsUrl,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CompanySocialMediaDto {
+class CompanySocialMediaDto {
   @ApiProperty({ description: 'Facebook URL', required: false })
   @IsOptional()
   @IsString()
@@ -31,6 +32,110 @@ export class CompanySocialMediaDto {
   @IsOptional()
   @IsString()
   linkedin?: string;
+
+  @ApiProperty({ description: 'Other social media URL', required: false })
+  @IsOptional()
+  @IsString()
+  other?: string;
+}
+
+class LocationCoordinatesDto {
+  @ApiProperty({ description: 'Latitude', required: false })
+  @IsOptional()
+  @IsNumber()
+  lat?: number;
+
+  @ApiProperty({ description: 'Longitude', required: false })
+  @IsOptional()
+  @IsNumber()
+  long?: number;
+}
+
+class LocationAddressDto {
+  @ApiProperty({ description: 'ZIP code', required: false })
+  @IsOptional()
+  @IsString()
+  zip?: string;
+
+  @ApiProperty({ description: 'City', required: false })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiProperty({ description: 'State', required: false })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiProperty({ description: 'Country', required: false })
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @ApiProperty({ description: 'Address', required: false })
+  @IsOptional()
+  @IsString()
+  address?: string;
+}
+
+class LocationDto {
+  @ApiProperty({ description: 'Coordinates', required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationCoordinatesDto)
+  coordinates?: LocationCoordinatesDto;
+
+  @ApiProperty({ description: 'Address', required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationAddressDto)
+  address?: LocationAddressDto;
+}
+
+class CompanyLocationDto {
+  @ApiProperty({ description: 'Primary location', required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  primary?: LocationDto;
+
+  @ApiProperty({ description: 'Secondary location', required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  secondary?: LocationDto;
+
+  @ApiProperty({ description: 'Tertiary location', required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  tertiary?: LocationDto;
+}
+
+class SocialMediaDto {
+  @IsOptional()
+  @IsUrl()
+  website?: string;
+
+  @IsOptional()
+  @IsUrl()
+  facebook?: string;
+
+  @IsOptional()
+  @IsUrl()
+  twitter?: string;
+
+  @IsOptional()
+  @IsUrl()
+  instagram?: string;
+
+  @IsOptional()
+  @IsUrl()
+  linkedin?: string;
+
+  @IsOptional()
+  @IsUrl()
+  other?: string;
 }
 
 export class CreateCompanyDto {
@@ -38,7 +143,7 @@ export class CreateCompanyDto {
   @IsString()
   companyName: string;
 
-  @ApiProperty({ description: 'Company description', required: true })
+  @ApiProperty({ description: 'Company description', required: false })
   @IsOptional()
   @IsString()
   companyDescription?: string;
@@ -53,17 +158,9 @@ export class CreateCompanyDto {
   @IsString()
   companyPhoneNumber?: string;
 
-  @ApiProperty({ description: 'Company address', required: false })
-  @IsOptional()
-  @IsString()
-  companyAddress?: string;
-
   @ApiProperty({
-    description: 'Array of links to company images',
-    type: 'array',
-    items: {
-      type: 'string',
-    },
+    description: 'Array of company image URLs',
+    type: [String],
     required: false,
   })
   @IsOptional()
@@ -76,19 +173,13 @@ export class CreateCompanyDto {
   @IsString()
   companyWebsite?: string;
 
-  @ApiProperty({
-    description: 'Company social media links',
-    required: false,
-    type: CompanySocialMediaDto,
-  })
   @IsOptional()
-  @IsObject()
   @ValidateNested()
   @Type(() => CompanySocialMediaDto)
   companySocialMedia?: CompanySocialMediaDto;
 
   @ApiProperty({
-    description: 'Subcategories (ServiceCategory IDs)',
+    description: 'Subcategories (array of IDs)',
     type: [String],
     required: false,
   })
@@ -97,57 +188,46 @@ export class CreateCompanyDto {
   @IsMongoId({ each: true })
   subcategories?: string[];
 
-  @ApiProperty({ description: 'ZIP code', required: false })
+  @ApiProperty({
+    description: 'Company location',
+    type: CompanyLocationDto,
+  })
   @IsOptional()
-  @IsString()
-  zip?: string;
-
-  @ApiProperty({ description: 'City', required: false })
-  @IsOptional()
-  @IsString()
-  city?: string;
-
-  @ApiProperty({ description: 'Latitude', required: false })
-  @IsOptional()
-  @IsNumber()
-  latitude?: number;
-
-  @ApiProperty({ description: 'Longitude', required: false })
-  @IsOptional()
-  @IsNumber()
-  longitude?: number;
-
-  @ApiProperty({ description: 'State', required: false })
-  @IsOptional()
-  @IsString()
-  state?: string;
-
-  @ApiProperty({ description: 'Country', required: false })
-  @IsOptional()
-  @IsString()
-  country?: string;
+  @ValidateNested()
+  @Type(() => CompanyLocationDto)
+  location: CompanyLocationDto;
 
   @ApiProperty({ description: 'Owner ID', required: true })
   @IsMongoId()
   owner: string;
 
   @ApiProperty({
-    description: 'Selected services',
+    description: 'Array of client IDs',
     type: [String],
     required: false,
   })
-  @IsArray()
-  selectedServices?: string[];
-
-  @ApiProperty({ description: 'Client IDs', type: [String], required: false })
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
   clients?: string[];
 
-  @ApiProperty({ description: 'Service IDs', type: [String], required: false })
+  @ApiProperty({
+    description: 'Array of user IDs who favorited the company',
+    type: [String],
+    required: false,
+  })
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
-  services?: string[];
+  favoritedBy?: string[];
+
+  @ApiProperty({
+    description: 'Array of review IDs',
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  reviews?: string[];
 }
