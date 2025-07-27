@@ -9,6 +9,7 @@ import {
   ValidateNested,
   IsObject,
   IsUrl,
+  Validate,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -112,32 +113,6 @@ class CompanyLocationDto {
   tertiary?: LocationDto;
 }
 
-class SocialMediaDto {
-  @IsOptional()
-  @IsUrl()
-  website?: string;
-
-  @IsOptional()
-  @IsUrl()
-  facebook?: string;
-
-  @IsOptional()
-  @IsUrl()
-  twitter?: string;
-
-  @IsOptional()
-  @IsUrl()
-  instagram?: string;
-
-  @IsOptional()
-  @IsUrl()
-  linkedin?: string;
-
-  @IsOptional()
-  @IsUrl()
-  other?: string;
-}
-
 export class CreateCompanyDto {
   @ApiProperty({ description: 'Company name', required: true })
   @IsString()
@@ -174,9 +149,9 @@ export class CreateCompanyDto {
   companyWebsite?: string;
 
   @IsOptional()
-  @ValidateNested()
-  @Type(() => CompanySocialMediaDto)
-  companySocialMedia?: CompanySocialMediaDto;
+  @IsObject()
+  @IsUrl()
+  companySocialMedia?: Record<string, string>;
 
   @ApiProperty({
     description: 'Subcategories (array of IDs)',

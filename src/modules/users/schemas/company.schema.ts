@@ -26,25 +26,11 @@ export class Company {
   companyWebsite: string;
 
   @Prop({
-    type: {
-      website: { type: String, required: false },
-      facebook: { type: String, required: false },
-      twitter: { type: String, required: false },
-      instagram: { type: String, required: false },
-      linkedin: { type: String, required: false },
-      other: { type: String, required: false },
-    },
-    _id: false, // Prevent `_id` creation
-    required: false,
+    type: Map,
+    of: String,
+    _id: false,
   })
-  companySocialMedia: {
-    website?: string;
-    facebook?: string;
-    twitter?: string;
-    instagram?: string;
-    linkedin?: string;
-    other?: string;
-  };
+  companySocialMedia: Map<string, string>;
 
   @Prop({ default: 0 })
   reviewCount: number;

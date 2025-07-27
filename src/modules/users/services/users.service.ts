@@ -257,10 +257,9 @@ export class UsersService {
       throw new NotFoundException('Company not found');
     }
 
-    console.log(updateCompanyDto.companySocialMedia.linkedin);
     if (updateCompanyDto.companySocialMedia) {
       const existingSocialMedia = existingCompany.companySocialMedia
-        ? JSON.parse(JSON.stringify(existingCompany.companySocialMedia))
+        ? Object.fromEntries(existingCompany.companySocialMedia)
         : {};
 
       companyUpdateData.companySocialMedia = {
@@ -268,8 +267,6 @@ export class UsersService {
         ...updateCompanyDto.companySocialMedia,
       };
     }
-
-    console.log(companyUpdateData.companySocialMedia);
 
     // Process subcategories if provided
     if (updateCompanyDto.subcategories) {
@@ -285,8 +282,10 @@ export class UsersService {
     this.processLocationData(updateCompanyDto, companyUpdateData);
 
     // Merge with other DTO data and clean undefined values
+    // Prevent overwrite
     const { companySocialMedia, ...restDto } = updateCompanyDto;
     Object.assign(companyUpdateData, restDto);
+
     this.cleanUndefinedFields(companyUpdateData);
 
     // Update company document
