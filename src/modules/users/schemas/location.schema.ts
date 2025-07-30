@@ -23,7 +23,7 @@ export class Address {
   @Prop({ required: false })
   country: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   address: string;
 }
 
@@ -32,7 +32,7 @@ export class Location {
   @Prop({ type: Coordinates, required: false })
   coordinates: Coordinates;
 
-  @Prop({ type: Address, required: true })
+  @Prop({ type: Address, required: false })
   address: Address;
 }
 

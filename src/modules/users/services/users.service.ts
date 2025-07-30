@@ -176,39 +176,13 @@ export class UsersService {
       );
     }
 
-    const location = {
-      primary: {
-        coordinates: {
-          lat:
-            createCompanyDto.location.primary.coordinates.lat &&
-            !isNaN(Number(createCompanyDto.location.primary.coordinates.lat))
-              ? Number(createCompanyDto.location.primary.coordinates.lat)
-              : null,
-          long:
-            createCompanyDto.location.primary.coordinates.long &&
-            !isNaN(Number(createCompanyDto.location.primary.coordinates.long))
-              ? Number(createCompanyDto.location.primary.coordinates.long)
-              : null,
-        },
-        address: {
-          zip: createCompanyDto.location.primary.address.zip || '',
-          city: createCompanyDto.location.primary.address.city || '',
-          state: createCompanyDto.location.primary.address.state || '',
-          country: createCompanyDto.location.primary.address.country || '',
-          address: createCompanyDto.location.primary.address.address || '',
-        },
-      },
-      secondary: null,
-      tertiary: null,
-    };
+    this.processLocationData(createCompanyDto, createCompanyDto);
 
-    /** 🔹 Step 4. Upsert Company */
     const companyData = {
       ...createCompanyDto,
       subcategories: validSubcategoryIds,
       owner: userId,
       companyImages: companyImagesUrl,
-      location,
     };
 
     const company = await this.companyModel.findOneAndUpdate(
@@ -315,41 +289,48 @@ export class UsersService {
     updateCompanyDto: UpdateCompanyDto,
     companyUpdateData: Partial<UpdateCompanyDto>,
   ): Promise<void> {
-    let subcategoriesInput = updateCompanyDto.subcategories;
+    try {
+      let subcategoriesInput = updateCompanyDto.subcategories;
 
-    if (typeof subcategoriesInput === 'string') {
-      subcategoriesInput = JSON.parse(subcategoriesInput);
-    }
+      if (typeof subcategoriesInput === 'string') {
+        subcategoriesInput = JSON.parse(subcategoriesInput);
+      }
 
-    if (!Array.isArray(subcategoriesInput)) {
-      throw new BadRequestException('Subcategories must be an array');
-    }
+      if (!Array.isArray(subcategoriesInput)) {
+        throw new BadRequestException('Subcategories must be an array');
+      }
 
-    if (subcategoriesInput.length === 0) return;
+      if (subcategoriesInput.length === 0) return;
 
-    const subcategoryIds = subcategoriesInput.map(
-      (id) => new Types.ObjectId(id),
-    );
-    const subcategories = await this.subcategoryModel.find({
-      _id: { $in: subcategoryIds },
-    });
-
-    if (subcategories.length === 0) {
-      throw new BadRequestException('No valid subcategories found');
-    }
-
-    if (subcategories.length !== subcategoryIds.length) {
-      const invalidIds = subcategoriesInput.filter(
-        (id) => !subcategories.some((s) => s._id.equals(id)),
+      const subcategoryIds = subcategoriesInput.map(
+        (id) => new Types.ObjectId(id),
       );
-      throw new BadRequestException(
-        `Invalid subcategory IDs: ${invalidIds.join(', ')}`,
+      const subcategories = await this.subcategoryModel.find({
+        _id: { $in: subcategoryIds },
+      });
+
+      if (subcategories.length === 0) {
+        throw new BadRequestException('No valid subcategories found');
+      }
+
+      if (subcategories.length !== subcategoryIds.length) {
+        const invalidIds = subcategoriesInput.filter(
+          (id) => !subcategories.some((s) => s._id.equals(id)),
+        );
+        throw new BadRequestException(
+          `Invalid subcategory IDs: ${invalidIds.join(', ')}`,
+        );
+      }
+
+      companyUpdateData.subcategories = subcategories.map((s) =>
+        s._id.toString(),
+      );
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Failed to process subcategories.',
+        error,
       );
     }
-
-    companyUpdateData.subcategories = subcategories.map((s) =>
-      s._id.toString(),
-    );
   }
 
   private async handleFileUploads(
@@ -391,42 +372,51 @@ export class UsersService {
   }
 
   private processLocationData(
-    updateCompanyDto: UpdateCompanyDto,
-    companyUpdateData: Partial<UpdateCompanyDto>,
+    updateCompanyDto: UpdateCompanyDto | CreateCompanyDto,
+    companyUpdateData: Partial<CreateCompanyDto | UpdateCompanyDto>,
   ): void {
-    if (!updateCompanyDto.location) return;
+    try {
+      console.log(updateCompanyDto);
+      if (!updateCompanyDto.location) return;
 
-    const locationTypes = ['primary', 'secondary', 'tertiary'] as const;
-    const location: Record<string, any> = {};
+      const locationTypes = ['primary', 'secondary', 'tertiary'] as const;
+      const location: Record<string, any> = {};
+      console.log('Received location data:', updateCompanyDto);
+      console.log('Processing location data:', updateCompanyDto.location);
+      for (const type of locationTypes) {
+        const locData = updateCompanyDto.location[type];
+        if (!locData) continue;
 
-    for (const type of locationTypes) {
-      const locData = updateCompanyDto.location[type];
-      if (!locData) continue;
+        const coordinates = locData.coordinates
+          ? {
+              lat: this.parseCoordinate(locData.coordinates.lat),
+              long: this.parseCoordinate(locData.coordinates.long),
+            }
+          : undefined;
 
-      const coordinates = locData.coordinates
-        ? {
-            lat: this.parseCoordinate(locData.coordinates.lat),
-            long: this.parseCoordinate(locData.coordinates.long),
-          }
-        : undefined;
+        const address = locData.address
+          ? {
+              zip: locData.address.zip || '',
+              city: locData.address.city || '',
+              state: locData.address.state || '',
+              country: locData.address.country || '',
+              address: locData.address.address || '',
+            }
+          : undefined;
 
-      const address = locData.address
-        ? {
-            zip: locData.address.zip || '',
-            city: locData.address.city || '',
-            state: locData.address.state || '',
-            country: locData.address.country || '',
-            address: locData.address.address || '',
-          }
-        : undefined;
-
-      if (coordinates || address) {
-        location[type] = { coordinates, address };
+        if (coordinates || address) {
+          location[type] = { coordinates, address };
+        }
       }
-    }
 
-    if (Object.keys(location).length > 0) {
-      companyUpdateData.location = location;
+      if (Object.keys(location).length > 0) {
+        companyUpdateData.location = location;
+      }
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Failed to process location data.',
+        error,
+      );
     }
   }
 
