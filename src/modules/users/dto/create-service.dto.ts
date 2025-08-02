@@ -83,4 +83,24 @@ export class CreateServiceDto {
   @IsArray()
   @IsString({ each: true })
   readonly images?: string[];
+
+  @ApiProperty({
+    description: 'Array of video URLs for the service',
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  readonly videos?: string[];
+
+  @ApiProperty({
+    description: 'Array of tags for the service',
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  readonly tags?: string[];
 }

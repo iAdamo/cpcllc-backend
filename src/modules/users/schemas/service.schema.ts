@@ -55,6 +55,9 @@ export class Service {
 
   @Prop({ type: [String], default: [] })
   videos?: string[];
+
+  @Prop({ type: [String], default: [] })
+  tags: string[];
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);

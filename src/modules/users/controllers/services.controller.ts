@@ -46,6 +46,32 @@ export interface RequestWithUser extends Request {
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'images', maxCount: 10 },
+      { name: 'videos', maxCount: 5 },
+    ]),
+  )
+  async createService(
+    @Body() serviceDto: CreateServiceDto,
+    @Req() req: RequestWithUser,
+    @UploadedFiles()
+    files?: {
+      images?: Express.Multer.File[];
+      videos?: Express.Multer.File[];
+    },
+  ) {
+    const userId = req.user.userId;
+    return this.servicesService.createService(
+      serviceDto,
+      userId,
+      files?.images,
+      files?.videos,
+    );
+  }
+
   @Post('category')
   async createCategory(
     @Body() categoryDto: CreateCategoryDto,
@@ -60,28 +86,16 @@ export class ServicesController {
     return this.servicesService.createSubcategory(subcategoryDto);
   }
 
-  @Post('service')
-  @UseInterceptors(
-    FileFieldsInterceptor([{ name: 'serviceImages', maxCount: 10 }]),
-  )
-  async createService(
-    @Body() serviceDto: CreateServiceDto,
-    @Req() req: RequestWithUser,
-    @Query('companyId') companyId: string,
-    @UploadedFiles()
-    files?: { serviceImages?: Express.Multer.File[] },
-  ): Promise<Service> {
-    const userId = req.user.userId;
-    return this.servicesService.createService(
-      serviceDto,
-      userId,
-      companyId,
-      files?.serviceImages,
-    );
-  }
-
   @Get('categories')
   async getAllCategoriesWithSubcategories(): Promise<Category[]> {
     return this.servicesService.getAllCategoriesWithSubcategories();
+  }
+
+  @Get('company/:id')
+  @UseGuards(JwtAuthGuard)
+  async getServicesByCompany(
+    @Param('id') companyId: string,
+  ): Promise<Service[]> {
+    return this.servicesService.getServicesByCompany(companyId);
   }
 }

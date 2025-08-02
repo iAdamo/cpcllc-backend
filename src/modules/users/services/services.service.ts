@@ -92,24 +92,27 @@ export class ServicesService {
   async createService(
     serviceData: CreateServiceDto,
     userId: string,
-    companyId: string,
     images?: Express.Multer.File[],
+    videos?: Express.Multer.File[],
   ): Promise<ServiceDocument> {
+    console.log('Creating service with data:', serviceData);
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const company = await this.companyModel.findById(companyId);
+    const company = await this.companyModel.findById(user.activeRoleId);
     if (!company) {
       throw new NotFoundException('Company not found');
     }
 
-    let imageLinks: string[] = [];
+    let imageLinks: string[] | null = null;
+    let videoLinks: string[] = [];
+
     if (images && images.length > 0) {
       try {
         const uploadedImageLinks = await handleFileUpload(
-          companyId.toString(),
+          `services/${company.companyName.toLowerCase()}/images`,
           images,
         );
         imageLinks = uploadedImageLinks.map((item) => item.url);
@@ -118,13 +121,39 @@ export class ServicesService {
       }
     }
 
+    if (videos && videos.length > 0) {
+      try {
+        const uploadedVideoLinks = await handleFileUpload(
+          `services/${company.companyName.toLowerCase()}/videos`,
+          videos,
+        );
+        videoLinks = uploadedVideoLinks.map((item) => item.url);
+      } catch (error) {
+        throw new InternalServerErrorException('Error uploading videos');
+      }
+    }
+
     const service = new this.serviceModel({
       ...serviceData,
       user: user._id,
       company: company._id,
       images: imageLinks,
+      videos: videoLinks,
     });
 
     return await service.save();
+  }
+
+  async getServicesByCompany(companyId: string): Promise<Service[]> {
+    const company = await this.companyModel.findById(companyId);
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    const services = await this.serviceModel
+      .find({ company: company._id })
+      .populate('company', 'companyName companyImages');
+
+    return services;
   }
 }
