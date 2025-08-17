@@ -29,6 +29,7 @@ import {
   CreateSubcategoryDto,
   CreateServiceDto,
 } from '@modules/dto/create-service.dto';
+import { UpdateServiceDto } from '@dto/update-service.dto';
 import { UpdateCompanyDto } from '@dto/update-company.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
@@ -97,5 +98,42 @@ export class ServicesController {
     @Param('id') companyId: string,
   ): Promise<Service[]> {
     return this.servicesService.getServicesByCompany(companyId);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  async getServiceById(@Param('id') serviceId: string): Promise<Service> {
+    return this.servicesService.getServiceById(serviceId);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'images', maxCount: 10 },
+      { name: 'videos', maxCount: 5 },
+    ]),
+  )
+  async updateService(
+    @Param('id') serviceId: string,
+    @Body() serviceData: UpdateServiceDto,
+    @UploadedFiles()
+    files?: {
+      images?: Express.Multer.File[];
+      videos?: Express.Multer.File[];
+    },
+  ): Promise<Service> {
+    return this.servicesService.updateService(
+      serviceId,
+      serviceData,
+      files?.images,
+      files?.videos,
+    );
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  async deleteService(@Param('id') serviceId: string): Promise<Service> {
+    return this.servicesService.deleteService(serviceId);
   }
 }

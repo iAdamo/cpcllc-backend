@@ -30,7 +30,7 @@ export class Subcategory {
 @Schema({ timestamps: true })
 export class Service {
   @Prop({ type: Types.ObjectId, ref: 'Company', required: true })
-  company: Types.ObjectId;
+  companyId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   user: Types.ObjectId;
@@ -44,8 +44,11 @@ export class Service {
   @Prop({ required: true })
   description: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, default: 0 })
   price: number;
+
+  @Prop({ required: true, default: 0 })
+  duration: number;
 
   @Prop({ default: false })
   isActive: boolean;

@@ -23,6 +23,7 @@ import {
   Service,
   ServiceDocument,
 } from '@schemas/service.schema';
+import { UpdateServiceDto } from '@modules/dto/update-service.dto';
 import { handleFileUpload } from 'src/utils/fileUpload';
 
 @Injectable()
@@ -95,7 +96,6 @@ export class ServicesService {
     images?: Express.Multer.File[],
     videos?: Express.Multer.File[],
   ): Promise<ServiceDocument> {
-    console.log('Creating service with data:', serviceData);
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -112,7 +112,7 @@ export class ServicesService {
     if (images && images.length > 0) {
       try {
         const uploadedImageLinks = await handleFileUpload(
-          `services/${company.companyName.toLowerCase()}/images`,
+          `services/${userId}/images`,
           images,
         );
         imageLinks = uploadedImageLinks.map((item) => item.url);
@@ -136,7 +136,7 @@ export class ServicesService {
     const service = new this.serviceModel({
       ...serviceData,
       user: user._id,
-      company: company._id,
+      companyId: company._id,
       images: imageLinks,
       videos: videoLinks,
     });
@@ -144,16 +144,85 @@ export class ServicesService {
     return await service.save();
   }
 
-  async getServicesByCompany(companyId: string): Promise<Service[]> {
-    const company = await this.companyModel.findById(companyId);
+  async updateService(
+    serviceId: string,
+    updateData: UpdateServiceDto,
+    images?: Express.Multer.File[],
+    videos?: Express.Multer.File[],
+  ): Promise<ServiceDocument> {
+    const service = await this.serviceModel.findById(serviceId);
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+    const company = await this.companyModel.findById(service.companyId);
+
     if (!company) {
       throw new NotFoundException('Company not found');
     }
 
-    const services = await this.serviceModel
-      .find({ company: company._id })
-      .populate('company', 'companyName companyImages');
+    if (images && images.length > 0) {
+      try {
+        const uploadedImageLinks = await handleFileUpload(
+          `services/${company.companyName.toLowerCase()}/images`,
+          images,
+        );
+        updateData.images = uploadedImageLinks.map((item) => item.url);
+      } catch (error) {
+        throw new InternalServerErrorException('Error uploading images');
+      }
+    }
 
-    return services;
+    if (videos && videos.length > 0) {
+      try {
+        const uploadedVideoLinks = await handleFileUpload(
+          `services/${company.companyName.toLowerCase()}/videos`,
+          videos,
+        );
+        updateData.videos = uploadedVideoLinks.map((item) => item.url);
+      } catch (error) {
+        throw new InternalServerErrorException('Error uploading videos');
+      }
+    }
+    const { companyId, user, ...safeUpdate } = updateData;
+    return await this.serviceModel.findByIdAndUpdate(serviceId, safeUpdate, {
+      new: true,
+    });
+  }
+
+  async deleteService(serviceId: string): Promise<ServiceDocument> {
+    const service = await this.serviceModel.findByIdAndDelete(serviceId);
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+    return service;
+  }
+
+  async getServicesByCompany(companyId: string): Promise<Service[]> {
+    try {
+      const company = await this.companyModel.findById(companyId);
+      if (!company) {
+        throw new NotFoundException('Company not found');
+      }
+
+      const services = await this.serviceModel
+        .find({ companyId: company._id })
+        .populate('companyId', 'companyName companyImages');
+
+      return services;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async getServiceById(serviceId: string): Promise<ServiceDocument> {
+    const service = await this.serviceModel
+      .findById(serviceId)
+      .populate('companyId', 'companyName companyImages');
+
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+
+    return service;
   }
 }

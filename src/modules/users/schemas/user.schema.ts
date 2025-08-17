@@ -81,7 +81,6 @@ UserSchema.set('toJSON', {
     delete ret.code;
     delete ret.codeAt;
     delete ret.forgetPassword;
-    delete ret.updatedAt;
     return ret;
   },
 });

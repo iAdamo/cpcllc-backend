@@ -14,12 +14,12 @@ import {
 export class CreateCategoryDto {
   @ApiProperty({ description: 'Name of the category', required: true })
   @IsString()
-  readonly name: string;
+  name: string;
 
   @ApiProperty({ description: 'Description of the category', required: false })
   @IsOptional()
   @IsString()
-  readonly description?: string;
+  description?: string;
 }
 
 /**
@@ -28,51 +28,65 @@ export class CreateCategoryDto {
 export class CreateSubcategoryDto {
   @ApiProperty({ description: 'Name of the subcategory', required: true })
   @IsString()
-  readonly name: string;
+  name: string;
 
   @ApiProperty({ description: 'Category ID (main category)', required: true })
   @IsMongoId()
-  readonly category: string;
+  category: string;
 
-  @ApiProperty({ description: 'Description of the subcategory', required: false })
+  @ApiProperty({
+    description: 'Description of the subcategory',
+    required: false,
+  })
   @IsOptional()
   @IsString()
-  readonly description?: string;
+  description?: string;
 }
 
 /**
  * DTO for creating a service
  */
 export class CreateServiceDto {
-  @ApiProperty({ description: 'Company ID offering the service', required: true })
+  @ApiProperty({
+    description: 'Company ID offering the service',
+    required: true,
+  })
   @IsMongoId()
-  readonly company: string;
+  companyId: string;
 
   @ApiProperty({ description: 'User ID creating the service', required: true })
   @IsMongoId()
-  readonly user: string;
+  user: string;
 
-  @ApiProperty({ description: 'Subcategory ID associated with the service', required: true })
+  @ApiProperty({
+    description: 'Subcategory ID associated with the service',
+    required: true,
+  })
   @IsMongoId()
-  readonly category: string;
+  category: string;
 
   @ApiProperty({ description: 'Title of the service', required: true })
   @IsString()
-  readonly title: string;
+  title: string;
 
   @ApiProperty({ description: 'Description of the service', required: true })
   @IsString()
-  readonly description: string;
+  description: string;
 
   @ApiProperty({ description: 'Price of the service', required: false })
   @IsOptional()
   @IsNumber()
-  readonly price?: number;
+  price?: number;
+
+  @ApiProperty({ description: 'TIme duration of the service', required: false })
+  @IsOptional()
+  @IsNumber()
+  duration?: number;
 
   @ApiProperty({ description: 'Is the service active?', required: false })
   @IsOptional()
   @IsBoolean()
-  readonly isActive?: boolean;
+  isActive?: boolean;
 
   @ApiProperty({
     description: 'Array of image URLs for the service',
@@ -82,7 +96,7 @@ export class CreateServiceDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  readonly images?: string[];
+  images?: string[];
 
   @ApiProperty({
     description: 'Array of video URLs for the service',
@@ -92,7 +106,7 @@ export class CreateServiceDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  readonly videos?: string[];
+  videos?: string[];
 
   @ApiProperty({
     description: 'Array of tags for the service',
@@ -102,5 +116,5 @@ export class CreateServiceDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  readonly tags?: string[];
+  tags?: string[];
 }
