@@ -1,3 +1,4 @@
+import { Service } from './../schemas/service.schema';
 import {
   Controller,
   Get,
@@ -99,12 +100,20 @@ export class UsersController {
 
   @Get('search')
   async searchCompanies(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
     @Query('searchInput') searchInput?: string,
     @Query('lat') lat?: string,
     @Query('long') long?: string,
     @Query('address') address?: string,
-  ): Promise<Company[]> {
+  ): Promise<{
+    companies: Company[];
+    services: Service[];
+    totalPages: number;
+  }> {
     return await this.usersService.searchCompanies(
+      page,
+      limit,
       searchInput,
       lat,
       long,

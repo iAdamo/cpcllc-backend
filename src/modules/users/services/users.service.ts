@@ -10,7 +10,14 @@ import { model, Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
 import { Company, CompanyDocument } from '@schemas/company.schema';
 import { Admin, AdminDocument } from '@schemas/admin.schema';
-import { Subcategory, SubcategoryDocument } from '@schemas/service.schema';
+import {
+  Service,
+  Category,
+  Subcategory,
+  ServiceDocument,
+  CategoryDocument,
+  SubcategoryDocument,
+} from '@schemas/service.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
 import { UpdateCompanyDto } from '@modules/dto/update-company.dto';
@@ -26,6 +33,8 @@ export class UsersService {
     @InjectModel(Admin.name) private adminModel: Model<AdminDocument>,
     @InjectModel(Subcategory.name)
     private subcategoryModel: Model<SubcategoryDocument>,
+    @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
+    @InjectModel(Service.name) private serviceModel: Model<ServiceDocument>,
   ) {}
 
   private readonly ERROR_MESSAGES = {
@@ -607,70 +616,167 @@ export class UsersService {
   }
 
   async searchCompanies(
+    page: string,
+    limit: string,
     searchInput?: string,
     lat?: string,
     long?: string,
     address?: string,
-  ): Promise<Company[]> {
+  ): Promise<{
+    companies: Company[];
+    services: Service[];
+    totalPages: number;
+  }> {
+    const pageN = parseInt(page);
+    const limitN = parseInt(limit);
+    if (isNaN(pageN) || pageN <= 0) {
+      throw new BadRequestException('Page must be a positive number');
+    }
+    if (isNaN(limitN) || limitN <= 0) {
+      throw new BadRequestException('Limit must be a positive number');
+    }
     const radius = 1000; // 1km range
     const filter: any = {};
 
-    const geoConditions: any[] = [];
+    const searchCompanyConditions: any[] = [];
+    const searchServiceConditions: any[] = [{ isActive: true }]; // Only active services
 
-    // Validate and use coordinates if provided
     if (lat && long) {
-      const latitude = parseFloat(lat);
-      const longitude = parseFloat(long);
+      const radiusInMeters = 1000;
+      const earthRadiusInMeters = 6378137;
+      const geoWithin = {
+        $geoWithin: {
+          $centerSphere: [
+            [parseFloat(long), parseFloat(lat)],
+            radiusInMeters / earthRadiusInMeters,
+          ],
+        },
+      };
 
-      if (isNaN(latitude) || isNaN(longitude)) {
-        throw new BadRequestException('Invalid Latitude or Longitude');
-      }
-
-      geoConditions.push({
-        'location.primary.coordinates': {
-          $near: {
-            $geometry: {
-              type: 'Point',
-              coordinates: [longitude, latitude],
+      searchCompanyConditions.push({
+        $or: [
+          { 'location.primary.coordinates': geoWithin },
+          { 'location.secondary.coordinates': geoWithin },
+          { 'location.tertiary.coordinates': geoWithin },
+        ],
+      });
+    }
+    if (address) {
+      searchCompanyConditions.push({
+        $or: [
+          {
+            'location.primary.address.address': {
+              $regex: address,
+              $options: 'i',
             },
-            $maxDistance: radius,
+          },
+          {
+            'location.secondary.address.address': {
+              $regex: address,
+              $options: 'i',
+            },
+          },
+          {
+            'location.tertiary.address.address': {
+              $regex: address,
+              $options: 'i',
+            },
+          },
+        ],
+      });
+    }
+
+    if (searchInput) {
+      const searchRegex = new RegExp(searchInput, 'i');
+      searchServiceConditions.push({
+        $or: [
+          { tags: searchRegex },
+          { title: searchRegex },
+          { description: searchRegex },
+        ],
+      });
+
+      searchCompanyConditions.push({
+        $or: [
+          { companyName: searchRegex },
+          { 'subcategories.name': searchRegex },
+          {
+            'companySocialMedia.facebook': {
+              $regex: searchInput,
+              $options: 'i',
+            },
+          },
+          {
+            'companySocialMedia.instagram': {
+              $regex: searchInput,
+              $options: 'i',
+            },
+          },
+          {
+            'companySocialMedia.twitter': {
+              $regex: searchInput,
+              $options: 'i',
+            },
+          },
+        ],
+      });
+    }
+    const [companyQuery, serviceQuery] = await Promise.all([
+      this.companyModel
+        .find(
+          searchCompanyConditions.length
+            ? { $and: searchCompanyConditions }
+            : {},
+        )
+        .populate('subcategories')
+        .sort({ createdAt: -1 })
+        .skip((pageN - 1) * limitN)
+        .limit(limitN)
+        .exec(),
+        
+      this.serviceModel.aggregate([
+        {
+          $match: searchServiceConditions.length
+            ? { $and: searchServiceConditions }
+            : {},
+        },
+        {
+          $lookup: {
+            from: 'companies',
+            localField: 'companyId',
+            foreignField: '_id',
+            as: 'company',
           },
         },
-      });
-    }
+        { $unwind: '$company' },
+        { $skip: (pageN - 1) * limitN },
+        { $limit: limitN },
+        {
+          $project: {
+            title: 1,
+            description: 1,
+            price: 1,
+            duration: 1,
+            'company.companyName': 1,
+            'company.location': 1,
+          },
+        },
+      ]),
+    ]);
+    const [totalCompanies, totalServices] = await Promise.all([
+      this.companyModel.countDocuments(
+        searchCompanyConditions.length ? { $and: searchCompanyConditions } : {},
+      ),
+      this.serviceModel.countDocuments(
+        searchServiceConditions.length ? { $and: searchServiceConditions } : {},
+      ),
+    ]);
 
-    // If address is given (even without search input)
-    if (address) {
-      //console.log('Address provided:', address);
-      geoConditions.push({
-        'location.primary.address.address': { $regex: address, $options: 'i' },
-      });
-    }
-
-    // Text search across companyName or selectedServices
-    const textConditions: any[] = [];
-    if (searchInput) {
-      textConditions.push(
-        { selectedServices: { $regex: searchInput, $options: 'i' } },
-        { companyName: { $regex: searchInput, $options: 'i' } },
-      );
-    }
-
-    // Merge filters smartly
-    if (geoConditions.length > 0 && textConditions.length > 0) {
-      filter.$and = [{ $or: geoConditions }, { $or: textConditions }];
-    } else if (geoConditions.length > 0) {
-      filter.$or = geoConditions;
-    } else if (textConditions.length > 0) {
-      filter.$or = textConditions;
-    }
-
-    const companies = await this.companyModel.find(filter);
-
-    if (!companies || companies.length === 0) {
-      return [];
-    }
-
-    return companies;
+    const totalPages = Math.ceil((totalCompanies + totalServices) / limitN);
+    return {
+      companies: companyQuery,
+      services: serviceQuery,
+      totalPages,
+    };
   }
 }
