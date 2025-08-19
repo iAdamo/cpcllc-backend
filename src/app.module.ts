@@ -14,6 +14,10 @@ import { join } from 'path';
 import { UsersModule } from './modules/users/users.module';
 import { DatabaseConfig } from '@types';
 import { AuthModule } from './modules/auth/auth.module';
+import { ServiceModule } from './modules/service/service.module';
+import { ReviewModule } from './modules/review/review.module';
+import { SearchModule } from './modules/search/search.module';
+import { CompanyModule } from './modules/company/company.module';
 
 @Module({
   imports: [
@@ -54,6 +58,10 @@ import { AuthModule } from './modules/auth/auth.module';
 
     UsersModule,
     AuthModule,
+    ServiceModule,
+    ReviewModule,
+    SearchModule,
+    CompanyModule,
   ],
   controllers: [],
   providers: [],
