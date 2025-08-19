@@ -102,6 +102,7 @@ export class UsersController {
   async searchCompanies(
     @Query('page') page: string,
     @Query('limit') limit: string,
+    @Query('engine') engine: string,
     @Query('searchInput') searchInput?: string,
     @Query('lat') lat?: string,
     @Query('long') long?: string,
@@ -114,6 +115,7 @@ export class UsersController {
     return await this.usersService.searchCompanies(
       page,
       limit,
+      engine,
       searchInput,
       lat,
       long,

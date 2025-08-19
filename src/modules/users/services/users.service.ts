@@ -618,6 +618,7 @@ export class UsersService {
   async searchCompanies(
     page: string,
     limit: string,
+    engine: string,
     searchInput?: string,
     lat?: string,
     long?: string,
@@ -626,157 +627,218 @@ export class UsersService {
     companies: Company[];
     services: Service[];
     totalPages: number;
+    hasExactResults: boolean;
   }> {
-    const pageN = parseInt(page);
-    const limitN = parseInt(limit);
-    if (isNaN(pageN) || pageN <= 0) {
-      throw new BadRequestException('Page must be a positive number');
-    }
-    if (isNaN(limitN) || limitN <= 0) {
-      throw new BadRequestException('Limit must be a positive number');
-    }
-    const radius = 1000; // 1km range
-    const filter: any = {};
+    // Validate and parse inputs
+    const pageN = Math.max(1, parseInt(page) || 1);
+    const limitN = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    const useEngine = engine === 'true';
 
     const searchCompanyConditions: any[] = [];
-    const searchServiceConditions: any[] = [{ isActive: true }]; // Only active services
+    const searchServiceConditions: any[] = [{ isActive: true }];
 
-    if (lat && long) {
-      const radiusInMeters = 1000;
-      const earthRadiusInMeters = 6378137;
-      const geoWithin = {
-        $geoWithin: {
-          $centerSphere: [
-            [parseFloat(long), parseFloat(lat)],
-            radiusInMeters / earthRadiusInMeters,
+    // ===== ENGINE-ENABLED SEARCH =====
+    if (useEngine) {
+      // Geo search
+      if (lat && long) {
+        const coordinates = [parseFloat(long), parseFloat(lat)];
+        const radiusInRadians = 1000 / 6378137;
+        const geoWithin = {
+          $geoWithin: { $centerSphere: [coordinates, radiusInRadians] },
+        };
+
+        searchCompanyConditions.push({
+          $or: [
+            { 'location.primary.coordinates': geoWithin },
+            { 'location.secondary.coordinates': geoWithin },
+            { 'location.tertiary.coordinates': geoWithin },
           ],
-        },
-      };
+        });
+      }
 
-      searchCompanyConditions.push({
-        $or: [
-          { 'location.primary.coordinates': geoWithin },
-          { 'location.secondary.coordinates': geoWithin },
-          { 'location.tertiary.coordinates': geoWithin },
-        ],
-      });
-    }
-    if (address) {
-      searchCompanyConditions.push({
-        $or: [
-          {
-            'location.primary.address.address': {
-              $regex: address,
-              $options: 'i',
-            },
-          },
-          {
-            'location.secondary.address.address': {
-              $regex: address,
-              $options: 'i',
-            },
-          },
-          {
-            'location.tertiary.address.address': {
-              $regex: address,
-              $options: 'i',
-            },
-          },
-        ],
-      });
+      // Address search
+      if (address) {
+        const addressRegex = new RegExp(address, 'i');
+        searchCompanyConditions.push({
+          $or: [
+            { 'location.primary.address.address': addressRegex },
+            { 'location.secondary.address.address': addressRegex },
+            { 'location.tertiary.address.address': addressRegex },
+          ],
+        });
+      }
+
+      // Text search
+      if (searchInput) {
+        const searchRegex = new RegExp(searchInput, 'i');
+
+        searchServiceConditions.push({
+          $or: [
+            { tags: searchRegex },
+            { title: searchRegex },
+            { description: searchRegex },
+          ],
+        });
+
+        searchCompanyConditions.push({
+          $or: [
+            { companyName: searchRegex },
+            { companyDescription: searchRegex },
+            { 'subcategories.name': searchRegex },
+            { 'companySocialMedia.facebook': searchRegex },
+            { 'companySocialMedia.instagram': searchRegex },
+            { 'companySocialMedia.twitter': searchRegex },
+          ],
+        });
+      }
     }
 
-    if (searchInput) {
-      const searchRegex = new RegExp(searchInput, 'i');
-      searchServiceConditions.push({
-        $or: [
-          { tags: searchRegex },
-          { title: searchRegex },
-          { description: searchRegex },
-        ],
-      });
+    // ===== EXECUTE QUERIES =====
+    let companyQuery: Company[] = [];
+    let serviceQuery: Service[] = [];
+    let totalCompanies = 0;
+    let totalServices = 0;
+    let hasExactResults = true;
 
-      searchCompanyConditions.push({
-        $or: [
-          { companyName: searchRegex },
-          { 'subcategories.name': searchRegex },
-          {
-            'companySocialMedia.facebook': {
-              $regex: searchInput,
-              $options: 'i',
+    if (
+      useEngine &&
+      (searchCompanyConditions.length > 0 || searchServiceConditions.length > 1)
+    ) {
+      // Engine search with conditions
+      [companyQuery, serviceQuery, totalCompanies, totalServices] =
+        await Promise.all([
+          this.companyModel
+            .find(
+              searchCompanyConditions.length
+                ? { $and: searchCompanyConditions }
+                : {},
+            )
+            .populate('subcategories')
+            .sort({
+              averageRating: -1,
+              reviewCount: -1,
+              favoriteCount: -1,
+            })
+            .skip((pageN - 1) * limitN)
+            .limit(limitN)
+            .exec(),
+
+          this.serviceModel.aggregate([
+            {
+              $match: searchServiceConditions.length
+                ? { $and: searchServiceConditions }
+                : {},
             },
-          },
-          {
-            'companySocialMedia.instagram': {
-              $regex: searchInput,
-              $options: 'i',
+            {
+              $lookup: {
+                from: 'companies',
+                localField: 'companyId',
+                foreignField: '_id',
+                as: 'company',
+              },
             },
-          },
-          {
-            'companySocialMedia.twitter': {
-              $regex: searchInput,
-              $options: 'i',
+            { $unwind: '$company' },
+            {
+              $sort: {
+                'company.averageRating': -1,
+                'company.reviewCount': -1,
+                price: 1,
+              },
             },
-          },
-        ],
-      });
+            { $skip: (pageN - 1) * limitN },
+            { $limit: limitN },
+            {
+              $project: {
+                title: 1,
+                description: 1,
+                price: 1,
+                duration: 1,
+                tags: 1,
+                'company.companyName': 1,
+                'company.location': 1,
+                'company.averageRating': 1,
+                'company.reviewCount': 1,
+              },
+            },
+          ]),
+
+          this.companyModel.countDocuments(
+            searchCompanyConditions.length
+              ? { $and: searchCompanyConditions }
+              : {},
+          ),
+          this.serviceModel.countDocuments(
+            searchServiceConditions.length
+              ? { $and: searchServiceConditions }
+              : {},
+          ),
+        ]);
+    } else {
+      // FALLBACK: Return popular/trending results when no matches or engine disabled
+      hasExactResults = false;
+
+      [companyQuery, serviceQuery, totalCompanies, totalServices] =
+        await Promise.all([
+          this.companyModel
+            .find()
+            .populate('subcategories')
+            .sort({
+              averageRating: -1,
+              reviewCount: -1,
+              favoriteCount: -1,
+              createdAt: -1,
+            })
+            .skip((pageN - 1) * limitN)
+            .limit(limitN)
+            .exec(),
+
+          this.serviceModel.aggregate([
+            { $match: { isActive: true } },
+            {
+              $lookup: {
+                from: 'companies',
+                localField: 'companyId',
+                foreignField: '_id',
+                as: 'company',
+              },
+            },
+            { $unwind: '$company' },
+            {
+              $sort: {
+                'company.averageRating': -1,
+                'company.reviewCount': -1,
+                createdAt: -1,
+              },
+            },
+            { $skip: (pageN - 1) * limitN },
+            { $limit: limitN },
+            {
+              $project: {
+                title: 1,
+                description: 1,
+                price: 1,
+                duration: 1,
+                tags: 1,
+                'company.companyName': 1,
+                'company.location': 1,
+                'company.averageRating': 1,
+                'company.reviewCount': 1,
+              },
+            },
+          ]),
+
+          this.companyModel.countDocuments(),
+          this.serviceModel.countDocuments({ isActive: true }),
+        ]);
     }
-    const [companyQuery, serviceQuery] = await Promise.all([
-      this.companyModel
-        .find(
-          searchCompanyConditions.length
-            ? { $and: searchCompanyConditions }
-            : {},
-        )
-        .populate('subcategories')
-        .sort({ createdAt: -1 })
-        .skip((pageN - 1) * limitN)
-        .limit(limitN)
-        .exec(),
-        
-      this.serviceModel.aggregate([
-        {
-          $match: searchServiceConditions.length
-            ? { $and: searchServiceConditions }
-            : {},
-        },
-        {
-          $lookup: {
-            from: 'companies',
-            localField: 'companyId',
-            foreignField: '_id',
-            as: 'company',
-          },
-        },
-        { $unwind: '$company' },
-        { $skip: (pageN - 1) * limitN },
-        { $limit: limitN },
-        {
-          $project: {
-            title: 1,
-            description: 1,
-            price: 1,
-            duration: 1,
-            'company.companyName': 1,
-            'company.location': 1,
-          },
-        },
-      ]),
-    ]);
-    const [totalCompanies, totalServices] = await Promise.all([
-      this.companyModel.countDocuments(
-        searchCompanyConditions.length ? { $and: searchCompanyConditions } : {},
-      ),
-      this.serviceModel.countDocuments(
-        searchServiceConditions.length ? { $and: searchServiceConditions } : {},
-      ),
-    ]);
 
     const totalPages = Math.ceil((totalCompanies + totalServices) / limitN);
+
     return {
       companies: companyQuery,
       services: serviceQuery,
       totalPages,
+      hasExactResults,
     };
   }
 }
