@@ -18,37 +18,44 @@
         "src/modules/users/*",
         "src/modules/auth/*",
         "src/modules/services/*",
-        "src/modules/zones/*",
-        "src/modules/media/*"
+        "src/modules/review/*",
+        "src/modules/company/*"
       ],
       "@schemas/*": [
         "src/modules/users/schemas/*",
         "src/modules/services/schemas/*",
-        "src/modules/media/schemas/*",
+        "src/modules/review/schemas/*",
+        "src/modules/company/schemas/*"
       ],
       "@dto/*": [
         "src/modules/users/dto/*",
         "src/modules/services/dto/*",
         "src/modules/auth/dto/*",
-        "src/modules/media/dto/*"
+        "src/modules/review/dto/*",
+        "src/modules/admin/dto/*",
+        "src/modules/company/dto/*"
       ],
       "@controllers/*": [
         "src/modules/users/*",
         "src/modules/auth/*",
         "src/modules/zones/v1/map/*",
-        "src/modules/media/*"
+        "src/modules/services/*",
+        "src/modules/search/*",
+        "src/modules/review/*",
+        "src/modules/company/*"
       ],
       "@services/*": [
         "src/modules/users/*",
         "src/modules/auth/*",
         "src/modules/services/*",
         "src/modules/media/*",
-        "src/modules/media/dbstorage/*",
-        "src/modules/media/cloudstorage/*"
+        "src/modules/search/*",
+        "src/modules/services",
+        "src/modules/review/*",
+        "src/modules/company/*",
+        "src/modules/admin/*"
       ],
-      "@guards/*": [
-        "src/modules/auth/jwt/*"
-      ],
+      "@guards/*": ["src/modules/auth/jwt/*"]
     },
     "incremental": true,
     "skipLibCheck": true,

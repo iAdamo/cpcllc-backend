@@ -11,8 +11,8 @@ import {
 import { Types } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { LocationDto, MediaGroupDto } from '@dto/create-location.dto';
-import { Reviews } from '../schemas/reviews.schema';
+import { LocationDto, MediaGroupDto } from 'src/modules/company/dto/create-location.dto';
+import { Reviews } from '../../review/schemas/reviews.schema';
 
 export class CreateReviewDto {
   @ApiProperty({ description: 'The description of the review' })

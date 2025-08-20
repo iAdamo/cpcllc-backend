@@ -14,10 +14,11 @@ import { join } from 'path';
 import { UsersModule } from './modules/users/users.module';
 import { DatabaseConfig } from '@types';
 import { AuthModule } from './modules/auth/auth.module';
-import { ServiceModule } from './modules/service/service.module';
-import { ReviewModule } from './modules/review/review.module';
+import { ServicesModule } from './modules/services/services.module';
+import { ReviewsModule } from './modules/review/reviews.module';
 import { SearchModule } from './modules/search/search.module';
 import { CompanyModule } from './modules/company/company.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -58,8 +59,9 @@ import { CompanyModule } from './modules/company/company.module';
 
     UsersModule,
     AuthModule,
-    ServiceModule,
-    ReviewModule,
+    AdminModule,
+    ServicesModule,
+    ReviewsModule,
     SearchModule,
     CompanyModule,
   ],

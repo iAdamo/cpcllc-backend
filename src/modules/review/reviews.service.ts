@@ -9,9 +9,12 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
-import { Company, CompanyDocument } from '@schemas/company.schema';
+import {
+  Company,
+  CompanyDocument,
+} from 'src/modules/company/schemas/company.schema';
 import { Reviews, ReviewsDocument } from '@schemas/reviews.schema';
-import { handleFileUpload } from 'src/utils/fileUpload';
+import { DbStorageService } from 'src/utils/dbStorage';
 
 @Injectable()
 export class ReviewsService {
@@ -20,6 +23,8 @@ export class ReviewsService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Company.name) private companyModel: Model<CompanyDocument>,
   ) {}
+
+  private readonly storage = new DbStorageService();
 
   async createReview(
     reviewData: CreateReviewDto,
@@ -42,7 +47,7 @@ export class ReviewsService {
     let imageLinks: string[];
     if (images || images.length !== 0) {
       try {
-        const uploadedImageLinks = await handleFileUpload(
+        const uploadedImageLinks = await this.storage.handleFileUpload(
           companyId.toString(),
           images,
         );

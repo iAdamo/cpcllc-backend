@@ -4,7 +4,7 @@ import {
   Subcategory,
   CategorySchema,
   Category,
-} from '../modules/users/schemas/service.schema';
+} from '../modules/services/schemas/service.schema';
 
 const MONGO_URI = 'mongodb://localhost:27017/cpcdb';
 

@@ -13,16 +13,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { User } from '@schemas/user.schema';
-import { ReviewsService } from '@modules/services/reviews.service';
-import { CreateUserDto } from '@modules/dto/create-user.dto';
-import { CreateCompanyDto } from '../dto/create-company.dto';
-import { CreateAdminDto } from '../dto/create-admin.dto';
-import { CreateReviewDto } from '@modules/dto/create-review.dto';
-import { UpdateCompanyDto } from '@dto/update-company.dto';
+import { ReviewsService } from '@services/reviews.service';
+import { CreateReviewDto } from '@dto/create-review.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
-import { Company } from '@schemas/company.schema';
 
 export interface RequestWithUser extends Request {
   user: {

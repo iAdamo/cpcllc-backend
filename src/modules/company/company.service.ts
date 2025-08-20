@@ -9,7 +9,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { model, Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
 import { Company, CompanyDocument } from '@schemas/company.schema';
-import { Admin, AdminDocument } from '@schemas/admin.schema';
 import {
   Service,
   Category,
@@ -17,25 +16,23 @@ import {
   ServiceDocument,
   CategoryDocument,
   SubcategoryDocument,
-} from '@schemas/service.schema';
+} from '@modules/schemas/service.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
-import { UpdateCompanyDto } from '@modules/dto/update-company.dto';
-import { CreateCompanyDto } from '../dto/create-company.dto';
-import { CreateAdminDto } from '../dto/create-admin.dto';
-import { handleFileUpload } from 'src/utils/fileUpload';
+import { UpdateCompanyDto } from 'src/modules/company/dto/update-company.dto';
+import { CreateCompanyDto } from '../company/dto/create-company.dto';
+import { DbStorageService } from 'src/utils/dbStorage';
 
 @Injectable()
-export class UsersService {
+export class CompanyService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Company.name) private companyModel: Model<CompanyDocument>,
-    @InjectModel(Admin.name) private adminModel: Model<AdminDocument>,
     @InjectModel(Subcategory.name)
     private subcategoryModel: Model<SubcategoryDocument>,
-    @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
-    @InjectModel(Service.name) private serviceModel: Model<ServiceDocument>,
   ) {}
+
+  private readonly storage = new DbStorageService();
 
   private readonly ERROR_MESSAGES = {
     USER_NOT_FOUND: 'User not found',
@@ -46,65 +43,7 @@ export class UsersService {
   };
 
   /**
-   * Create a User
-   * @param createUsersDto User data
-   * @returns Created User
-   */
-  async createUsers(createUsersDto: CreateUserDto): Promise<User> {
-    const { email, password } = createUsersDto;
-
-    if (!email || !password) {
-      throw new BadRequestException(this.ERROR_MESSAGES.EMAIL_REQUIRED);
-    }
-
-    if (await this.userModel.exists({ email })) {
-      throw new ConflictException(this.ERROR_MESSAGES.EMAIL_EXISTS);
-    }
-
-    return await this.userModel.create(createUsersDto);
-  }
-
-  /**
-   * Update a User
-   * @param id User ID
-   * @param updateUserDto User data
-   * @param files Files to upload
-   * @returns Updated User
-   */
-  async updateUser(
-    id: string,
-    updateUserDto: UpdateUserDto,
-    files: Express.Multer.File | Express.Multer.File[],
-  ): Promise<User> {
-    try {
-      const userId = new Types.ObjectId(id);
-      const user = await this.userModel.findById(userId);
-      if (!user)
-        throw new NotFoundException(this.ERROR_MESSAGES.USER_NOT_FOUND);
-
-      let mediaEntries: { url: string }[] = [];
-      if (Array.isArray(files) && files.length > 0) {
-        mediaEntries = await handleFileUpload(user.email, files);
-      }
-
-      return await this.userModel.findByIdAndUpdate(
-        userId,
-        {
-          ...updateUserDto,
-          profilePicture: mediaEntries[0]?.url || user.profilePicture,
-        },
-        { new: true, runValidators: true },
-      );
-    } catch (error) {
-      console.error('Error updating user:', error);
-      throw new InternalServerErrorException(
-        'Failed to update user. Please try again later.',
-      );
-    }
-  }
-
-  /**
-   * Create or Update a Company
+   * Create a Company
    * @param id User ID
    * @param createCompanyDto Company Data
    * @param files Files to upload
@@ -165,7 +104,7 @@ export class UsersService {
 
     try {
       if (files?.profilePicture?.length) {
-        const [uploaded] = await handleFileUpload(
+        const [uploaded] = await this.storage.handleFileUpload(
           userId,
           files.profilePicture[0],
         );
@@ -173,7 +112,7 @@ export class UsersService {
       }
 
       if (files?.companyImages?.length) {
-        const uploadedCompanyImages = await handleFileUpload(
+        const uploadedCompanyImages = await this.storage.handleFileUpload(
           userId,
           files.companyImages,
         );
@@ -357,7 +296,7 @@ export class UsersService {
 
     try {
       if (files?.profilePicture?.[0]) {
-        const [uploaded] = await handleFileUpload(
+        const [uploaded] = await this.storage.handleFileUpload(
           userId,
           files.profilePicture[0],
         );
@@ -365,7 +304,7 @@ export class UsersService {
       }
 
       if (files?.companyImages?.length) {
-        const uploadedCompanyImages = await handleFileUpload(
+        const uploadedCompanyImages = await this.storage.handleFileUpload(
           userId,
           files.companyImages,
         );
@@ -454,110 +393,6 @@ export class UsersService {
   }
 
   /**
-   * Create an Admin
-   * @param id User ID
-   * @param createAdminDto Admin Data
-   * @returns Created Admin
-   */
-  async createAdmin(
-    id: string,
-    createAdminDto: CreateAdminDto,
-  ): Promise<Admin> {
-    if (!id)
-      throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
-
-    const user = await this.userModel.findById(id);
-    if (!user) throw new NotFoundException(this.ERROR_MESSAGES.USER_NOT_FOUND);
-
-    const admin = await this.adminModel.create({ ...createAdminDto, user: id });
-
-    await this.userModel.findByIdAndUpdate(id, {
-      activeRole: 'Admin',
-      activeRoleId: admin._id,
-    });
-
-    return admin;
-  }
-
-  /**
-   * User Profile
-   * @param id User ID
-   * @returns User Profile
-   */
-  async userProfile(id: string): Promise<User> {
-    if (!id) {
-      throw new BadRequestException('User ID is required');
-    }
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid User ID format');
-    }
-    const populatedUser = await this.userModel
-      .findOne({
-        $or: [
-          { _id: new Types.ObjectId(id) },
-          { activeRoleId: new Types.ObjectId(id) },
-        ],
-      })
-      .populate('hiredCompanies')
-      .populate({
-        path: 'activeRoleId',
-        model: 'Company',
-        populate: {
-          path: 'subcategories',
-          model: 'Subcategory',
-          populate: {
-            path: 'category',
-            model: 'Category',
-          },
-        },
-      })
-      .lean();
-
-    if (!populatedUser) {
-      throw new NotFoundException('User not found');
-    }
-    // console.log(populatedUser);
-
-    return populatedUser;
-  }
-
-  /**
-   * Get all Users
-   * @returns List of Users
-   */
-  async getAllUsers(
-    page: string,
-    limit: string,
-  ): Promise<{ users: User[]; totalPages: number }> {
-    const pageN = parseInt(page);
-    const limitN = parseInt(limit);
-
-    if (isNaN(pageN) || pageN <= 0) {
-      throw new BadRequestException('Page must be a positive number');
-    }
-
-    if (isNaN(limitN) || limitN <= 0) {
-      throw new BadRequestException('Limit must be a positive number');
-    }
-    const totalUsers = await this.userModel.countDocuments();
-    if (totalUsers === 0) {
-      return { users: [], totalPages: 0 };
-    }
-    const totalPages = Math.ceil(totalUsers / limitN);
-    const users = await this.userModel
-      .find()
-      .skip((pageN - 1) * limitN)
-      .limit(limitN)
-      .populate('hiredCompanies')
-      .populate({
-        path: 'activeRoleId',
-        model: 'Company',
-      })
-      .exec();
-    return { users, totalPages };
-  }
-
-  /**
    * Get all Companies
    * @returns List of Compani
    */
@@ -613,232 +448,5 @@ export class UsersService {
     return await this.companyModel.findByIdAndUpdate(companyId, update, {
       new: true,
     });
-  }
-
-  async searchCompanies(
-    page: string,
-    limit: string,
-    engine: string,
-    searchInput?: string,
-    lat?: string,
-    long?: string,
-    address?: string,
-  ): Promise<{
-    companies: Company[];
-    services: Service[];
-    totalPages: number;
-    hasExactResults: boolean;
-  }> {
-    // Validate and parse inputs
-    const pageN = Math.max(1, parseInt(page) || 1);
-    const limitN = Math.min(100, Math.max(1, parseInt(limit) || 10));
-    const useEngine = engine === 'true';
-
-    const searchCompanyConditions: any[] = [];
-    const searchServiceConditions: any[] = [{ isActive: true }];
-
-    // ===== ENGINE-ENABLED SEARCH =====
-    if (useEngine) {
-      // Geo search
-      if (lat && long) {
-        const coordinates = [parseFloat(long), parseFloat(lat)];
-        const radiusInRadians = 1000 / 6378137;
-        const geoWithin = {
-          $geoWithin: { $centerSphere: [coordinates, radiusInRadians] },
-        };
-
-        searchCompanyConditions.push({
-          $or: [
-            { 'location.primary.coordinates': geoWithin },
-            { 'location.secondary.coordinates': geoWithin },
-            { 'location.tertiary.coordinates': geoWithin },
-          ],
-        });
-      }
-
-      // Address search
-      if (address) {
-        const addressRegex = new RegExp(address, 'i');
-        searchCompanyConditions.push({
-          $or: [
-            { 'location.primary.address.address': addressRegex },
-            { 'location.secondary.address.address': addressRegex },
-            { 'location.tertiary.address.address': addressRegex },
-          ],
-        });
-      }
-
-      // Text search
-      if (searchInput) {
-        const searchRegex = new RegExp(searchInput, 'i');
-
-        searchServiceConditions.push({
-          $or: [
-            { tags: searchRegex },
-            { title: searchRegex },
-            { description: searchRegex },
-          ],
-        });
-
-        searchCompanyConditions.push({
-          $or: [
-            { companyName: searchRegex },
-            { companyDescription: searchRegex },
-            { 'subcategories.name': searchRegex },
-            { 'companySocialMedia.facebook': searchRegex },
-            { 'companySocialMedia.instagram': searchRegex },
-            { 'companySocialMedia.twitter': searchRegex },
-          ],
-        });
-      }
-    }
-
-    // ===== EXECUTE QUERIES =====
-    let companyQuery: Company[] = [];
-    let serviceQuery: Service[] = [];
-    let totalCompanies = 0;
-    let totalServices = 0;
-    let hasExactResults = true;
-
-    if (
-      useEngine &&
-      (searchCompanyConditions.length > 0 || searchServiceConditions.length > 1)
-    ) {
-      // Engine search with conditions
-      [companyQuery, serviceQuery, totalCompanies, totalServices] =
-        await Promise.all([
-          this.companyModel
-            .find(
-              searchCompanyConditions.length
-                ? { $and: searchCompanyConditions }
-                : {},
-            )
-            .populate('subcategories')
-            .sort({
-              averageRating: -1,
-              reviewCount: -1,
-              favoriteCount: -1,
-            })
-            .skip((pageN - 1) * limitN)
-            .limit(limitN)
-            .exec(),
-
-          this.serviceModel.aggregate([
-            {
-              $match: searchServiceConditions.length
-                ? { $and: searchServiceConditions }
-                : {},
-            },
-            {
-              $lookup: {
-                from: 'companies',
-                localField: 'companyId',
-                foreignField: '_id',
-                as: 'company',
-              },
-            },
-            { $unwind: '$company' },
-            {
-              $sort: {
-                'company.averageRating': -1,
-                'company.reviewCount': -1,
-                price: 1,
-              },
-            },
-            { $skip: (pageN - 1) * limitN },
-            { $limit: limitN },
-            {
-              $project: {
-                title: 1,
-                description: 1,
-                price: 1,
-                duration: 1,
-                tags: 1,
-                'company.companyName': 1,
-                'company.location': 1,
-                'company.averageRating': 1,
-                'company.reviewCount': 1,
-              },
-            },
-          ]),
-
-          this.companyModel.countDocuments(
-            searchCompanyConditions.length
-              ? { $and: searchCompanyConditions }
-              : {},
-          ),
-          this.serviceModel.countDocuments(
-            searchServiceConditions.length
-              ? { $and: searchServiceConditions }
-              : {},
-          ),
-        ]);
-    } else {
-      // FALLBACK: Return popular/trending results when no matches or engine disabled
-      hasExactResults = false;
-
-      [companyQuery, serviceQuery, totalCompanies, totalServices] =
-        await Promise.all([
-          this.companyModel
-            .find()
-            .populate('subcategories')
-            .sort({
-              averageRating: -1,
-              reviewCount: -1,
-              favoriteCount: -1,
-              createdAt: -1,
-            })
-            .skip((pageN - 1) * limitN)
-            .limit(limitN)
-            .exec(),
-
-          this.serviceModel.aggregate([
-            { $match: { isActive: true } },
-            {
-              $lookup: {
-                from: 'companies',
-                localField: 'companyId',
-                foreignField: '_id',
-                as: 'company',
-              },
-            },
-            { $unwind: '$company' },
-            {
-              $sort: {
-                'company.averageRating': -1,
-                'company.reviewCount': -1,
-                createdAt: -1,
-              },
-            },
-            { $skip: (pageN - 1) * limitN },
-            { $limit: limitN },
-            {
-              $project: {
-                title: 1,
-                description: 1,
-                price: 1,
-                duration: 1,
-                tags: 1,
-                'company.companyName': 1,
-                'company.location': 1,
-                'company.averageRating': 1,
-                'company.reviewCount': 1,
-              },
-            },
-          ]),
-
-          this.companyModel.countDocuments(),
-          this.serviceModel.countDocuments({ isActive: true }),
-        ]);
-    }
-
-    const totalPages = Math.ceil((totalCompanies + totalServices) / limitN);
-
-    return {
-      companies: companyQuery,
-      services: serviceQuery,
-      totalPages,
-      hasExactResults,
-    };
   }
 }

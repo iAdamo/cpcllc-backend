@@ -2,6 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsMongoId, IsArray, IsOptional } from 'class-validator';
 
 export class CreateAdminDto {
+  @ApiProperty({ description: 'Profile picture URL', required: false })
+  @IsOptional()
+  profilePicture?: string;
+  
   @ApiProperty({ description: 'User ID associated with the admin', required: true })
   @IsMongoId()
   user: string;

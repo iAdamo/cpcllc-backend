@@ -7,9 +7,9 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import { UsersService } from '@modules/services/users.service';
+import { UsersService } from '@modules/users.service';
 import { User, UserDocument } from '@modules/schemas/user.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { MailtrapClient } from 'mailtrap';
 import * as bcrypt from 'bcrypt';
 
@@ -57,7 +57,11 @@ export class JwtService {
 
   async login(user: User, res: any) {
     const userId = user['_id'];
-    const payload = { sub: userId, email: user.email };
+    const payload = {
+      sub: userId as Types.ObjectId,
+      email: user.email,
+      admin: user.activeRole === 'Admin' || false,
+    };
     const accessToken = this.jwtService.sign(payload);
     res.cookie('authentication', accessToken, {
       httpOnly: true,

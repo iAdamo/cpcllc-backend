@@ -5,6 +5,9 @@ export type AdminDocument = HydratedDocument<Admin>;
 
 @Schema()
 export class Admin {
+  @Prop({ required: false })
+  profilePicture?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, unique: true })
   user: Types.ObjectId;
 

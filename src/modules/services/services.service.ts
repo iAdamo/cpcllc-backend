@@ -1,8 +1,8 @@
 import {
   CreateCategoryDto,
   CreateSubcategoryDto,
-} from '@dto/create-service.dto';
-import { CreateServiceDto } from '@dto/create-service.dto';
+} from '@modules/dto/create-service.dto';
+import { CreateServiceDto } from '@modules/dto/create-service.dto';
 import {
   Injectable,
   ConflictException,
@@ -13,8 +13,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
-import { Company, CompanyDocument } from '@schemas/company.schema';
-import { Reviews, ReviewsDocument } from '@schemas/reviews.schema';
+import {
+  Company,
+  CompanyDocument,
+} from 'src/modules/company/schemas/company.schema';
 import {
   Subcategory,
   SubcategoryDocument,
@@ -22,14 +24,13 @@ import {
   CategoryDocument,
   Service,
   ServiceDocument,
-} from '@schemas/service.schema';
+} from '@modules/schemas/service.schema';
 import { UpdateServiceDto } from '@modules/dto/update-service.dto';
-import { handleFileUpload } from 'src/utils/fileUpload';
+import { DbStorageService } from 'src/utils/dbStorage';
 
 @Injectable()
 export class ServicesService {
   constructor(
-    @InjectModel(Reviews.name) private reviewsModel: Model<ReviewsDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Company.name) private companyModel: Model<CompanyDocument>,
     @InjectModel(Service.name) private serviceModel: Model<Service>,
@@ -37,6 +38,8 @@ export class ServicesService {
     @InjectModel(Subcategory.name)
     private subcategoryModel: Model<SubcategoryDocument>,
   ) {}
+
+  private readonly storage = new DbStorageService();
 
   async createCategory(
     categoryData: CreateCategoryDto,
@@ -111,8 +114,8 @@ export class ServicesService {
 
     if (images && images.length > 0) {
       try {
-        const uploadedImageLinks = await handleFileUpload(
-          `services/${userId}/images`,
+        const uploadedImageLinks = await this.storage.handleFileUpload(
+          `${userId}/services/images`,
           images,
         );
         imageLinks = uploadedImageLinks.map((item) => item.url);
@@ -123,8 +126,8 @@ export class ServicesService {
 
     if (videos && videos.length > 0) {
       try {
-        const uploadedVideoLinks = await handleFileUpload(
-          `services/${company.companyName.toLowerCase()}/videos`,
+        const uploadedVideoLinks = await this.storage.handleFileUpload(
+          `${userId}/services/videos`,
           videos,
         );
         videoLinks = uploadedVideoLinks.map((item) => item.url);
@@ -162,8 +165,8 @@ export class ServicesService {
 
     if (images && images.length > 0) {
       try {
-        const uploadedImageLinks = await handleFileUpload(
-          `services/${company.companyName.toLowerCase()}/images`,
+        const uploadedImageLinks = await this.storage.handleFileUpload(
+          `${service.user}/services/images`,
           images,
         );
         updateData.images = uploadedImageLinks.map((item) => item.url);
@@ -174,8 +177,8 @@ export class ServicesService {
 
     if (videos && videos.length > 0) {
       try {
-        const uploadedVideoLinks = await handleFileUpload(
-          `services/${company.companyName.toLowerCase()}/videos`,
+        const uploadedVideoLinks = await this.storage.handleFileUpload(
+          `${service.user}/services/videos`,
           videos,
         );
         updateData.videos = uploadedVideoLinks.map((item) => item.url);

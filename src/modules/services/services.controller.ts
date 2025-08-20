@@ -20,20 +20,15 @@ import {
   Subcategory,
   Category,
 } from '@modules/schemas/service.schema';
-import { ServicesService } from '@modules/services/services.service';
-import { CreateUserDto } from '@modules/dto/create-user.dto';
-import { CreateCompanyDto } from '../dto/create-company.dto';
-import { CreateAdminDto } from '../dto/create-admin.dto';
+import { ServicesService } from '@services/services.service';
 import {
   CreateCategoryDto,
   CreateSubcategoryDto,
   CreateServiceDto,
 } from '@modules/dto/create-service.dto';
 import { UpdateServiceDto } from '@dto/update-service.dto';
-import { UpdateCompanyDto } from '@dto/update-company.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
-import { Company } from '@schemas/company.schema';
 
 export interface RequestWithUser extends Request {
   user: {

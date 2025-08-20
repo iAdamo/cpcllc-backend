@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
@@ -15,7 +16,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: process.env.JWT_SECRET,
     });
   }
-  async validate(payload: any) {
-    return { email: payload.email, userId: payload.sub };
+  async validate(payload: {
+    sub: string;
+    email: string;
+    admin: boolean;
+  }): Promise<{
+    userId: string;
+    email: string;
+    admin?: boolean;
+  }> {
+    return { userId: payload.sub, email: payload.email, admin: payload.admin };
   }
 }
