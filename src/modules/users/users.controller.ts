@@ -87,9 +87,8 @@ export class UsersController {
     return this.usersService.updateUser(id, userDto, files?.profilePicture);
   }
 
-
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
+  // @UseGuards(JwtAuthGuard)
   async getUserById(@Param('id') id: string) {
     return this.usersService.userProfile(id);
   }

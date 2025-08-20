@@ -54,7 +54,6 @@ export class JwtService {
    * @param user User object
    * @returns JWT access token
    */
-
   async login(user: User, res: any) {
     const userId = user['_id'];
     const payload = {

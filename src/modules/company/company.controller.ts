@@ -57,7 +57,8 @@ export class CompanyController {
   ): Promise<Company> {
     return this.companyService.toggleFavorite(companyId, req.user.userId);
   }
-  @Patch('/company')
+
+  @Patch()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([
