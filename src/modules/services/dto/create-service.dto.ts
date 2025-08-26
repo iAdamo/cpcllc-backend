@@ -48,11 +48,11 @@ export class CreateSubcategoryDto {
  */
 export class CreateServiceDto {
   @ApiProperty({
-    description: 'Company ID offering the service',
+    description: 'Provider ID offering the service',
     required: true,
   })
   @IsMongoId()
-  companyId: string;
+  providerId: string;
 
   @ApiProperty({ description: 'User ID creating the service', required: true })
   @IsMongoId()

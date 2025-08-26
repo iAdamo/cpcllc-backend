@@ -1,36 +1,36 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { Location, LocationSchema } from 'src/modules/company/schemas/location.schema';
+import { Location, LocationSchema } from 'src/modules/provider/schemas/location.schema';
 import { Reviews } from '@schemas/reviews.schema';
 
-export type CompanyDocument = HydratedDocument<Company>;
+export type ProviderDocument = HydratedDocument<Provider>;
 
 @Schema({ timestamps: true })
-export class Company {
+export class Provider {
   @Prop({ required: true })
-  companyName: string;
+  providerName: string;
 
   @Prop({ required: false })
-  companyDescription: string;
+  providerDescription: string;
 
   @Prop({ required: false })
-  companyEmail: string;
+  providerEmail: string;
 
   @Prop({ required: false })
-  companyPhoneNumber: string;
+  providerPhoneNumber: string;
 
   @Prop({ type: [String], required: false })
-  companyImages: string[];
+  providerImages: string[];
 
   @Prop({ required: false })
-  companyWebsite: string;
+  providerWebsite: string;
 
   @Prop({
     type: Map,
     of: String,
     _id: false,
   })
-  companySocialMedia: Map<string, string>;
+  providerSocialMedia: Map<string, string>;
 
   @Prop({ default: 0 })
   reviewCount: number;
@@ -81,9 +81,9 @@ export class Company {
   reviews: Reviews[];
 }
 
-export const CompanySchema = SchemaFactory.createForClass(Company);
+export const ProviderSchema = SchemaFactory.createForClass(Provider);
 
-CompanySchema.set('toJSON', {
+ProviderSchema.set('toJSON', {
   transform: (_doc, ret) => {
     delete ret.__v;
     delete ret.reviews;

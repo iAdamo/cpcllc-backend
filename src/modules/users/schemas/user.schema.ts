@@ -19,6 +19,9 @@ export class User {
   })
   email: string;
 
+  @Prop({ required: true, unique: true, match: /^\+?[1-9]\d{1,14}$/ })
+  phoneNumber: string;
+
   @Prop({ required: true })
   password: string;
 

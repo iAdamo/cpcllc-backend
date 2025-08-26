@@ -14,11 +14,11 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from '../admin/admin.service';
-import { CompanyService } from '../company/company.service';
-import { UpdateCompanyDto } from 'src/modules/company/dto/update-company.dto';
+import { ProviderService } from './provider.service';
+import { UpdateProviderDto } from '@modules/dto/update-provider.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
-import { Company } from '@schemas/company.schema';
+import { Provider } from 'src/modules/provider/schemas/provider.schema';
 
 export interface RequestWithUser extends Request {
   user: {
@@ -27,11 +27,11 @@ export interface RequestWithUser extends Request {
   };
 }
 
-@ApiTags('Company')
-@Controller('company')
-export class CompanyController {
+@ApiTags('Provider')
+@Controller('provider')
+export class ProviderController {
   constructor(
-    private readonly companyService: CompanyService,
+    private readonly providerService: ProviderService,
     private readonly adminService: AdminService,
   ) {}
 
@@ -41,21 +41,21 @@ export class CompanyController {
    * @param limit Number of companies per page
    * @returns List of companies and total pages
    */
-  @Get('company')
+  @Get('provider')
   async getAllCompanies(
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
-    return this.companyService.getAllCompanies(page, limit);
+    return this.providerService.getAllCompanies(page, limit);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/favorite')
   async toggleFavorite(
-    @Param('id') companyId: string,
+    @Param('id') providerId: string,
     @Req() req: RequestWithUser,
-  ): Promise<Company> {
-    return this.companyService.toggleFavorite(companyId, req.user.userId);
+  ): Promise<Provider> {
+    return this.providerService.toggleFavorite(providerId, req.user.userId);
   }
 
   @Patch()
@@ -63,19 +63,19 @@ export class CompanyController {
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'profilePicture', maxCount: 1 },
-      { name: 'companyImages', maxCount: 10 },
+      { name: 'providerImages', maxCount: 10 },
     ]),
   )
-  async updateCompany(
-    @Body() companyDto: UpdateCompanyDto,
+  async updateProvider(
+    @Body() providerDto: UpdateProviderDto,
     @Req() req: RequestWithUser,
     @UploadedFiles()
     files?: {
       profilePicture?: Express.Multer.File[];
-      companyImages?: Express.Multer.File[];
+      providerImages?: Express.Multer.File[];
     },
   ) {
     const id = req.user.userId;
-    return this.companyService.updateCompany(id, companyDto, files);
+    return this.providerService.updateProvider(id, providerDto, files);
   }
 }

@@ -11,7 +11,10 @@ import {
 import { Types } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { LocationDto, MediaGroupDto } from 'src/modules/company/dto/create-location.dto';
+import {
+  LocationDto,
+  MediaGroupDto,
+} from 'src/modules/provider/dto/create-location.dto';
 import { Reviews } from '../../review/schemas/reviews.schema';
 
 export class CreateReviewDto {
@@ -46,9 +49,9 @@ export class CreateReviewDto {
   @IsMongoId()
   user: Types.ObjectId;
 
-  @ApiProperty({ description: 'The company ID' })
+  @ApiProperty({ description: 'The provider ID' })
   @IsMongoId()
-  company: Types.ObjectId;
+  provider: Types.ObjectId;
 
   @ApiProperty({ description: 'The service ID' })
   @IsMongoId()

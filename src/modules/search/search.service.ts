@@ -9,9 +9,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
 import {
-  Company,
-  CompanyDocument,
-} from 'src/modules/company/schemas/company.schema';
+  Provider,
+  ProviderDocument,
+} from 'src/modules/provider/schemas/provider.schema';
 import {
   Service,
   Category,
@@ -25,7 +25,7 @@ import {
 export class SearchService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(Company.name) private companyModel: Model<CompanyDocument>,
+    @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
     @InjectModel(Subcategory.name)
     private subcategoryModel: Model<SubcategoryDocument>,
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
@@ -60,7 +60,7 @@ export class SearchService {
     long?: string,
     address?: string,
   ): Promise<{
-    companies: Company[];
+    companies: Provider[];
     services: Service[];
     totalPages: number;
     hasExactResults: boolean;
@@ -70,7 +70,7 @@ export class SearchService {
     const limitN = Math.min(100, Math.max(1, parseInt(limit) || 10));
     const useEngine = engine === 'true';
 
-    const searchCompanyConditions: any[] = [];
+    const searchProviderConditions: any[] = [];
     const searchServiceConditions: any[] = [{ isActive: true }];
 
     // ===== ENGINE-ENABLED SEARCH =====
@@ -83,7 +83,7 @@ export class SearchService {
           $geoWithin: { $centerSphere: [coordinates, radiusInRadians] },
         };
 
-        searchCompanyConditions.push({
+        searchProviderConditions.push({
           $or: [
             { 'location.primary.coordinates': geoWithin },
             { 'location.secondary.coordinates': geoWithin },
@@ -95,7 +95,7 @@ export class SearchService {
       // Address search
       if (address) {
         const addressRegex = new RegExp(address, 'i');
-        searchCompanyConditions.push({
+        searchProviderConditions.push({
           $or: [
             { 'location.primary.address.address': addressRegex },
             { 'location.secondary.address.address': addressRegex },
@@ -116,21 +116,21 @@ export class SearchService {
           ],
         });
 
-        searchCompanyConditions.push({
+        searchProviderConditions.push({
           $or: [
-            { companyName: searchRegex },
-            { companyDescription: searchRegex },
+            { providerName: searchRegex },
+            { providerDescription: searchRegex },
             { 'subcategories.name': searchRegex },
-            { 'companySocialMedia.facebook': searchRegex },
-            { 'companySocialMedia.instagram': searchRegex },
-            { 'companySocialMedia.twitter': searchRegex },
+            { 'providerSocialMedia.facebook': searchRegex },
+            { 'providerSocialMedia.instagram': searchRegex },
+            { 'providerSocialMedia.twitter': searchRegex },
           ],
         });
       }
     }
 
     // ===== EXECUTE QUERIES =====
-    let companyQuery: Company[] = [];
+    let providerQuery: Provider[] = [];
     let serviceQuery: Service[] = [];
     let totalCompanies = 0;
     let totalServices = 0;
@@ -138,15 +138,15 @@ export class SearchService {
 
     if (
       useEngine &&
-      (searchCompanyConditions.length > 0 || searchServiceConditions.length > 1)
+      (searchProviderConditions.length > 0 || searchServiceConditions.length > 1)
     ) {
       // Engine search with conditions
-      [companyQuery, serviceQuery, totalCompanies, totalServices] =
+      [providerQuery, serviceQuery, totalCompanies, totalServices] =
         await Promise.all([
-          this.companyModel
+          this.providerModel
             .find(
-              searchCompanyConditions.length
-                ? { $and: searchCompanyConditions }
+              searchProviderConditions.length
+                ? { $and: searchProviderConditions }
                 : {},
             )
             .populate('subcategories')
@@ -168,16 +168,16 @@ export class SearchService {
             {
               $lookup: {
                 from: 'companies',
-                localField: 'companyId',
+                localField: 'providerId',
                 foreignField: '_id',
-                as: 'company',
+                as: 'provider',
               },
             },
-            { $unwind: '$company' },
+            { $unwind: '$provider' },
             {
               $sort: {
-                'company.averageRating': -1,
-                'company.reviewCount': -1,
+                'provider.averageRating': -1,
+                'provider.reviewCount': -1,
                 price: 1,
               },
             },
@@ -190,17 +190,17 @@ export class SearchService {
                 price: 1,
                 duration: 1,
                 tags: 1,
-                'company.companyName': 1,
-                'company.location': 1,
-                'company.averageRating': 1,
-                'company.reviewCount': 1,
+                'provider.providerName': 1,
+                'provider.location': 1,
+                'provider.averageRating': 1,
+                'provider.reviewCount': 1,
               },
             },
           ]),
 
-          this.companyModel.countDocuments(
-            searchCompanyConditions.length
-              ? { $and: searchCompanyConditions }
+          this.providerModel.countDocuments(
+            searchProviderConditions.length
+              ? { $and: searchProviderConditions }
               : {},
           ),
           this.serviceModel.countDocuments(
@@ -213,9 +213,9 @@ export class SearchService {
       // FALLBACK: Return popular/trending results when no matches or engine disabled
       hasExactResults = false;
 
-      [companyQuery, serviceQuery, totalCompanies, totalServices] =
+      [providerQuery, serviceQuery, totalCompanies, totalServices] =
         await Promise.all([
-          this.companyModel
+          this.providerModel
             .find()
             .populate('subcategories')
             .sort({
@@ -233,16 +233,16 @@ export class SearchService {
             {
               $lookup: {
                 from: 'companies',
-                localField: 'companyId',
+                localField: 'providerId',
                 foreignField: '_id',
-                as: 'company',
+                as: 'provider',
               },
             },
-            { $unwind: '$company' },
+            { $unwind: '$provider' },
             {
               $sort: {
-                'company.averageRating': -1,
-                'company.reviewCount': -1,
+                'provider.averageRating': -1,
+                'provider.reviewCount': -1,
                 createdAt: -1,
               },
             },
@@ -255,15 +255,15 @@ export class SearchService {
                 price: 1,
                 duration: 1,
                 tags: 1,
-                'company.companyName': 1,
-                'company.location': 1,
-                'company.averageRating': 1,
-                'company.reviewCount': 1,
+                'provider.providerName': 1,
+                'provider.location': 1,
+                'provider.averageRating': 1,
+                'provider.reviewCount': 1,
               },
             },
           ]),
 
-          this.companyModel.countDocuments(),
+          this.providerModel.countDocuments(),
           this.serviceModel.countDocuments({ isActive: true }),
         ]);
     }
@@ -271,7 +271,7 @@ export class SearchService {
     const totalPages = Math.ceil((totalCompanies + totalServices) / limitN);
 
     return {
-      companies: companyQuery,
+      companies: providerQuery,
       services: serviceQuery,
       totalPages,
       hasExactResults,

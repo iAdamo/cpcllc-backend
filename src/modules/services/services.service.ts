@@ -14,9 +14,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
 import {
-  Company,
-  CompanyDocument,
-} from 'src/modules/company/schemas/company.schema';
+  Provider,
+  ProviderDocument,
+} from 'src/modules/provider/schemas/provider.schema';
 import {
   Subcategory,
   SubcategoryDocument,
@@ -32,7 +32,7 @@ import { DbStorageService } from 'src/utils/dbStorage';
 export class ServicesService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(Company.name) private companyModel: Model<CompanyDocument>,
+    @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
     @InjectModel(Service.name) private serviceModel: Model<Service>,
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
     @InjectModel(Subcategory.name)
@@ -104,9 +104,9 @@ export class ServicesService {
       throw new NotFoundException('User not found');
     }
 
-    const company = await this.companyModel.findById(user.activeRoleId);
-    if (!company) {
-      throw new NotFoundException('Company not found');
+    const provider = await this.providerModel.findById(user.activeRoleId);
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
     }
 
     let imageLinks: string[] | null = null;
@@ -139,7 +139,7 @@ export class ServicesService {
     const service = new this.serviceModel({
       ...serviceData,
       user: user._id,
-      companyId: company._id,
+      providerId: provider._id,
       images: imageLinks,
       videos: videoLinks,
     });
@@ -157,10 +157,10 @@ export class ServicesService {
     if (!service) {
       throw new NotFoundException('Service not found');
     }
-    const company = await this.companyModel.findById(service.companyId);
+    const provider = await this.providerModel.findById(service.providerId);
 
-    if (!company) {
-      throw new NotFoundException('Company not found');
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
     }
 
     if (images && images.length > 0) {
@@ -186,7 +186,7 @@ export class ServicesService {
         throw new InternalServerErrorException('Error uploading videos');
       }
     }
-    const { companyId, user, ...safeUpdate } = updateData;
+    const { providerId, user, ...safeUpdate } = updateData;
     return await this.serviceModel.findByIdAndUpdate(serviceId, safeUpdate, {
       new: true,
     });
@@ -200,16 +200,16 @@ export class ServicesService {
     return service;
   }
 
-  async getServicesByCompany(companyId: string): Promise<Service[]> {
+  async getServicesByProvider(providerId: string): Promise<Service[]> {
     try {
-      const company = await this.companyModel.findById(companyId);
-      if (!company) {
-        throw new NotFoundException('Company not found');
+      const provider = await this.providerModel.findById(providerId);
+      if (!provider) {
+        throw new NotFoundException('Provider not found');
       }
 
       const services = await this.serviceModel
-        .find({ companyId: company._id })
-        .populate('companyId', 'companyName companyImages');
+        .find({ providerId: provider._id })
+        .populate('providerId', 'providerName providerImages');
 
       return services;
     } catch (error) {
@@ -220,7 +220,7 @@ export class ServicesService {
   async getServiceById(serviceId: string): Promise<ServiceDocument> {
     const service = await this.serviceModel
       .findById(serviceId)
-      .populate('companyId', 'companyName companyImages');
+      .populate('providerId', 'providerName providerImages');
 
     if (!service) {
       throw new NotFoundException('Service not found');

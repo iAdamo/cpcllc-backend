@@ -19,13 +19,13 @@
         "src/modules/auth/*",
         "src/modules/services/*",
         "src/modules/review/*",
-        "src/modules/company/*"
+        "src/modules/provider/*"
       ],
       "@schemas/*": [
         "src/modules/users/schemas/*",
         "src/modules/services/schemas/*",
         "src/modules/review/schemas/*",
-        "src/modules/company/schemas/*"
+        "src/modules/provider/schemas/*"
       ],
       "@dto/*": [
         "src/modules/users/dto/*",
@@ -33,7 +33,7 @@
         "src/modules/auth/dto/*",
         "src/modules/review/dto/*",
         "src/modules/admin/dto/*",
-        "src/modules/company/dto/*"
+        "src/modules/provider/dto/*"
       ],
       "@controllers/*": [
         "src/modules/users/*",
@@ -42,7 +42,7 @@
         "src/modules/services/*",
         "src/modules/search/*",
         "src/modules/review/*",
-        "src/modules/company/*"
+        "src/modules/provider/*"
       ],
       "@services/*": [
         "src/modules/users/*",
@@ -52,7 +52,7 @@
         "src/modules/search/*",
         "src/modules/services",
         "src/modules/review/*",
-        "src/modules/company/*",
+        "src/modules/provider/*",
         "src/modules/admin/*"
       ],
       "@guards/*": ["src/modules/auth/jwt/*"]

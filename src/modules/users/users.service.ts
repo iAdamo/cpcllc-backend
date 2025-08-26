@@ -9,9 +9,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { model, Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
 import {
-  Company,
-  CompanyDocument,
-} from 'src/modules/company/schemas/company.schema';
+  Provider,
+  ProviderDocument,
+} from 'src/modules/provider/schemas/provider.schema';
 import {
   Service,
   Category,
@@ -22,15 +22,13 @@ import {
 } from '@modules/schemas/service.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
-import { UpdateCompanyDto } from 'src/modules/company/dto/update-company.dto';
-import { CreateCompanyDto } from '../company/dto/create-company.dto';
 import { DbStorageService } from 'src/utils/dbStorage';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(Company.name) private companyModel: Model<CompanyDocument>,
+    @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
     @InjectModel(Subcategory.name)
     private subcategoryModel: Model<SubcategoryDocument>,
   ) {}
@@ -44,6 +42,28 @@ export class UsersService {
     USER_ID_REQUIRED: 'User id is required',
     FILE_UPLOAD_FAILED: 'File upload failed',
   };
+
+  /**
+   * Create a User
+   * @param createUsersDto User data
+   * @returns Created User
+   */
+  async createUser(createUsersDto: CreateUserDto): Promise<User> {
+    const { email, phoneNumber, password } = createUsersDto;
+
+    if (!email || !phoneNumber || !password) {
+      throw new BadRequestException(this.ERROR_MESSAGES.EMAIL_REQUIRED);
+    }
+
+    const existingUser = await this.userModel.findOne({
+      $or: [{ email }, { phoneNumber }],
+    });
+    if (existingUser) {
+      throw new ConflictException('Email or phone number already exists');
+    }
+
+    return await this.userModel.create(createUsersDto);
+  }
 
   /**
    * Create a User
@@ -87,14 +107,16 @@ export class UsersService {
         mediaEntries = await this.storage.handleFileUpload(user.email, files);
       }
 
-      return await this.userModel.findByIdAndUpdate(
-        userId,
-        {
-          ...updateUserDto,
-          profilePicture: mediaEntries[0]?.url || user.profilePicture,
-        },
-        { new: true, runValidators: true },
-      ).exec();
+      return await this.userModel
+        .findByIdAndUpdate(
+          userId,
+          {
+            ...updateUserDto,
+            profilePicture: mediaEntries[0]?.url || user.profilePicture,
+          },
+          { new: true, runValidators: true },
+        )
+        .exec();
     } catch (error) {
       console.error('Error updating user:', error);
       throw new InternalServerErrorException(
@@ -112,9 +134,7 @@ export class UsersService {
     if (!id) {
       throw new BadRequestException('User ID is required');
     }
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid User ID format');
-    }
+
     const populatedUser = await this.userModel
       .findOne({
         $and: [
@@ -130,7 +150,7 @@ export class UsersService {
       .populate('hiredCompanies')
       .populate({
         path: 'activeRoleId',
-        model: 'Company',
+        model: 'Provider',
         populate: {
           path: 'subcategories',
           model: 'Subcategory',

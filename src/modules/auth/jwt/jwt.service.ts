@@ -62,6 +62,7 @@ export class JwtService {
       admin: user.activeRole === 'Admin' || false,
     };
     const accessToken = this.jwtService.sign(payload);
+
     res.cookie('authentication', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -75,6 +76,9 @@ export class JwtService {
     return res.status(200).json({
       message: 'Login successful',
       user: await this.usersService.userProfile(userId),
+      accessToken,
+      tokenType: 'Bearer',
+      expiresIn: 90 * 24 * 60 * 60, // 90 days in seconds
     });
   }
 

@@ -13,7 +13,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class CompanySocialMediaDto {
+class ProviderSocialMediaDto {
   @ApiProperty({ description: 'Facebook URL', required: false })
   @IsOptional()
   @IsString()
@@ -93,7 +93,7 @@ class LocationDto {
   address?: LocationAddressDto;
 }
 
-class CompanyLocationDto {
+class ProviderLocationDto {
   @ApiProperty({ description: 'Primary location', required: false })
   @IsOptional()
   @ValidateNested()
@@ -113,45 +113,45 @@ class CompanyLocationDto {
   tertiary?: LocationDto;
 }
 
-export class CreateCompanyDto {
-  @ApiProperty({ description: 'Company name', required: true })
+export class CreateProviderDto {
+  @ApiProperty({ description: 'Provider name', required: true })
   @IsString()
-  companyName: string;
+  providerName: string;
 
-  @ApiProperty({ description: 'Company description', required: false })
+  @ApiProperty({ description: 'Provider description', required: false })
   @IsOptional()
   @IsString()
-  companyDescription?: string;
+  providerDescription?: string;
 
-  @ApiProperty({ description: 'Company email', required: false })
+  @ApiProperty({ description: 'Provider email', required: false })
   @IsOptional()
   @IsEmail()
-  companyEmail?: string;
+  providerEmail?: string;
 
-  @ApiProperty({ description: 'Company phone number', required: false })
+  @ApiProperty({ description: 'Provider phone number', required: false })
   @IsOptional()
   @IsString()
-  companyPhoneNumber?: string;
+  providerPhoneNumber?: string;
 
   @ApiProperty({
-    description: 'Array of company image URLs',
+    description: 'Array of provider image URLs',
     type: [String],
     required: false,
   })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  companyImages?: string[];
+  providerImages?: string[];
 
-  @ApiProperty({ description: 'Company website', required: false })
+  @ApiProperty({ description: 'Provider website', required: false })
   @IsOptional()
   @IsString()
-  companyWebsite?: string;
+  providerWebsite?: string;
 
   @IsOptional()
   @IsObject()
   @IsUrl()
-  companySocialMedia?: Record<string, string>;
+  providerSocialMedia?: Record<string, string>;
 
   @ApiProperty({
     description: 'Subcategories (array of IDs)',
@@ -164,13 +164,13 @@ export class CreateCompanyDto {
   subcategories?: string[];
 
   @ApiProperty({
-    description: 'Company location',
-    type: CompanyLocationDto,
+    description: 'Provider location',
+    type: ProviderLocationDto,
   })
   @IsOptional()
   @ValidateNested()
-  @Type(() => CompanyLocationDto)
-  location: CompanyLocationDto;
+  @Type(() => ProviderLocationDto)
+  location: ProviderLocationDto;
 
   @ApiProperty({ description: 'Owner ID', required: true })
   @IsMongoId()
@@ -187,7 +187,7 @@ export class CreateCompanyDto {
   clients?: string[];
 
   @ApiProperty({
-    description: 'Array of user IDs who favorited the company',
+    description: 'Array of user IDs who favorited the provider',
     type: [String],
     required: false,
   })

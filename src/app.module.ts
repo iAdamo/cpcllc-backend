@@ -17,7 +17,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ServicesModule } from './modules/services/services.module';
 import { ReviewsModule } from './modules/review/reviews.module';
 import { SearchModule } from './modules/search/search.module';
-import { CompanyModule } from './modules/company/company.module';
+import { ProviderModule } from './modules/provider/provider.module';
 import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
@@ -63,7 +63,7 @@ import { AdminModule } from './modules/admin/admin.module';
     ServicesModule,
     ReviewsModule,
     SearchModule,
-    CompanyModule,
+    ProviderModule,
   ],
   controllers: [],
   providers: [],

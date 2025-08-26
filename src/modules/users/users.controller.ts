@@ -16,9 +16,9 @@ import { ApiTags } from '@nestjs/swagger';
 import { User } from '@schemas/user.schema';
 import { UsersService } from '@modules/users.service';
 import { AdminService } from '../admin/admin.service';
-import { CompanyService } from '@services/company.service';
+import { ProviderService } from 'src/modules/provider/provider.service';
 import { CreateUserDto } from '@modules/dto/create-user.dto';
-import { CreateCompanyDto } from '../company/dto/create-company.dto';
+import { CreateProviderDto } from '../provider/dto/create-provider.dto';
 import { CreateAdminDto } from '@dto/create-admin.dto';
 import { UpdateUserDto } from '@modules/dto/update-user.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -36,38 +36,19 @@ export interface RequestWithUser extends Request {
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
-    private readonly companyService: CompanyService,
+    private readonly providerService: ProviderService,
     private readonly adminService: AdminService,
   ) {}
 
-  @Post(':id?')
+  @Post()
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'profilePicture', maxCount: 1 },
-      { name: 'companyImages', maxCount: 10 },
-    ]),
+    FileFieldsInterceptor([{ name: 'profilePicture', maxCount: 1 }]),
   )
-  async createUsers(
+  async createUser(
     @Body()
-    userDto: CreateUserDto | CreateCompanyDto | CreateAdminDto,
-    @Param('id') id?: string,
-    @UploadedFiles()
-    files?: {
-      profilePicture?: Express.Multer.File[];
-      companyImages?: Express.Multer.File[];
-    },
+    userDto: CreateUserDto,
   ) {
-    if (!id) {
-      return this.usersService.createUsers(userDto as CreateUserDto);
-    } else if ('companyName' in userDto) {
-      return this.companyService.createCompany(
-        id,
-        userDto as CreateCompanyDto,
-        files,
-      );
-    } else {
-      return this.adminService.createAdmin(id, userDto as CreateAdminDto);
-    }
+    return this.usersService.createUsers(userDto as CreateUserDto);
   }
 
   @Patch()
@@ -87,9 +68,45 @@ export class UsersController {
     return this.usersService.updateUser(id, userDto, files?.profilePicture);
   }
 
-  @Get(':id')
-  // @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  async userProfile(@Req() req: RequestWithUser) {
+    const id = req.user.userId;
+    return this.usersService.userProfile(id);
+  }
+
+  @Get('profile/:id')
   async getUserById(@Param('id') id: string) {
     return this.usersService.userProfile(id);
   }
+
+  // @Post(':id?')
+  // @UseInterceptors(
+  //   FileFieldsInterceptor([
+  //     { name: 'profilePicture', maxCount: 1 },
+  //     { name: 'providerImages', maxCount: 10 },
+  //   ]),
+  // )
+  // async createUsers(
+  //   @Body()
+  //   userDto: CreateUserDto | CreateProviderDto | CreateAdminDto,
+  //   @Param('id') id?: string,
+  //   @UploadedFiles()
+  //   files?: {
+  //     profilePicture?: Express.Multer.File[];
+  //     providerImages?: Express.Multer.File[];
+  //   },
+  // ) {
+  //   if (!id) {
+  //     return this.usersService.createUsers(userDto as CreateUserDto);
+  //   } else if ('providerName' in userDto) {
+  //     return this.providerService.createProvider(
+  //       id,
+  //       userDto as CreateProviderDto,
+  //       files,
+  //     );
+  //   } else {
+  //     return this.adminService.createAdmin(id, userDto as CreateAdminDto);
+  //   }
+  // }
 }

@@ -8,7 +8,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { model, Model, Types } from 'mongoose';
 import { User, UserDocument } from '@schemas/user.schema';
-import { Company, CompanyDocument } from '@schemas/company.schema';
+import {
+  Provider,
+  ProviderDocument,
+} from 'src/modules/provider/schemas/provider.schema';
 import {
   Service,
   Category,
@@ -19,15 +22,15 @@ import {
 } from '@modules/schemas/service.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
-import { UpdateCompanyDto } from 'src/modules/company/dto/update-company.dto';
-import { CreateCompanyDto } from '../company/dto/create-company.dto';
+import { UpdateProviderDto } from '@modules/dto/update-provider.dto';
+import { CreateProviderDto } from './dto/create-provider.dto';
 import { DbStorageService } from 'src/utils/dbStorage';
 
 @Injectable()
-export class CompanyService {
+export class ProviderService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(Company.name) private companyModel: Model<CompanyDocument>,
+    @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
     @InjectModel(Subcategory.name)
     private subcategoryModel: Model<SubcategoryDocument>,
   ) {}
@@ -43,41 +46,41 @@ export class CompanyService {
   };
 
   /**
-   * Create a Company
+   * Create a Provider
    * @param id User ID
-   * @param createCompanyDto Company Data
+   * @param createProviderDto Provider Data
    * @param files Files to upload
-   * @returns Created or Updated Company
+   * @returns Created or Updated Provider
    */
-  async createCompany(
+  async createProvider(
     userId: string,
-    createCompanyDto: CreateCompanyDto,
+    createProviderDto: CreateProviderDto,
     files?: {
       profilePicture?: Express.Multer.File[];
-      companyImages?: Express.Multer.File[];
+      providerImages?: Express.Multer.File[];
     },
-  ): Promise<Company> {
+  ): Promise<Provider> {
     if (!userId) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
     }
 
     let validSubcategoryIds: Types.ObjectId[] = [];
 
-    if (typeof createCompanyDto.subcategories === 'string') {
-      createCompanyDto.subcategories = JSON.parse(
-        createCompanyDto.subcategories,
+    if (typeof createProviderDto.subcategories === 'string') {
+      createProviderDto.subcategories = JSON.parse(
+        createProviderDto.subcategories,
       );
     }
-    if (!Array.isArray(createCompanyDto.subcategories)) {
+    if (!Array.isArray(createProviderDto.subcategories)) {
       throw new BadRequestException('Subcategories must be an array');
     }
     if (
-      createCompanyDto.subcategories &&
-      createCompanyDto.subcategories.length
+      createProviderDto.subcategories &&
+      createProviderDto.subcategories.length
     ) {
       const subcategories = await this.subcategoryModel.find({
         _id: {
-          $in: createCompanyDto.subcategories.map(
+          $in: createProviderDto.subcategories.map(
             (id) => new Types.ObjectId(id),
           ),
         },
@@ -87,8 +90,8 @@ export class CompanyService {
         throw new BadRequestException('No valid subcategories found');
       }
 
-      if (subcategories.length !== createCompanyDto.subcategories.length) {
-        const invalidIds = createCompanyDto.subcategories.filter(
+      if (subcategories.length !== createProviderDto.subcategories.length) {
+        const invalidIds = createProviderDto.subcategories.filter(
           (id) => !subcategories.find((s) => s._id.equals(id)),
         );
         throw new BadRequestException(
@@ -100,7 +103,7 @@ export class CompanyService {
     }
 
     let profilePictureUrl: string | null = null;
-    let companyImagesUrl: string[] | null = null;
+    let providerImagesUrl: string[] | null = null;
 
     try {
       if (files?.profilePicture?.length) {
@@ -111,12 +114,12 @@ export class CompanyService {
         profilePictureUrl = uploaded?.url || null;
       }
 
-      if (files?.companyImages?.length) {
-        const uploadedCompanyImages = await this.storage.handleFileUpload(
+      if (files?.providerImages?.length) {
+        const uploadedProviderImages = await this.storage.handleFileUpload(
           userId,
-          files.companyImages,
+          files.providerImages,
         );
-        companyImagesUrl = uploadedCompanyImages.map((item) => item.url);
+        providerImagesUrl = uploadedProviderImages.map((item) => item.url);
       }
     } catch (error) {
       throw new InternalServerErrorException(
@@ -124,121 +127,121 @@ export class CompanyService {
       );
     }
 
-    this.processLocationData(createCompanyDto, createCompanyDto);
+    this.processLocationData(createProviderDto, createProviderDto);
 
-    const companyData = {
-      ...createCompanyDto,
+    const providerData = {
+      ...createProviderDto,
       subcategories: validSubcategoryIds,
       owner: userId,
-      companyImages: companyImagesUrl,
+      providerImages: providerImagesUrl,
     };
 
-    const company = await this.companyModel.findOneAndUpdate(
+    const provider = await this.providerModel.findOneAndUpdate(
       { owner: userId },
-      { $set: companyData },
+      { $set: providerData },
       { new: true, upsert: true, runValidators: true },
     );
 
     /** 🔹 Step 5. Update User Profile Info */
     await this.userModel.findByIdAndUpdate(userId, {
-      firstName: createCompanyDto['firstName'],
-      lastName: createCompanyDto['lastName'],
+      firstName: createProviderDto['firstName'],
+      lastName: createProviderDto['lastName'],
       profilePicture: profilePictureUrl,
-      activeRole: 'Company',
-      activeRoleId: company._id,
+      activeRole: 'Provider',
+      activeRoleId: provider._id,
     });
 
-    return company;
+    return provider;
   }
 
   /**
-   * Update a Company
+   * Update a Provider
    * @param userId User ID
-   * @param updateCompanyDto Company Data
+   * @param updateProviderDto Provider Data
    * @param files Files to upload
-   * @returns Updated Company
+   * @returns Updated Provider
    */
-  async updateCompany(
+  async updateProvider(
     userId: string,
-    updateCompanyDto: UpdateCompanyDto,
+    updateProviderDto: UpdateProviderDto,
     files?: {
       profilePicture?: Express.Multer.File[];
-      companyImages?: Express.Multer.File[];
+      providerImages?: Express.Multer.File[];
     },
-  ): Promise<Company> {
+  ): Promise<Provider> {
     if (!userId) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
     }
 
     // Initialize update data object
-    const companyUpdateData: Partial<UpdateCompanyDto> = {};
+    const providerUpdateData: Partial<UpdateProviderDto> = {};
 
-    const existingCompany = await this.companyModel.findOne({ owner: userId });
+    const existingProvider = await this.providerModel.findOne({ owner: userId });
 
-    if (!existingCompany) {
-      throw new NotFoundException('Company not found');
+    if (!existingProvider) {
+      throw new NotFoundException('Provider not found');
     }
 
-    if (updateCompanyDto.companySocialMedia) {
-      const existingSocialMedia = existingCompany.companySocialMedia
-        ? Object.fromEntries(existingCompany.companySocialMedia)
+    if (updateProviderDto.providerSocialMedia) {
+      const existingSocialMedia = existingProvider.providerSocialMedia
+        ? Object.fromEntries(existingProvider.providerSocialMedia)
         : {};
 
-      companyUpdateData.companySocialMedia = {
+      providerUpdateData.providerSocialMedia = {
         ...existingSocialMedia,
-        ...updateCompanyDto.companySocialMedia,
+        ...updateProviderDto.providerSocialMedia,
       };
     }
 
     // Process subcategories if provided
-    if (updateCompanyDto.subcategories) {
-      await this.processSubcategories(updateCompanyDto, companyUpdateData);
+    if (updateProviderDto.subcategories) {
+      await this.processSubcategories(updateProviderDto, providerUpdateData);
     }
 
     // Handle file uploads
-    const { profilePictureUrl, companyImagesUrl } =
+    const { profilePictureUrl, providerImagesUrl } =
       await this.handleFileUploads(userId, files);
-    if (companyImagesUrl) companyUpdateData.companyImages = companyImagesUrl;
+    if (providerImagesUrl) providerUpdateData.providerImages = providerImagesUrl;
 
     // Process location data if provided
-    this.processLocationData(updateCompanyDto, companyUpdateData);
+    this.processLocationData(updateProviderDto, providerUpdateData);
 
     // Merge with other DTO data and clean undefined values
     // Prevent overwrite
-    const { companySocialMedia, ...restDto } = updateCompanyDto;
-    Object.assign(companyUpdateData, restDto);
+    const { providerSocialMedia, ...restDto } = updateProviderDto;
+    Object.assign(providerUpdateData, restDto);
 
-    this.cleanUndefinedFields(companyUpdateData);
+    this.cleanUndefinedFields(providerUpdateData);
 
-    // Update company document
-    const company = await this.companyModel.findOneAndUpdate(
+    // Update provider document
+    const provider = await this.providerModel.findOneAndUpdate(
       { owner: userId },
-      { $set: companyUpdateData },
+      { $set: providerUpdateData },
       { new: true, runValidators: true },
     );
 
-    if (!company) {
-      throw new NotFoundException('Company not found');
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
     }
 
     // Update user data if needed
     await this.updateUserData(userId, {
-      firstName: updateCompanyDto['firstName'],
-      lastName: updateCompanyDto['lastName'],
+      firstName: updateProviderDto['firstName'],
+      lastName: updateProviderDto['lastName'],
       ...(profilePictureUrl ? { profilePicture: profilePictureUrl } : {}),
     });
 
-    return company;
+    return provider;
   }
 
   // Helper methods:
 
   private async processSubcategories(
-    updateCompanyDto: UpdateCompanyDto,
-    companyUpdateData: Partial<UpdateCompanyDto>,
+    updateProviderDto: UpdateProviderDto,
+    providerUpdateData: Partial<UpdateProviderDto>,
   ): Promise<void> {
     try {
-      let subcategoriesInput = updateCompanyDto.subcategories;
+      let subcategoriesInput = updateProviderDto.subcategories;
 
       if (typeof subcategoriesInput === 'string') {
         subcategoriesInput = JSON.parse(subcategoriesInput);
@@ -270,7 +273,7 @@ export class CompanyService {
         );
       }
 
-      companyUpdateData.subcategories = subcategories.map((s) =>
+      providerUpdateData.subcategories = subcategories.map((s) =>
         s._id.toString(),
       );
     } catch (error) {
@@ -285,14 +288,14 @@ export class CompanyService {
     userId: string,
     files?: {
       profilePicture?: Express.Multer.File[];
-      companyImages?: Express.Multer.File[];
+      providerImages?: Express.Multer.File[];
     },
   ): Promise<{
     profilePictureUrl: string | null;
-    companyImagesUrl: string[] | null;
+    providerImagesUrl: string[] | null;
   }> {
     let profilePictureUrl: string | null = null;
-    let companyImagesUrl: string[] | null = null;
+    let providerImagesUrl: string[] | null = null;
 
     try {
       if (files?.profilePicture?.[0]) {
@@ -303,12 +306,12 @@ export class CompanyService {
         profilePictureUrl = uploaded?.url || null;
       }
 
-      if (files?.companyImages?.length) {
-        const uploadedCompanyImages = await this.storage.handleFileUpload(
+      if (files?.providerImages?.length) {
+        const uploadedProviderImages = await this.storage.handleFileUpload(
           userId,
-          files.companyImages,
+          files.providerImages,
         );
-        companyImagesUrl = uploadedCompanyImages.map((item) => item.url);
+        providerImagesUrl = uploadedProviderImages.map((item) => item.url);
       }
     } catch (error) {
       throw new InternalServerErrorException(
@@ -316,23 +319,23 @@ export class CompanyService {
       );
     }
 
-    return { profilePictureUrl, companyImagesUrl };
+    return { profilePictureUrl, providerImagesUrl };
   }
 
   private processLocationData(
-    updateCompanyDto: UpdateCompanyDto | CreateCompanyDto,
-    companyUpdateData: Partial<CreateCompanyDto | UpdateCompanyDto>,
+    updateProviderDto: UpdateProviderDto | CreateProviderDto,
+    providerUpdateData: Partial<CreateProviderDto | UpdateProviderDto>,
   ): void {
     try {
-      console.log(updateCompanyDto);
-      if (!updateCompanyDto.location) return;
+      console.log(updateProviderDto);
+      if (!updateProviderDto.location) return;
 
       const locationTypes = ['primary', 'secondary', 'tertiary'] as const;
       const location: Record<string, any> = {};
-      console.log('Received location data:', updateCompanyDto);
-      console.log('Processing location data:', updateCompanyDto.location);
+      console.log('Received location data:', updateProviderDto);
+      console.log('Processing location data:', updateProviderDto.location);
       for (const type of locationTypes) {
-        const locData = updateCompanyDto.location[type];
+        const locData = updateProviderDto.location[type];
         if (!locData) continue;
 
         const coordinates = locData.coordinates
@@ -358,7 +361,7 @@ export class CompanyService {
       }
 
       if (Object.keys(location).length > 0) {
-        companyUpdateData.location = location;
+        providerUpdateData.location = location;
       }
     } catch (error) {
       throw new InternalServerErrorException(
@@ -399,7 +402,7 @@ export class CompanyService {
   async getAllCompanies(
     page: string,
     limit: string,
-  ): Promise<{ companies: Company[]; totalPages: number }> {
+  ): Promise<{ companies: Provider[]; totalPages: number }> {
     const pageN = parseInt(page);
     const limitN = parseInt(limit);
 
@@ -411,27 +414,27 @@ export class CompanyService {
       throw new BadRequestException('Limit must be a positive number');
     }
 
-    const totalCompanies = await this.companyModel.countDocuments();
+    const totalCompanies = await this.providerModel.countDocuments();
     if (totalCompanies === 0) {
       return { companies: [], totalPages: 0 };
     }
 
     const totalPages = Math.ceil(totalCompanies / limitN);
-    const companies = await this.companyModel.find();
+    const companies = await this.providerModel.find();
     return { companies, totalPages };
   }
 
   /**
    *
-   * @param companyId
+   * @param providerId
    * @param userId
    * @returns
    */
-  async toggleFavorite(companyId: string, userId: string): Promise<Company> {
-    const company = await this.companyModel.findById(companyId);
-    if (!company) throw new NotFoundException('User not found');
+  async toggleFavorite(providerId: string, userId: string): Promise<Provider> {
+    const provider = await this.providerModel.findById(providerId);
+    if (!provider) throw new NotFoundException('User not found');
 
-    const hasFavorited = company.favoritedBy.includes(
+    const hasFavorited = provider.favoritedBy.includes(
       new Types.ObjectId(userId),
     );
 
@@ -445,7 +448,7 @@ export class CompanyService {
           $inc: { favoriteCount: 1 },
         };
 
-    return await this.companyModel.findByIdAndUpdate(companyId, update, {
+    return await this.providerModel.findByIdAndUpdate(providerId, update, {
       new: true,
     });
   }

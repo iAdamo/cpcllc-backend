@@ -87,12 +87,12 @@ export class ServicesController {
     return this.servicesService.getAllCategoriesWithSubcategories();
   }
 
-  @Get('company/:id')
+  @Get('provider/:id')
   @UseGuards(JwtAuthGuard)
-  async getServicesByCompany(
-    @Param('id') companyId: string,
+  async getServicesByProvider(
+    @Param('id') providerId: string,
   ): Promise<Service[]> {
-    return this.servicesService.getServicesByCompany(companyId);
+    return this.servicesService.getServicesByProvider(providerId);
   }
 
   @Get(':id')

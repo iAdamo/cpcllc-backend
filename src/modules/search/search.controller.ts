@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@guards/jwt.guard';
-import { Company } from 'src/modules/company/schemas/company.schema';
+import { Provider } from 'src/modules/provider/schemas/provider.schema';
 import { Service } from '@modules/schemas/service.schema';
 import { SearchService } from '@services/search.service';
 
@@ -40,7 +40,7 @@ export class SearchController {
     @Query('long') long?: string,
     @Query('address') address?: string,
   ): Promise<{
-    companies: Company[];
+    companies: Provider[];
     services: Service[];
     totalPages: number;
   }> {

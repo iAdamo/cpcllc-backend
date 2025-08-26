@@ -29,25 +29,25 @@ export interface RequestWithUser extends Request {
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
-  @Post(':companyId')
+  @Post(':providerId')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'images', maxCount: 10 }]))
   async createReview(
     @Body() reviewDto: CreateReviewDto,
-    @Param('companyId') companyId: string,
+    @Param('providerId') providerId: string,
     @Req() req: RequestWithUser,
     @UploadedFiles() files?: { images?: Express.Multer.File[] },
   ) {
     return this.reviewsService.createReview(
       reviewDto,
       req.user.userId,
-      companyId,
+      providerId,
       files?.images || [],
     );
   }
 
-  @Get(':companyId')
-  async getReviews(@Param('companyId') companyId: string) {
-    return this.reviewsService.getReviewsByCompanyId(companyId);
+  @Get(':providerId')
+  async getReviews(@Param('providerId') providerId: string) {
+    return this.reviewsService.getReviewsByProviderId(providerId);
   }
 }

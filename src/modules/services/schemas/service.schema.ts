@@ -29,8 +29,8 @@ export class Subcategory {
 
 @Schema({ timestamps: true })
 export class Service {
-  @Prop({ type: Types.ObjectId, ref: 'Company', required: true })
-  companyId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Provider', required: true })
+  providerId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   user: Types.ObjectId;
