@@ -9,10 +9,9 @@ import {
 
 export class LoginDto {
   @ApiProperty({
-    example: 'john.doe@example.com',
-    description: 'The email of the user',
+    example: 'john.doe@example.com or +1234567890',
+    description: 'The email or phone number of the user',
   })
-  @IsEmail()
   @IsNotEmpty()
   email: string;
 

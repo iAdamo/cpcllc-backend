@@ -19,7 +19,8 @@
         "src/modules/auth/*",
         "src/modules/services/*",
         "src/modules/review/*",
-        "src/modules/provider/*"
+        "src/modules/provider/*",
+        "src/modules/media/*"
       ],
       "@schemas/*": [
         "src/modules/users/schemas/*",
@@ -48,7 +49,6 @@
         "src/modules/users/*",
         "src/modules/auth/*",
         "src/modules/services/*",
-        "src/modules/media/*",
         "src/modules/search/*",
         "src/modules/services",
         "src/modules/review/*",

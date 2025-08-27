@@ -9,9 +9,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { UsersService } from '@modules/users.service';
 import { User, UserDocument } from '@modules/schemas/user.schema';
+import { CreateUserDto } from '@dto/create-user.dto';
 import { Model, Types } from 'mongoose';
 import { MailtrapClient } from 'mailtrap';
 import * as bcrypt from 'bcrypt';
+import { LoginDto } from '@modules/dto/login.dto';
 
 @Injectable()
 export class JwtService {
@@ -21,48 +23,28 @@ export class JwtService {
     private readonly usersService: UsersService,
   ) {}
 
-  /**
-   * Retrieve all users.
-   * @returns List of users
-   */
-  async findAll(): Promise<User[]> {
-    return this.userModel.find().exec();
-  }
+  private readonly ERROR_MESSAGES = {
+    USER_NOT_FOUND: 'User not found',
+    EMAIL_REQUIRED: 'Email and password are required',
+    EMAIL_EXISTS: 'Email already exists',
+    USER_ID_REQUIRED: 'User id is required',
+    FILE_UPLOAD_FAILED: 'File upload failed',
+  };
 
-  /**
-   * Validate a user's credentials.
-   * @param email User email
-   * @param password User password
-   * @returns Validated user
-   */
-  async validateUser(email: string, password: string): Promise<User> {
-    if (!email || !password)
-      throw new BadRequestException('Email and password are required');
-
-    const user = await this.userModel.findOne({ email }).exec();
-    if (!user) throw new UnauthorizedException('Account does not exist');
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid)
-      throw new UnauthorizedException('Password is incorrect');
-
-    return user;
-  }
-
-  /**
-   * Generate a login token for a user.
-   * @param user User object
-   * @returns JWT access token
-   */
-  async login(user: User, res: any) {
-    const userId = user['_id'];
-    const payload = {
-      sub: userId as Types.ObjectId,
-      email: user.email,
-      admin: user.activeRole === 'Admin' || false,
-    };
-    const accessToken = this.jwtService.sign(payload);
-
+  private async authResponse(
+    accessToken: string,
+    tokenType: string,
+    res: any,
+    userId: Types.ObjectId,
+  ) {
+    if (tokenType === 'Bearer') {
+      return res.status(200).json({
+        accessToken,
+        tokenType: 'Bearer',
+        expiresIn: 30 * 24 * 60 * 60, // 30 days in seconds
+        user: await this.usersService.userProfile(userId.toString()),
+      });
+    }
     res.cookie('authentication', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -75,11 +57,99 @@ export class JwtService {
 
     return res.status(200).json({
       message: 'Login successful',
-      user: await this.usersService.userProfile(userId),
-      accessToken,
+      user: await this.usersService.userProfile(userId.toString()),
       tokenType: 'Bearer',
       expiresIn: 90 * 24 * 60 * 60, // 90 days in seconds
     });
+  }
+
+  /**
+   * Retrieve all users.
+   * @returns List of users
+   */
+  async findAll(): Promise<User[]> {
+    return this.userModel.find().exec();
+  }
+
+  private async validateUser(
+    emailOrPhone: string,
+    password: string,
+  ): Promise<User> {
+    if (!emailOrPhone || !password)
+      throw new BadRequestException(
+        'Email or Phone number and password are required',
+      );
+
+    const user = await this.userModel
+      .findOne({
+        $or: [{ email: emailOrPhone }, { phoneNumber: emailOrPhone }],
+      })
+      .exec();
+    if (!user) throw new UnauthorizedException('Account does not exist');
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid)
+      throw new UnauthorizedException('Password is incorrect');
+
+    return user;
+  }
+
+  /**
+   * Create a new user.
+   * @param createUsersDto User data
+   * @returns Created user
+   */
+  async createUser(
+    createUsersDto: CreateUserDto,
+    tokenType: string,
+    res: any,
+  ): Promise<any> {
+    console.log('Creating user with data:', createUsersDto);
+    const { email, phoneNumber, password } = createUsersDto;
+
+    if (!email || !phoneNumber || !password) {
+      throw new BadRequestException(this.ERROR_MESSAGES.EMAIL_REQUIRED);
+    }
+
+    const existingUser = await this.userModel.findOne({
+      $or: [{ email }, { phoneNumber }],
+    });
+    if (existingUser) {
+      throw new ConflictException('Email or phone number already exists');
+    }
+
+    const user = await this.userModel.create(createUsersDto);
+    const userId = user['_id'];
+    const payload = {
+      sub: userId as Types.ObjectId,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      admin: user.activeRole === 'Admin' || false,
+    };
+    const accessToken = this.jwtService.sign(payload);
+
+    await this.getVerificationCode(email);
+
+    return this.authResponse(accessToken, tokenType, res, userId);
+  }
+
+  /**
+   * Generate a login token for a user.
+   * @param loginData Login DTO
+   * @returns JWT access token
+   */
+  async login(loginData: LoginDto, tokenType: string, res: any): Promise<any> {
+    const user = await this.validateUser(loginData.email, loginData.password);
+    const userId = user['_id'];
+    const payload = {
+      sub: userId as Types.ObjectId,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      admin: user.activeRole === 'Admin' || false,
+    };
+    const accessToken = this.jwtService.sign(payload);
+
+    return this.authResponse(accessToken, tokenType, res, userId);
   }
 
   /**
@@ -158,7 +228,7 @@ export class JwtService {
         {
           code: null,
           codeAt: null,
-          verified: true,
+          isEmailVerified: true,
           forgetPassword: true,
         },
         { new: true, upsert: false },
@@ -191,7 +261,7 @@ export class JwtService {
         user._id,
         {
           password: hashedPassword,
-          forgetPassword: false,
+          forgetPassword: true,
         },
         { new: true, upsert: false },
       )

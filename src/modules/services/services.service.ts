@@ -96,8 +96,10 @@ export class ServicesService {
   async createService(
     serviceData: CreateServiceDto,
     userId: string,
-    images?: Express.Multer.File[],
-    videos?: Express.Multer.File[],
+    files: {
+      images?: Express.Multer.File[];
+      videos?: Express.Multer.File[];
+    },
   ): Promise<ServiceDocument> {
     const user = await this.userModel.findById(userId);
     if (!user) {
@@ -109,39 +111,35 @@ export class ServicesService {
       throw new NotFoundException('Provider not found');
     }
 
-    let imageLinks: string[] | null = null;
-    let videoLinks: string[] = [];
+    let fileUrls: { [key: string]: string | string[] | null } = {};
 
-    if (images && images.length > 0) {
-      try {
-        const uploadedImageLinks = await this.storage.handleFileUpload(
-          `${userId}/services/images`,
-          images,
-        );
-        imageLinks = uploadedImageLinks.map((item) => item.url);
-      } catch (error) {
-        throw new InternalServerErrorException('Error uploading images');
-      }
+    // Handle file uploads
+    if (files && Object.keys(files).length > 0) {
+      Object.keys(files).forEach((key) => {
+        if (!files[key] || files[key].length === 0) {
+          delete files[key];
+        }
+      });
     }
+    if (files && Object.keys(files).length > 0) {
+      fileUrls = await this.storage.handleFileUploads(
+        `${user._id}/services/images`,
+        files,
+      );
 
-    if (videos && videos.length > 0) {
-      try {
-        const uploadedVideoLinks = await this.storage.handleFileUpload(
-          `${userId}/services/videos`,
-          videos,
-        );
-        videoLinks = uploadedVideoLinks.map((item) => item.url);
-      } catch (error) {
-        throw new InternalServerErrorException('Error uploading videos');
-      }
+      // Remove keys with null or undefined values
+      Object.keys(fileUrls).forEach((key) => {
+        if (fileUrls[key] == null) {
+          delete fileUrls[key];
+        }
+      });
     }
 
     const service = new this.serviceModel({
       ...serviceData,
       user: user._id,
       providerId: provider._id,
-      images: imageLinks,
-      videos: videoLinks,
+      ...fileUrls,
     });
 
     return await service.save();
@@ -150,8 +148,10 @@ export class ServicesService {
   async updateService(
     serviceId: string,
     updateData: UpdateServiceDto,
-    images?: Express.Multer.File[],
-    videos?: Express.Multer.File[],
+    files: {
+      images?: Express.Multer.File[];
+      videos?: Express.Multer.File[];
+    },
   ): Promise<ServiceDocument> {
     const service = await this.serviceModel.findById(serviceId);
     if (!service) {
@@ -163,30 +163,37 @@ export class ServicesService {
       throw new NotFoundException('Provider not found');
     }
 
-    if (images && images.length > 0) {
-      try {
-        const uploadedImageLinks = await this.storage.handleFileUpload(
-          `${service.user}/services/images`,
-          images,
-        );
-        updateData.images = uploadedImageLinks.map((item) => item.url);
-      } catch (error) {
-        throw new InternalServerErrorException('Error uploading images');
-      }
+    if (provider._id.toString() !== service.providerId.toString()) {
+      throw new BadRequestException(
+        'You can only update services of your own provider account',
+      );
     }
+    let fileUrls: { [key: string]: string | string[] | null } = {};
 
-    if (videos && videos.length > 0) {
-      try {
-        const uploadedVideoLinks = await this.storage.handleFileUpload(
-          `${service.user}/services/videos`,
-          videos,
-        );
-        updateData.videos = uploadedVideoLinks.map((item) => item.url);
-      } catch (error) {
-        throw new InternalServerErrorException('Error uploading videos');
-      }
+    // Handle file uploads
+    if (files && Object.keys(files).length > 0) {
+      Object.keys(files).forEach((key) => {
+        if (!files[key] || files[key].length === 0) {
+          delete files[key];
+        }
+      });
     }
-    const { providerId, user, ...safeUpdate } = updateData;
+    if (files && Object.keys(files).length > 0) {
+      fileUrls = await this.storage.handleFileUploads(
+        `${service.user}/services/images`,
+        files,
+      );
+
+      // Remove keys with null or undefined values
+      Object.keys(fileUrls).forEach((key) => {
+        if (fileUrls[key] == null) {
+          delete fileUrls[key];
+        }
+      });
+    }
+    const updateDataWithFiles = { ...updateData, ...fileUrls };
+    // Remove providerId and user from update data to prevent changes
+    const { providerId, user, ...safeUpdate } = updateDataWithFiles;
     return await this.serviceModel.findByIdAndUpdate(serviceId, safeUpdate, {
       new: true,
     });

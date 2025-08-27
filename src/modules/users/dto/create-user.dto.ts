@@ -41,6 +41,31 @@ export class CreateUserDto {
   @IsString()
   profilePicture?: string;
 
+  @ApiProperty({ example: 'en', required: false })
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @ApiProperty({ example: false, default: false })
+  @IsBoolean()
+  isEmailVerified: boolean;
+
+  @ApiProperty({ example: false, default: false })
+  @IsBoolean()
+  isPhoneVerified: boolean;
+
+  @ApiProperty({ example: 0, default: 0 })
+  @IsOptional()
+  emailEditCount?: number;
+
+  @ApiProperty({ example: 0, default: 0 })
+  @IsOptional()
+  phoneEditCount?: number;
+
+  @ApiProperty({ example: true, default: true })
+  @IsBoolean()
+  isActive: boolean;
+
   @ApiProperty({ example: '123456', required: false })
   @IsOptional()
   @IsString()
@@ -52,7 +77,7 @@ export class CreateUserDto {
 
   @ApiProperty({ default: false })
   @IsBoolean()
-  verified: boolean;
+  isVerified: boolean;
 
   @ApiProperty({ default: false })
   @IsBoolean()
@@ -62,22 +87,10 @@ export class CreateUserDto {
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
-  purchasedServices?: string[];
-
-  @ApiProperty({ type: [String], required: false })
-  @IsOptional()
-  @IsArray()
-  @IsMongoId({ each: true })
-  hiredCompanies?: string[];
-
-  @ApiProperty({ type: [String], required: false })
-  @IsOptional()
-  @IsArray()
-  @IsMongoId({ each: true })
   admins?: string[];
 
-  @ApiProperty({ enum: ['Client', 'Company', 'Admin'], default: 'Client' })
-  @IsEnum(['Client', 'Company', 'Admin'])
+  @ApiProperty({ enum: ['Client', 'Provider', 'Admin'], default: 'Client' })
+  @IsEnum(['Client', 'Provider', 'Admin'])
   activeRole: string;
 
   @ApiProperty({ required: false })

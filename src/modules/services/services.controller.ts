@@ -60,12 +60,7 @@ export class ServicesController {
     },
   ) {
     const userId = req.user.userId;
-    return this.servicesService.createService(
-      serviceDto,
-      userId,
-      files?.images,
-      files?.videos,
-    );
+    return this.servicesService.createService(serviceDto, userId, files);
   }
 
   @Post('category')
@@ -118,12 +113,7 @@ export class ServicesController {
       videos?: Express.Multer.File[];
     },
   ): Promise<Service> {
-    return this.servicesService.updateService(
-      serviceId,
-      serviceData,
-      files?.images,
-      files?.videos,
-    );
+    return this.servicesService.updateService(serviceId, serviceData, files);
   }
 
   @Delete(':id')

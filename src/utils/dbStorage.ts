@@ -8,7 +8,10 @@ export class DbStorageService {
 
   constructor() {}
 
-  private async saveFile(folder: string, file: Express.Multer.File): Promise<string> {
+  private async saveFile(
+    folder: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
     // Replace spaces with underscores in the folder name
     const sanitizedFolder = folder.replace(/\s+/g, '_');
 
@@ -26,18 +29,6 @@ export class DbStorageService {
     await writeFile(filePath, buffer);
 
     return `${this.baseUrl}/${sanitizedFolder}/${sanitizedFilename}`;
-  }
-
-  async deleteUserFiles(
-    userId: string): Promise<void> {
-      if (process.env.STORAGETYPE === "local") {
-        const userFolder = join(this.baseStoragePath, userId);
-        if (fs.existsSync(userFolder)) {
-          fs.rmSync(userFolder, { recursive: true, force: true });
-        } else {
-          console.warn(`User folder ${userFolder} does not exist.`);
-        }
-      }
   }
 
   /**
@@ -61,5 +52,43 @@ export class DbStorageService {
         index,
       })),
     );
+  }
+
+  async deleteUserFiles(userId: string): Promise<void> {
+    if (process.env.STORAGETYPE === 'local') {
+      const userFolder = join(this.baseStoragePath, userId);
+      if (fs.existsSync(userFolder)) {
+        fs.rmSync(userFolder, { recursive: true, force: true });
+      } else {
+        console.warn(`User folder ${userFolder} does not exist.`);
+      }
+    }
+  }
+
+  async handleFileUploads(
+    userId: string,
+    files?: Record<string, Express.Multer.File | Express.Multer.File[]>,
+  ): Promise<Record<string, string | string[] | null>> {
+    const fileArray = Array.isArray(files) ? files : [files];
+    const result: Record<string, string | string[] | null> = {};
+
+    if (!fileArray) return result;
+
+    for (const [fieldName, fileList] of Object.entries(fileArray)) {
+      if (fileList && fileList.length) {
+        // If only one file, return a single URL, else return an array of URLs
+        if (fileList.length === 1) {
+          const [uploaded] = await this.handleFileUpload(userId, fileList[0]);
+          result[`${fieldName}Url`] = uploaded?.url || null;
+        } else {
+          const uploadedFiles = await this.handleFileUpload(userId, fileList);
+          result[`${fieldName}Url`] = uploadedFiles.map((item) => item.url);
+        }
+      } else {
+        result[`${fieldName}Url`] = null;
+      }
+    }
+
+    return result;
   }
 }

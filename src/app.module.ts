@@ -19,6 +19,7 @@ import { ReviewsModule } from './modules/review/reviews.module';
 import { SearchModule } from './modules/search/search.module';
 import { ProviderModule } from './modules/provider/provider.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { MediaModule } from './modules/media/media.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { AdminModule } from './modules/admin/admin.module';
     ReviewsModule,
     SearchModule,
     ProviderModule,
+    MediaModule,
   ],
   controllers: [],
   providers: [],

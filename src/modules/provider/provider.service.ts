@@ -22,8 +22,7 @@ import {
 } from '@modules/schemas/service.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
-import { UpdateProviderDto } from '@modules/dto/update-provider.dto';
-import { CreateProviderDto } from './dto/create-provider.dto';
+import { UpdateProviderDto } from '@dto/update-provider.dto';
 import { DbStorageService } from 'src/utils/dbStorage';
 
 @Injectable()
@@ -45,114 +44,114 @@ export class ProviderService {
     FILE_UPLOAD_FAILED: 'File upload failed',
   };
 
-  /**
-   * Create a Provider
-   * @param id User ID
-   * @param createProviderDto Provider Data
-   * @param files Files to upload
-   * @returns Created or Updated Provider
-   */
-  async createProvider(
-    userId: string,
-    createProviderDto: CreateProviderDto,
-    files?: {
-      profilePicture?: Express.Multer.File[];
-      providerImages?: Express.Multer.File[];
-    },
-  ): Promise<Provider> {
-    if (!userId) {
-      throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
-    }
+  // /**
+  //  * Create a Provider
+  //  * @param id User ID
+  //  * @param createProviderDto Provider Data
+  //  * @param files Files to upload
+  //  * @returns Created or Updated Provider
+  //  */
+  // async createProvider(
+  //   userId: string,
+  //   createProviderDto: CreateProviderDto,
+  //   files?: {
+  //     profilePicture?: Express.Multer.File[];
+  //     providerImages?: Express.Multer.File[];
+  //   },
+  // ): Promise<Provider> {
+  //   if (!userId) {
+  //     throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
+  //   }
 
-    let validSubcategoryIds: Types.ObjectId[] = [];
+  //   let validSubcategoryIds: Types.ObjectId[] = [];
 
-    if (typeof createProviderDto.subcategories === 'string') {
-      createProviderDto.subcategories = JSON.parse(
-        createProviderDto.subcategories,
-      );
-    }
-    if (!Array.isArray(createProviderDto.subcategories)) {
-      throw new BadRequestException('Subcategories must be an array');
-    }
-    if (
-      createProviderDto.subcategories &&
-      createProviderDto.subcategories.length
-    ) {
-      const subcategories = await this.subcategoryModel.find({
-        _id: {
-          $in: createProviderDto.subcategories.map(
-            (id) => new Types.ObjectId(id),
-          ),
-        },
-      });
+  //   if (typeof createProviderDto.subcategories === 'string') {
+  //     createProviderDto.subcategories = JSON.parse(
+  //       createProviderDto.subcategories,
+  //     );
+  //   }
+  //   if (!Array.isArray(createProviderDto.subcategories)) {
+  //     throw new BadRequestException('Subcategories must be an array');
+  //   }
+  //   if (
+  //     createProviderDto.subcategories &&
+  //     createProviderDto.subcategories.length
+  //   ) {
+  //     const subcategories = await this.subcategoryModel.find({
+  //       _id: {
+  //         $in: createProviderDto.subcategories.map(
+  //           (id) => new Types.ObjectId(id),
+  //         ),
+  //       },
+  //     });
 
-      if (!subcategories.length) {
-        throw new BadRequestException('No valid subcategories found');
-      }
+  //     if (!subcategories.length) {
+  //       throw new BadRequestException('No valid subcategories found');
+  //     }
 
-      if (subcategories.length !== createProviderDto.subcategories.length) {
-        const invalidIds = createProviderDto.subcategories.filter(
-          (id) => !subcategories.find((s) => s._id.equals(id)),
-        );
-        throw new BadRequestException(
-          `Invalid subcategory IDs: ${invalidIds.join(', ')}`,
-        );
-      }
+  //     if (subcategories.length !== createProviderDto.subcategories.length) {
+  //       const invalidIds = createProviderDto.subcategories.filter(
+  //         (id) => !subcategories.find((s) => s._id.equals(id)),
+  //       );
+  //       throw new BadRequestException(
+  //         `Invalid subcategory IDs: ${invalidIds.join(', ')}`,
+  //       );
+  //     }
 
-      validSubcategoryIds = subcategories.map((s) => s._id);
-    }
+  //     validSubcategoryIds = subcategories.map((s) => s._id);
+  //   }
 
-    let profilePictureUrl: string | null = null;
-    let providerImagesUrl: string[] | null = null;
+  //   let profilePictureUrl: string | null = null;
+  //   let providerImagesUrl: string[] | null = null;
 
-    try {
-      if (files?.profilePicture?.length) {
-        const [uploaded] = await this.storage.handleFileUpload(
-          userId,
-          files.profilePicture[0],
-        );
-        profilePictureUrl = uploaded?.url || null;
-      }
+  //   try {
+  //     if (files?.profilePicture?.length) {
+  //       const [uploaded] = await this.storage.handleFileUpload(
+  //         userId,
+  //         files.profilePicture[0],
+  //       );
+  //       profilePictureUrl = uploaded?.url || null;
+  //     }
 
-      if (files?.providerImages?.length) {
-        const uploadedProviderImages = await this.storage.handleFileUpload(
-          userId,
-          files.providerImages,
-        );
-        providerImagesUrl = uploadedProviderImages.map((item) => item.url);
-      }
-    } catch (error) {
-      throw new InternalServerErrorException(
-        this.ERROR_MESSAGES.FILE_UPLOAD_FAILED,
-      );
-    }
+  //     if (files?.providerImages?.length) {
+  //       const uploadedProviderImages = await this.storage.handleFileUpload(
+  //         userId,
+  //         files.providerImages,
+  //       );
+  //       providerImagesUrl = uploadedProviderImages.map((item) => item.url);
+  //     }
+  //   } catch (error) {
+  //     throw new InternalServerErrorException(
+  //       this.ERROR_MESSAGES.FILE_UPLOAD_FAILED,
+  //     );
+  //   }
 
-    this.processLocationData(createProviderDto, createProviderDto);
+  //   this.processLocationData(createProviderDto, createProviderDto);
 
-    const providerData = {
-      ...createProviderDto,
-      subcategories: validSubcategoryIds,
-      owner: userId,
-      providerImages: providerImagesUrl,
-    };
+  //   const providerData = {
+  //     ...createProviderDto,
+  //     subcategories: validSubcategoryIds,
+  //     owner: userId,
+  //     providerImages: providerImagesUrl,
+  //   };
 
-    const provider = await this.providerModel.findOneAndUpdate(
-      { owner: userId },
-      { $set: providerData },
-      { new: true, upsert: true, runValidators: true },
-    );
+  //   const provider = await this.providerModel.findOneAndUpdate(
+  //     { owner: userId },
+  //     { $set: providerData },
+  //     { new: true, upsert: true, runValidators: true },
+  //   );
 
-    /** 🔹 Step 5. Update User Profile Info */
-    await this.userModel.findByIdAndUpdate(userId, {
-      firstName: createProviderDto['firstName'],
-      lastName: createProviderDto['lastName'],
-      profilePicture: profilePictureUrl,
-      activeRole: 'Provider',
-      activeRoleId: provider._id,
-    });
+  //   /** 🔹 Step 5. Update User Profile Info */
+  //   await this.userModel.findByIdAndUpdate(userId, {
+  //     firstName: createProviderDto['firstName'],
+  //     lastName: createProviderDto['lastName'],
+  //     profilePicture: profilePictureUrl,
+  //     activeRole: 'Provider',
+  //     activeRoleId: provider._id,
+  //   });
 
-    return provider;
-  }
+  //   return provider;
+  // }
 
   /**
    * Update a Provider
@@ -165,73 +164,77 @@ export class ProviderService {
     userId: string,
     updateProviderDto: UpdateProviderDto,
     files?: {
-      profilePicture?: Express.Multer.File[];
+      providerLogo?: Express.Multer.File;
       providerImages?: Express.Multer.File[];
     },
-  ): Promise<Provider> {
+  ): Promise<User> {
     if (!userId) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
     }
+    try {
+      const existingProvider = await this.providerModel.findOne({
+        owner: userId,
+      });
 
-    // Initialize update data object
-    const providerUpdateData: Partial<UpdateProviderDto> = {};
+      if (!updateProviderDto.providerName) {
+        throw new BadRequestException(
+          'Company name is required for new providers',
+        );
+      }
 
-    const existingProvider = await this.providerModel.findOne({ owner: userId });
+      // console.log('Received updateProviderDto:', files);
 
-    if (!existingProvider) {
-      throw new NotFoundException('Provider not found');
+      let fileUrls: { [key: string]: string | string[] | null } = {};
+
+      // // Handle file uploads
+      // if (files && Object.keys(files).length > 0) {
+      //   Object.keys(files).forEach((key) => {
+      //     if (!files[key] || files[key].length === 0) {
+      //       delete files[key];
+      //     }
+      //   });
+      // }
+      // console.log('Files after filtering empty entries:', files);
+      // if (files && Object.keys(files).length > 0) {
+      //   fileUrls = await this.storage.handleFileUploads(userId, files);
+
+      //   // Remove keys with null or undefined values
+      //   Object.keys(fileUrls).forEach((key) => {
+      //     if (fileUrls[key] == null) {
+      //       delete fileUrls[key];
+      //     }
+      //   });
+      // }
+      fileUrls = await this.storage.handleFileUploads(userId, files);
+
+      console.log('Processed file URLs:', fileUrls);
+
+      const updateProviderData = {
+        ...updateProviderDto,
+        ...fileUrls,
+        owner: new Types.ObjectId(userId),
+      } as Partial<UpdateProviderDto>;
+
+      const provider = await this.providerModel.findOneAndUpdate(
+        { owner: new Types.ObjectId(userId) },
+        { $set: updateProviderData },
+        {
+          new: true,
+          upsert: existingProvider ? false : true,
+          runValidators: true,
+        },
+      );
+
+      if (provider) {
+        const user = await this.userModel.findByIdAndUpdate(userId, {
+          activeRole: 'Provider',
+          activeRoleId: provider._id,
+        });
+        return user;
+      }
+    } catch (error) {
+      throw new InternalServerErrorException(error);
     }
-
-    if (updateProviderDto.providerSocialMedia) {
-      const existingSocialMedia = existingProvider.providerSocialMedia
-        ? Object.fromEntries(existingProvider.providerSocialMedia)
-        : {};
-
-      providerUpdateData.providerSocialMedia = {
-        ...existingSocialMedia,
-        ...updateProviderDto.providerSocialMedia,
-      };
-    }
-
-    // Process subcategories if provided
-    if (updateProviderDto.subcategories) {
-      await this.processSubcategories(updateProviderDto, providerUpdateData);
-    }
-
-    // Handle file uploads
-    const { profilePictureUrl, providerImagesUrl } =
-      await this.handleFileUploads(userId, files);
-    if (providerImagesUrl) providerUpdateData.providerImages = providerImagesUrl;
-
-    // Process location data if provided
-    this.processLocationData(updateProviderDto, providerUpdateData);
-
-    // Merge with other DTO data and clean undefined values
-    // Prevent overwrite
-    const { providerSocialMedia, ...restDto } = updateProviderDto;
-    Object.assign(providerUpdateData, restDto);
-
-    this.cleanUndefinedFields(providerUpdateData);
-
-    // Update provider document
-    const provider = await this.providerModel.findOneAndUpdate(
-      { owner: userId },
-      { $set: providerUpdateData },
-      { new: true, runValidators: true },
-    );
-
-    if (!provider) {
-      throw new NotFoundException('Provider not found');
-    }
-
-    // Update user data if needed
-    await this.updateUserData(userId, {
-      firstName: updateProviderDto['firstName'],
-      lastName: updateProviderDto['lastName'],
-      ...(profilePictureUrl ? { profilePicture: profilePictureUrl } : {}),
-    });
-
-    return provider;
   }
 
   // Helper methods:
@@ -284,47 +287,9 @@ export class ProviderService {
     }
   }
 
-  private async handleFileUploads(
-    userId: string,
-    files?: {
-      profilePicture?: Express.Multer.File[];
-      providerImages?: Express.Multer.File[];
-    },
-  ): Promise<{
-    profilePictureUrl: string | null;
-    providerImagesUrl: string[] | null;
-  }> {
-    let profilePictureUrl: string | null = null;
-    let providerImagesUrl: string[] | null = null;
-
-    try {
-      if (files?.profilePicture?.[0]) {
-        const [uploaded] = await this.storage.handleFileUpload(
-          userId,
-          files.profilePicture[0],
-        );
-        profilePictureUrl = uploaded?.url || null;
-      }
-
-      if (files?.providerImages?.length) {
-        const uploadedProviderImages = await this.storage.handleFileUpload(
-          userId,
-          files.providerImages,
-        );
-        providerImagesUrl = uploadedProviderImages.map((item) => item.url);
-      }
-    } catch (error) {
-      throw new InternalServerErrorException(
-        this.ERROR_MESSAGES.FILE_UPLOAD_FAILED,
-      );
-    }
-
-    return { profilePictureUrl, providerImagesUrl };
-  }
-
   private processLocationData(
-    updateProviderDto: UpdateProviderDto | CreateProviderDto,
-    providerUpdateData: Partial<CreateProviderDto | UpdateProviderDto>,
+    updateProviderDto: UpdateProviderDto,
+    providerUpdateData: Partial<UpdateProviderDto>,
   ): void {
     try {
       console.log(updateProviderDto);

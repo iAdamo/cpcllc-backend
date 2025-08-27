@@ -15,7 +15,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from '../admin/admin.service';
 import { ProviderService } from './provider.service';
-import { UpdateProviderDto } from '@modules/dto/update-provider.dto';
+import { UpdateProviderDto } from '@dto/update-provider.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
 import { Provider } from 'src/modules/provider/schemas/provider.schema';
@@ -58,11 +58,14 @@ export class ProviderController {
     return this.providerService.toggleFavorite(providerId, req.user.userId);
   }
 
-  @Patch()
+  @Patch('profile')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'profilePicture', maxCount: 1 },
+      {
+        name: 'providerLogo',
+        maxCount: 1,
+      },
       { name: 'providerImages', maxCount: 10 },
     ]),
   )
@@ -71,7 +74,7 @@ export class ProviderController {
     @Req() req: RequestWithUser,
     @UploadedFiles()
     files?: {
-      profilePicture?: Express.Multer.File[];
+      providerLogo?: Express.Multer.File;
       providerImages?: Express.Multer.File[];
     },
   ) {

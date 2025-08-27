@@ -14,7 +14,7 @@ import { Type } from 'class-transformer';
 import {
   LocationDto,
   MediaGroupDto,
-} from 'src/modules/provider/dto/create-location.dto';
+} from '@modules/dto/update-location.dto';
 import { Reviews } from '../../review/schemas/reviews.schema';
 
 export class CreateReviewDto {

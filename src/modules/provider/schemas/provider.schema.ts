@@ -19,11 +19,11 @@ export class Provider {
   @Prop({ required: false })
   providerPhoneNumber: string;
 
-  @Prop({ type: [String], required: false })
-  providerImages: string[];
-
   @Prop({ required: false })
-  providerWebsite: string;
+  providerLogoUrl: string;
+
+  @Prop({ type: [String], required: false })
+  providerImagesUrl: string[];
 
   @Prop({
     type: Map,

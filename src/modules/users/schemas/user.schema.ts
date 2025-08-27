@@ -28,6 +28,21 @@ export class User {
   @Prop()
   profilePicture?: string;
 
+  @Prop({ required: false })
+  language?: string;
+
+  @Prop({ default: false })
+  isEmailVerified: boolean;
+
+  @Prop({ default: false })
+  isPhoneVerified: boolean;
+
+  @Prop({ default: 0 })
+  emailEditCount: number;
+
+  @Prop({ default: 0 })
+  phoneEditCount: number;
+
   @Prop()
   code?: string;
 
@@ -35,12 +50,15 @@ export class User {
   codeAt?: Date;
 
   @Prop({ default: false })
-  verified: boolean;
+  isVerified: boolean;
+
+  @Prop({ default: true })
+  isActive: boolean;
 
   @Prop({ default: false })
   forgetPassword: boolean;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Company' }], default: [] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Provider' }], default: [] })
   hiredCompanies: Types.ObjectId[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Admin' }], default: [] })
@@ -48,7 +66,7 @@ export class User {
 
   @Prop({
     type: String,
-    enum: ['Client', 'Company', 'Admin'],
+    enum: ['Client', 'Provider', 'Admin'],
     default: 'Client',
   })
   activeRole: string;

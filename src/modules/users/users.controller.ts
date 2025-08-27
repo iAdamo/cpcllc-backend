@@ -18,7 +18,7 @@ import { UsersService } from '@modules/users.service';
 import { AdminService } from '../admin/admin.service';
 import { ProviderService } from 'src/modules/provider/provider.service';
 import { CreateUserDto } from '@modules/dto/create-user.dto';
-import { CreateProviderDto } from '../provider/dto/create-provider.dto';
+// import { CreateProviderDto } from '../provider/dto/update-provider.dto';
 import { CreateAdminDto } from '@dto/create-admin.dto';
 import { UpdateUserDto } from '@modules/dto/update-user.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -40,18 +40,7 @@ export class UsersController {
     private readonly adminService: AdminService,
   ) {}
 
-  @Post()
-  @UseInterceptors(
-    FileFieldsInterceptor([{ name: 'profilePicture', maxCount: 1 }]),
-  )
-  async createUser(
-    @Body()
-    userDto: CreateUserDto,
-  ) {
-    return this.usersService.createUsers(userDto as CreateUserDto);
-  }
-
-  @Patch()
+  @Patch("profile")
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'profilePicture', maxCount: 1 }]),
@@ -79,34 +68,4 @@ export class UsersController {
   async getUserById(@Param('id') id: string) {
     return this.usersService.userProfile(id);
   }
-
-  // @Post(':id?')
-  // @UseInterceptors(
-  //   FileFieldsInterceptor([
-  //     { name: 'profilePicture', maxCount: 1 },
-  //     { name: 'providerImages', maxCount: 10 },
-  //   ]),
-  // )
-  // async createUsers(
-  //   @Body()
-  //   userDto: CreateUserDto | CreateProviderDto | CreateAdminDto,
-  //   @Param('id') id?: string,
-  //   @UploadedFiles()
-  //   files?: {
-  //     profilePicture?: Express.Multer.File[];
-  //     providerImages?: Express.Multer.File[];
-  //   },
-  // ) {
-  //   if (!id) {
-  //     return this.usersService.createUsers(userDto as CreateUserDto);
-  //   } else if ('providerName' in userDto) {
-  //     return this.providerService.createProvider(
-  //       id,
-  //       userDto as CreateProviderDto,
-  //       files,
-  //     );
-  //   } else {
-  //     return this.adminService.createAdmin(id, userDto as CreateAdminDto);
-  //   }
-  // }
 }

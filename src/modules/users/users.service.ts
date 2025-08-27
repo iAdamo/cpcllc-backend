@@ -44,47 +44,6 @@ export class UsersService {
   };
 
   /**
-   * Create a User
-   * @param createUsersDto User data
-   * @returns Created User
-   */
-  async createUser(createUsersDto: CreateUserDto): Promise<User> {
-    const { email, phoneNumber, password } = createUsersDto;
-
-    if (!email || !phoneNumber || !password) {
-      throw new BadRequestException(this.ERROR_MESSAGES.EMAIL_REQUIRED);
-    }
-
-    const existingUser = await this.userModel.findOne({
-      $or: [{ email }, { phoneNumber }],
-    });
-    if (existingUser) {
-      throw new ConflictException('Email or phone number already exists');
-    }
-
-    return await this.userModel.create(createUsersDto);
-  }
-
-  /**
-   * Create a User
-   * @param createUsersDto User data
-   * @returns Created User
-   */
-  async createUsers(createUsersDto: CreateUserDto): Promise<User> {
-    const { email, password } = createUsersDto;
-
-    if (!email || !password) {
-      throw new BadRequestException(this.ERROR_MESSAGES.EMAIL_REQUIRED);
-    }
-
-    if (await this.userModel.exists({ email })) {
-      throw new ConflictException(this.ERROR_MESSAGES.EMAIL_EXISTS);
-    }
-
-    return await this.userModel.create(createUsersDto);
-  }
-
-  /**
    * Update a User
    * @param id User ID
    * @param updateUserDto User data
