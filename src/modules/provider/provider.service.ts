@@ -161,31 +161,49 @@ export class ProviderService {
    * @returns Updated Provider
    */
   async updateProvider(
-    userId: string,
+    user: { userId: string; email: string; phoneNumber: string },
     updateProviderDto: UpdateProviderDto,
     files?: {
       providerLogo?: Express.Multer.File[];
       providerImages?: Express.Multer.File[];
     },
   ): Promise<User> {
-    if (!userId) {
+    if (!user.userId) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
     }
     try {
       const existingProvider = await this.providerModel.findOne({
-        owner: userId,
+        owner: user.userId,
       });
 
-      const fileUrls = await this.storage.handleFileUploads(userId, files);
+      if (
+        await this.userModel.findOne({
+          email: existingProvider.providerEmail,
+          _id: { $ne: user.userId },
+        })
+      ) {
+        throw new ConflictException('Email already in use');
+      }
+
+      if (
+        await this.userModel.findOne({
+          phoneNumber: existingProvider.providerPhoneNumber,
+          _id: { $ne: user.userId },
+        })
+      ) {
+        throw new ConflictException('Phone number already in use');
+      }
+
+      const fileUrls = await this.storage.handleFileUploads(user.userId, files);
 
       const updateProviderData = {
         ...updateProviderDto,
         ...fileUrls,
-        owner: new Types.ObjectId(userId),
+        owner: new Types.ObjectId(user.userId),
       } as Partial<UpdateProviderDto>;
 
       const provider = await this.providerModel.findOneAndUpdate(
-        { owner: new Types.ObjectId(userId) },
+        { owner: new Types.ObjectId(user.userId) },
         { $set: updateProviderData },
         {
           new: true,
@@ -195,11 +213,11 @@ export class ProviderService {
       );
 
       if (provider) {
-        const user = await this.userModel.findByIdAndUpdate(userId, {
+        const newUser = await this.userModel.findByIdAndUpdate(user.userId, {
           activeRole: 'Provider',
           activeRoleId: provider._id,
         });
-        return user;
+        return newUser;
       }
     } catch (error) {
       throw new InternalServerErrorException(error);

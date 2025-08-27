@@ -7,7 +7,7 @@ export type ProviderDocument = HydratedDocument<Provider>;
 
 @Schema({ timestamps: true })
 export class Provider {
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true, index: true })
   providerName: string;
 
   @Prop({ required: false })
@@ -16,7 +16,7 @@ export class Provider {
   @Prop({ required: false })
   providerEmail: string;
 
-  @Prop({ required: false })
+  @Prop({ required: false, match: /^\+?[1-9]\d{1,14}$/, unique: true, index: true })
   providerPhoneNumber: string;
 
   @Prop({ required: false })
@@ -82,6 +82,10 @@ export class Provider {
 }
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);
+
+ProviderSchema.index({ 'location.primary.coordinates': '2dsphere' });
+ProviderSchema.index({ 'location.secondary.coordinates': '2dsphere' });
+ProviderSchema.index({ 'location.tertiary.coordinates': '2dsphere' });
 
 ProviderSchema.set('toJSON', {
   transform: (_doc, ret) => {

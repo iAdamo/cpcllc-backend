@@ -78,7 +78,7 @@ export class ProviderController {
       providerImages?: Express.Multer.File[];
     },
   ) {
-    const id = req.user.userId;
-    return this.providerService.updateProvider(id, providerDto, files);
+    const user = req.user;
+    return this.providerService.updateProvider(user, providerDto, files);
   }
 }

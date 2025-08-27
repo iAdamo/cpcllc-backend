@@ -28,6 +28,17 @@ export class User {
   @Prop()
   profilePicture?: string;
 
+  // residential address
+  @Prop({ required: false })
+  address?: string;
+
+  // geographical coordinates
+  @Prop({ required: false })
+  latitude?: number;
+
+  @Prop({ required: false })
+  longitude?: number;
+
   @Prop({ required: false })
   language?: string;
 
@@ -60,9 +71,6 @@ export class User {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Provider' }], default: [] })
   hiredCompanies: Types.ObjectId[];
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Admin' }], default: [] })
-  admins: Types.ObjectId[];
 
   @Prop({
     type: String,
