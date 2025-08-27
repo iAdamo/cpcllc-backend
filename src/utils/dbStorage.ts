@@ -67,25 +67,30 @@ export class DbStorageService {
 
   async handleFileUploads(
     userId: string,
-    files?: Record<string, Express.Multer.File | Express.Multer.File[]>,
+    files?: Record<string, Express.Multer.File[] | Express.Multer.File[]>,
   ): Promise<Record<string, string | string[] | null>> {
-    const fileArray = Array.isArray(files) ? files : [files];
+    if (!files) return {};
+
     const result: Record<string, string | string[] | null> = {};
-
-    if (!fileArray) return result;
-
-    for (const [fieldName, fileList] of Object.entries(fileArray)) {
-      if (fileList && fileList.length) {
-        // If only one file, return a single URL, else return an array of URLs
-        if (fileList.length === 1) {
-          const [uploaded] = await this.handleFileUpload(userId, fileList[0]);
-          result[`${fieldName}Url`] = uploaded?.url || null;
-        } else {
-          const uploadedFiles = await this.handleFileUpload(userId, fileList);
-          result[`${fieldName}Url`] = uploadedFiles.map((item) => item.url);
+    if (files && Object.keys(files).length > 0) {
+      Object.keys(files).forEach((key) => {
+        if (!files[key] || files[key].length === 0) {
+          delete files[key];
         }
-      } else {
-        result[`${fieldName}Url`] = null;
+      });
+    }
+
+    if (files && Object.keys(files).length > 0) {
+      for (const [fieldName, fileList] of Object.entries(files)) {
+        if (fileList && Array.isArray(fileList) && fileList.length) {
+          if (fileList.length === 1) {
+            const [uploaded] = await this.handleFileUpload(userId, fileList[0]);
+            result[fieldName] = uploaded?.url || null;
+          } else {
+            const uploadedFiles = await this.handleFileUpload(userId, fileList);
+            result[fieldName] = uploadedFiles.map((item) => item.url);
+          }
+        }
       }
     }
 

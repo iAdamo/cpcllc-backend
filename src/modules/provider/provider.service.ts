@@ -164,7 +164,7 @@ export class ProviderService {
     userId: string,
     updateProviderDto: UpdateProviderDto,
     files?: {
-      providerLogo?: Express.Multer.File;
+      providerLogo?: Express.Multer.File[];
       providerImages?: Express.Multer.File[];
     },
   ): Promise<User> {
@@ -176,38 +176,7 @@ export class ProviderService {
         owner: userId,
       });
 
-      if (!updateProviderDto.providerName) {
-        throw new BadRequestException(
-          'Company name is required for new providers',
-        );
-      }
-
-      // console.log('Received updateProviderDto:', files);
-
-      let fileUrls: { [key: string]: string | string[] | null } = {};
-
-      // // Handle file uploads
-      // if (files && Object.keys(files).length > 0) {
-      //   Object.keys(files).forEach((key) => {
-      //     if (!files[key] || files[key].length === 0) {
-      //       delete files[key];
-      //     }
-      //   });
-      // }
-      // console.log('Files after filtering empty entries:', files);
-      // if (files && Object.keys(files).length > 0) {
-      //   fileUrls = await this.storage.handleFileUploads(userId, files);
-
-      //   // Remove keys with null or undefined values
-      //   Object.keys(fileUrls).forEach((key) => {
-      //     if (fileUrls[key] == null) {
-      //       delete fileUrls[key];
-      //     }
-      //   });
-      // }
-      fileUrls = await this.storage.handleFileUploads(userId, files);
-
-      console.log('Processed file URLs:', fileUrls);
+      const fileUrls = await this.storage.handleFileUploads(userId, files);
 
       const updateProviderData = {
         ...updateProviderDto,
@@ -234,129 +203,6 @@ export class ProviderService {
       }
     } catch (error) {
       throw new InternalServerErrorException(error);
-    }
-  }
-
-  // Helper methods:
-
-  private async processSubcategories(
-    updateProviderDto: UpdateProviderDto,
-    providerUpdateData: Partial<UpdateProviderDto>,
-  ): Promise<void> {
-    try {
-      let subcategoriesInput = updateProviderDto.subcategories;
-
-      if (typeof subcategoriesInput === 'string') {
-        subcategoriesInput = JSON.parse(subcategoriesInput);
-      }
-
-      if (!Array.isArray(subcategoriesInput)) {
-        throw new BadRequestException('Subcategories must be an array');
-      }
-
-      if (subcategoriesInput.length === 0) return;
-
-      const subcategoryIds = subcategoriesInput.map(
-        (id) => new Types.ObjectId(id),
-      );
-      const subcategories = await this.subcategoryModel.find({
-        _id: { $in: subcategoryIds },
-      });
-
-      if (subcategories.length === 0) {
-        throw new BadRequestException('No valid subcategories found');
-      }
-
-      if (subcategories.length !== subcategoryIds.length) {
-        const invalidIds = subcategoriesInput.filter(
-          (id) => !subcategories.some((s) => s._id.equals(id)),
-        );
-        throw new BadRequestException(
-          `Invalid subcategory IDs: ${invalidIds.join(', ')}`,
-        );
-      }
-
-      providerUpdateData.subcategories = subcategories.map((s) =>
-        s._id.toString(),
-      );
-    } catch (error) {
-      throw new InternalServerErrorException(
-        'Failed to process subcategories.',
-        error,
-      );
-    }
-  }
-
-  private processLocationData(
-    updateProviderDto: UpdateProviderDto,
-    providerUpdateData: Partial<UpdateProviderDto>,
-  ): void {
-    try {
-      console.log(updateProviderDto);
-      if (!updateProviderDto.location) return;
-
-      const locationTypes = ['primary', 'secondary', 'tertiary'] as const;
-      const location: Record<string, any> = {};
-      console.log('Received location data:', updateProviderDto);
-      console.log('Processing location data:', updateProviderDto.location);
-      for (const type of locationTypes) {
-        const locData = updateProviderDto.location[type];
-        if (!locData) continue;
-
-        const coordinates = locData.coordinates
-          ? {
-              lat: this.parseCoordinate(locData.coordinates.lat),
-              long: this.parseCoordinate(locData.coordinates.long),
-            }
-          : undefined;
-
-        const address = locData.address
-          ? {
-              zip: locData.address.zip || '',
-              city: locData.address.city || '',
-              state: locData.address.state || '',
-              country: locData.address.country || '',
-              address: locData.address.address || '',
-            }
-          : undefined;
-
-        if (coordinates || address) {
-          location[type] = { coordinates, address };
-        }
-      }
-
-      if (Object.keys(location).length > 0) {
-        providerUpdateData.location = location;
-      }
-    } catch (error) {
-      throw new InternalServerErrorException(
-        'Failed to process location data.',
-        error,
-      );
-    }
-  }
-
-  private parseCoordinate(value: any): number | null {
-    return value && !isNaN(Number(value)) ? Number(value) : null;
-  }
-
-  private cleanUndefinedFields(obj: Record<string, any>): void {
-    Object.keys(obj).forEach(
-      (key) => obj[key] === undefined && delete obj[key],
-    );
-  }
-
-  private async updateUserData(
-    userId: string,
-    userUpdateData: Partial<UpdateUserDto>,
-  ): Promise<void> {
-    this.cleanUndefinedFields(userUpdateData);
-
-    if (Object.keys(userUpdateData).length > 0) {
-      await this.userModel.findByIdAndUpdate(userId, userUpdateData, {
-        new: true,
-        runValidators: true,
-      });
     }
   }
 

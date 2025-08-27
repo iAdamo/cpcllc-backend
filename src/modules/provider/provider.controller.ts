@@ -74,7 +74,7 @@ export class ProviderController {
     @Req() req: RequestWithUser,
     @UploadedFiles()
     files?: {
-      providerLogo?: Express.Multer.File;
+      providerLogo?: Express.Multer.File[];
       providerImages?: Express.Multer.File[];
     },
   ) {

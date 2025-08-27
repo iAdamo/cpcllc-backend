@@ -20,10 +20,10 @@ export class Provider {
   providerPhoneNumber: string;
 
   @Prop({ required: false })
-  providerLogoUrl: string;
+  providerLogo: string;
 
   @Prop({ type: [String], required: false })
-  providerImagesUrl: string[];
+  providerImages: string[];
 
   @Prop({
     type: Map,

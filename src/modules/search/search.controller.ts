@@ -30,7 +30,7 @@ export interface RequestWithUser extends Request {
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
-  @Get('companies')
+  @Get('providers')
   async searchCompanies(
     @Query('page') page: string,
     @Query('limit') limit: string,

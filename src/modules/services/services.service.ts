@@ -111,29 +111,10 @@ export class ServicesService {
       throw new NotFoundException('Provider not found');
     }
 
-    let fileUrls: { [key: string]: string | string[] | null } = {};
-
-    // Handle file uploads
-    if (files && Object.keys(files).length > 0) {
-      Object.keys(files).forEach((key) => {
-        if (!files[key] || files[key].length === 0) {
-          delete files[key];
-        }
-      });
-    }
-    if (files && Object.keys(files).length > 0) {
-      fileUrls = await this.storage.handleFileUploads(
-        `${user._id}/services/images`,
-        files,
-      );
-
-      // Remove keys with null or undefined values
-      Object.keys(fileUrls).forEach((key) => {
-        if (fileUrls[key] == null) {
-          delete fileUrls[key];
-        }
-      });
-    }
+    const fileUrls = await this.storage.handleFileUploads(
+      `${user._id}/services/images`,
+      files,
+    );
 
     const service = new this.serviceModel({
       ...serviceData,
@@ -168,29 +149,12 @@ export class ServicesService {
         'You can only update services of your own provider account',
       );
     }
-    let fileUrls: { [key: string]: string | string[] | null } = {};
 
-    // Handle file uploads
-    if (files && Object.keys(files).length > 0) {
-      Object.keys(files).forEach((key) => {
-        if (!files[key] || files[key].length === 0) {
-          delete files[key];
-        }
-      });
-    }
-    if (files && Object.keys(files).length > 0) {
-      fileUrls = await this.storage.handleFileUploads(
-        `${service.user}/services/images`,
-        files,
-      );
+    const fileUrls = await this.storage.handleFileUploads(
+      `${service.user}/services/images`,
+      files,
+    );
 
-      // Remove keys with null or undefined values
-      Object.keys(fileUrls).forEach((key) => {
-        if (fileUrls[key] == null) {
-          delete fileUrls[key];
-        }
-      });
-    }
     const updateDataWithFiles = { ...updateData, ...fileUrls };
     // Remove providerId and user from update data to prevent changes
     const { providerId, user, ...safeUpdate } = updateDataWithFiles;
