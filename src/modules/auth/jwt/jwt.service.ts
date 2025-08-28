@@ -42,7 +42,7 @@ export class JwtService {
         accessToken,
         tokenType: 'Bearer',
         expiresIn: 30 * 24 * 60 * 60, // 30 days in seconds
-        user: await this.usersService.userProfile(userId.toString()),
+        ...(await this.usersService.userProfile(userId.toString())),
       });
     }
     res.cookie('authentication', accessToken, {
@@ -54,10 +54,10 @@ export class JwtService {
         process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN,
       path: '/',
     });
-
+    console.log(await this.usersService.userProfile(userId.toString()));
     return res.status(200).json({
       message: 'Login successful',
-      user: await this.usersService.userProfile(userId.toString()),
+      ...(await this.usersService.userProfile(userId.toString())),
       tokenType: 'Bearer',
       expiresIn: 90 * 24 * 60 * 60, // 90 days in seconds
     });
@@ -103,7 +103,7 @@ export class JwtService {
     createUsersDto: CreateUserDto,
     tokenType: string,
     res: any,
-  ): Promise<any> {
+  ): Promise<User> {
     const { email, phoneNumber, password } = createUsersDto;
 
     if (!email || !phoneNumber || !password) {

@@ -6,6 +6,8 @@ import { JwtService } from '@modules/jwt/jwt.service';
 import { JwtController } from '@modules/jwt/jwt.controller';
 import { JwtStrategy } from '@modules/jwt/jwt.strategy';
 import { UsersModule } from '@modules/users.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { User, UserSchema } from '@schemas/user.schema';
 
 @Module({
   imports: [
@@ -19,6 +21,7 @@ import { UsersModule } from '@modules/users.module';
       }),
       inject: [ConfigService],
     }),
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
   ],
   providers: [JwtService, JwtStrategy],
   controllers: [JwtController],

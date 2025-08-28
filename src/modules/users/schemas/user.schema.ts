@@ -88,6 +88,16 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+UserSchema.set('toJSON', {
+  transform: (_doc, ret) => {
+    delete ret.password;
+    delete ret.__v;
+    delete ret.code;
+    delete ret.codeAt;
+    delete ret.forgetPassword;
+    return ret;
+  },
+});
 
 UserSchema.pre<UserDocument>('save', async function (next) {
   if (!this.isModified('password')) return next();
@@ -103,13 +113,14 @@ UserSchema.methods.comparePassword = function (
   return bcrypt.compare(UsersPassword, this.password);
 };
 
-UserSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    delete ret.password;
-    delete ret.__v;
-    delete ret.code;
-    delete ret.codeAt;
-    delete ret.forgetPassword;
-    return ret;
-  },
-});
+export function sanitizeUser(user: HydratedDocument<User> | any) {
+  if (!user) return null;
+
+  // If it's a Mongoose doc, convert with toJSON (this applies your schema transform)
+  const plain = typeof user.toJSON === 'function' ? user.toJSON() : user;
+
+  // Extra safety: remove sensitive fields in case of .lean()
+  const { password, __v, code, codeAt, forgetPassword, ...safeUser } = plain;
+
+  return safeUser;
+}

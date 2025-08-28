@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { model, Model, Types } from 'mongoose';
-import { User, UserDocument } from '@schemas/user.schema';
+import { User, UserDocument, sanitizeUser } from '@schemas/user.schema';
 import {
   Provider,
   ProviderDocument,
@@ -118,14 +118,13 @@ export class UsersService {
             model: 'Category',
           },
         },
-      })
-      .lean();
+      }).lean();
 
     if (!populatedUser) {
       throw new NotFoundException('User not found');
     }
     // console.log(populatedUser);
 
-    return populatedUser;
+    return sanitizeUser(populatedUser);
   }
 }
