@@ -23,6 +23,7 @@ import { Provider } from 'src/modules/provider/schemas/provider.schema';
 export interface RequestWithUser extends Request {
   user: {
     email: string;
+    phoneNumber: string;
     userId: string;
   };
 }

@@ -104,7 +104,6 @@ export class JwtService {
     tokenType: string,
     res: any,
   ): Promise<any> {
-    console.log('Creating user with data:', createUsersDto);
     const { email, phoneNumber, password } = createUsersDto;
 
     if (!email || !phoneNumber || !password) {
