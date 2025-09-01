@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '@guards/jwt.guard';
 import { Provider } from 'src/modules/provider/schemas/provider.schema';
 import { Service } from '@modules/schemas/service.schema';
 import { SearchService } from '@services/search.service';
-import { CacheService } from 'src/cache/cache.service';
+import { CacheService } from 'src/modules/cache/cache.service';
 
 export interface RequestWithUser extends Request {
   user: {

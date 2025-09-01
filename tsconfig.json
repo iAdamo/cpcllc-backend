@@ -20,7 +20,10 @@
         "src/modules/services/*",
         "src/modules/review/*",
         "src/modules/provider/*",
-        "src/modules/media/*"
+        "src/modules/media/*",
+        "src/modules/search/*",
+        "src/modules/admin/*",
+        "src/modules/cache/*"
       ],
       "@schemas/*": [
         "src/modules/users/schemas/*",
@@ -39,7 +42,6 @@
       "@controllers/*": [
         "src/modules/users/*",
         "src/modules/auth/*",
-        "src/modules/zones/v1/map/*",
         "src/modules/services/*",
         "src/modules/search/*",
         "src/modules/review/*",
@@ -53,7 +55,8 @@
         "src/modules/services",
         "src/modules/review/*",
         "src/modules/provider/*",
-        "src/modules/admin/*"
+        "src/modules/admin/*",
+        "src/modules/cache/*"
       ],
       "@guards/*": ["src/modules/auth/jwt/*"]
     },

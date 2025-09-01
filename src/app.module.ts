@@ -13,7 +13,7 @@ import { SearchModule } from './modules/search/search.module';
 import { ProviderModule } from './modules/provider/provider.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MediaModule } from './modules/media/media.module';
-import { CacheModule } from './cache/cache.module';
+import { CacheModule } from './modules/cache/cache.module';
 
 @Module({
   imports: [

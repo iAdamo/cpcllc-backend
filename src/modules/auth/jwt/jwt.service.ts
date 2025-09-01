@@ -54,12 +54,8 @@ export class JwtService {
         process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN,
       path: '/',
     });
-    console.log(await this.usersService.userProfile(userId.toString()));
     return res.status(200).json({
-      message: 'Login successful',
       ...(await this.usersService.userProfile(userId.toString())),
-      tokenType: 'Bearer',
-      expiresIn: 90 * 24 * 60 * 60, // 90 days in seconds
     });
   }
 
@@ -127,7 +123,11 @@ export class JwtService {
     };
     const accessToken = this.jwtService.sign(payload);
 
-    await this.getVerificationCode(email);
+    // safely send verification email, but don't block user creation if it fails
+    await this.getVerificationCode(email).catch((err) => {
+      // Optionally log the error, but don't block the response
+      console.error('Failed to send verification email:', err);
+    });
 
     return this.authResponse(accessToken, tokenType, res, userId);
   }
@@ -172,13 +172,15 @@ export class JwtService {
 
     if (!user) throw new NotFoundException('Account does not exist');
 
-    const client = new MailtrapClient({ token: process.env.HOST_PASS });
+    const client = new MailtrapClient({
+      token: process.env.HOST_PASS,
+    });
 
     try {
       await client.send({
         from: {
-          email: 'noreply@adamocode.me',
-          name: 'CompanyCenter LLC',
+          email: process.env.COMPANY_EMAIL,
+          name: process.env.COMPANY_NAME,
         },
         to: [{ email }],
         template_uuid: process.env.VERIFICATION_TEMPLATE_UUID,
