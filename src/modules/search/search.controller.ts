@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '@guards/jwt.guard';
 import { Provider } from 'src/modules/provider/schemas/provider.schema';
 import { Service } from '@modules/schemas/service.schema';
 import { SearchService } from '@services/search.service';
+import { CacheService } from 'src/cache/cache.service';
 
 export interface RequestWithUser extends Request {
   user: {
@@ -28,7 +29,10 @@ export interface RequestWithUser extends Request {
 @ApiTags('Search')
 @Controller('search')
 export class SearchController {
-  constructor(private readonly searchService: SearchService) {}
+  constructor(
+    private readonly searchService: SearchService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   @Get('providers')
   async searchCompanies(
@@ -39,19 +43,32 @@ export class SearchController {
     @Query('lat') lat?: string,
     @Query('long') long?: string,
     @Query('address') address?: string,
+    @Query('sortBy') sortBy?: string,
   ): Promise<{
     companies: Provider[];
     services: Service[];
     totalPages: number;
   }> {
-    return await this.searchService.globalSearch(
-      page,
-      limit,
-      engine,
-      searchInput,
-      lat,
-      long,
-      address,
-    );
+    const cacheKey = `search:providers:${page}:${limit}:${engine}:${searchInput}:${lat}:${long}:${address}:${sortBy}`;
+    const cachedResult = await this.cacheService.get<{
+      companies: Provider[];
+      services: Service[];
+      totalPages: number;
+    }>(cacheKey);
+    if (!cachedResult) {
+      const result = await this.searchService.globalSearch(
+        page,
+        limit,
+        engine,
+        searchInput,
+        lat,
+        long,
+        address,
+        sortBy,
+      );
+      await this.cacheService.set(cacheKey, result, 3600); // Cache for 1 hour
+      return result;
+    }
+    return cachedResult;
   }
 }

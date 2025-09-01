@@ -49,6 +49,7 @@ export class SearchService {
    * @param lat - Optional latitude for geo search.
    * @param long - Optional longitude for geo search.
    * @param address - Optional address for location-based search.
+   * @param sortBy - Optional sorting criteria (e.g., 'rating', 'popularity').
    * @return An object containing companies, services, total pages, and whether exact results were found.
    **/
   async globalSearch(
@@ -59,6 +60,7 @@ export class SearchService {
     lat?: string,
     long?: string,
     address?: string,
+    sortBy?: string,
   ): Promise<{
     companies: Provider[];
     services: Service[];
@@ -138,7 +140,8 @@ export class SearchService {
 
     if (
       useEngine &&
-      (searchProviderConditions.length > 0 || searchServiceConditions.length > 1)
+      (searchProviderConditions.length > 0 ||
+        searchServiceConditions.length > 1)
     ) {
       // Engine search with conditions
       [providerQuery, serviceQuery, totalCompanies, totalServices] =
