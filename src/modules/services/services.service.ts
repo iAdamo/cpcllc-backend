@@ -41,6 +41,7 @@ export class ServicesService {
 
   private readonly storage = new DbStorageService();
 
+  // Admin
   async createCategory(
     categoryData: CreateCategoryDto,
   ): Promise<CategoryDocument> {
@@ -55,6 +56,7 @@ export class ServicesService {
     const category = new this.categoryModel(categoryData);
     return await category.save();
   }
+  // Admin
 
   async createSubcategory(
     subcategoryData: CreateSubcategoryDto,
@@ -71,26 +73,23 @@ export class ServicesService {
     const subcategory = new this.subcategoryModel(subcategoryData);
     return await subcategory.save();
   }
+  // Admin
 
-  async getAllCategoriesWithSubcategories(): Promise<Category[]> {
-    const categories = await this.categoryModel.find();
-    const result = [];
+   async getAllCategoriesWithSubcategories(): Promise<Category[]> {
+    return this.categoryModel
+      .find()
+      .populate({
+        path: 'subcategories',
+        model: 'Subcategory',
+        select: 'name description', // add more fields if needed
 
-    for (const cat of categories) {
-      const subs = await this.subcategoryModel.find({ category: cat._id });
-      result.push({
-        id: cat._id,
-        name: cat.name,
-        description: cat.description,
-        subcategories: subs.map((s) => ({
-          id: s._id,
-          name: s.name,
-          description: s.description,
-        })),
-      });
-    }
+      })
+      .sort({ createdAt: 1 })
+      .exec();
+  }
 
-    return result;
+  async getSubcategoryById(id: string): Promise<Subcategory> {
+    return this.subcategoryModel.findById(id).populate('categoryId').exec();
   }
 
   async createService(
@@ -108,7 +107,7 @@ export class ServicesService {
 
     const provider = await this.providerModel.findById(user.activeRoleId);
     if (!provider) {
-      throw new NotFoundException('Provider not found');
+      throw new NotFoundException('You are not a provider yet!');
     }
 
     const fileUrls = await this.storage.handleFileUploads(
@@ -118,7 +117,7 @@ export class ServicesService {
 
     const service = new this.serviceModel({
       ...serviceData,
-      user: user._id,
+      userId: user._id,
       providerId: provider._id,
       ...fileUrls,
     });
@@ -151,13 +150,13 @@ export class ServicesService {
     }
 
     const fileUrls = await this.storage.handleFileUploads(
-      `${service.user}/services/images`,
+      `${service.userId}/services/images`,
       files,
     );
 
     const updateDataWithFiles = { ...updateData, ...fileUrls };
     // Remove providerId and user from update data to prevent changes
-    const { providerId, user, ...safeUpdate } = updateDataWithFiles;
+    const { providerId, userId, ...safeUpdate } = updateDataWithFiles;
     return await this.serviceModel.findByIdAndUpdate(serviceId, safeUpdate, {
       new: true,
     });

@@ -109,6 +109,16 @@ export class UpdateProviderDto {
   providerSocialMedia?: Record<string, string>;
 
   @ApiProperty({
+    description: 'Categories (array of IDs)',
+    type: [String],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  categories?: string[];
+
+  @ApiProperty({
     description: 'Subcategories (array of IDs)',
     type: [String],
     required: false,

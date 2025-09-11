@@ -8,10 +8,12 @@ export type ServiceDocument = HydratedDocument<Service>;
 @Schema({ timestamps: true })
 export class Category {
   @Prop({ required: true })
-  name: string; // e.g. "Snow Removal"
+  name: string;
 
   @Prop()
   description?: string;
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Subcategory' }], default: [] })
+  subcategories: Types.ObjectId[];
 }
 
 @Schema({ timestamps: true })
@@ -23,7 +25,7 @@ export class Subcategory {
   description?: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
-  category: Types.ObjectId;
+  categoryId: Types.ObjectId;
   // Reference to the parent category
 }
 
@@ -33,10 +35,13 @@ export class Service {
   providerId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  user: Types.ObjectId;
+  userId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'ServiceCategory', required: true })
-  category: Types.ObjectId;
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'Subcategory' }],
+    required: true,
+  })
+  subcategoryId: Types.ObjectId[];
 
   @Prop({ required: true })
   title: string;

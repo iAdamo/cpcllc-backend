@@ -56,14 +56,16 @@ export class CreateServiceDto {
 
   @ApiProperty({ description: 'User ID creating the service', required: true })
   @IsMongoId()
-  user: string;
+  userId: string;
 
   @ApiProperty({
     description: 'Subcategory ID associated with the service',
     required: true,
   })
   @IsMongoId()
-  category: string;
+  @IsArray()
+  @IsString({ each: true })
+  subcategoryId: string[];
 
   @ApiProperty({ description: 'Title of the service', required: true })
   @IsString()

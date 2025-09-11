@@ -99,12 +99,25 @@ export class ReviewsService {
    * @param providerId The ID of the provider
    * @returns Array of reviews for the specified provider
    */
-  async getReviewsByProviderId(providerId: string): Promise<Reviews[]> {
-    if (!Types.ObjectId.isValid(providerId)) {
-      throw new BadRequestException('Invalid provider ID');
+  async getReviews(
+    providerId?: string,
+    user?: string,
+  ): Promise<Reviews[]> {
+    const objId = providerId ? providerId : user;
+    if (!Types.ObjectId.isValid(objId)) {
+      throw new BadRequestException('Invalid ID');
     }
+    let query = {};
+    if (providerId) {
+      query = { provider: new Types.ObjectId(providerId) };
+    } else if (user) {
+      query = { user: new Types.ObjectId(user) };
+    } else {
+      throw new BadRequestException('No provider or user ID provided');
+    }
+
     const reviews = await this.reviewsModel
-      .find({ provider: new Types.ObjectId(providerId) })
+      .find(query)
       .sort({ createdAt: -1 })
       .populate('user', 'firstName lastName email profilePicture')
       .populate('provider', 'providerName');

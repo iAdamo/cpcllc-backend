@@ -206,11 +206,11 @@ export class JwtService {
    * @param email User email
    * @returns Confirmation message
    */
-  async verifyEmail(code: string, email: string): Promise<{ message: string }> {
-    if (!code || !email)
-      throw new BadRequestException('Code and email are required');
+  async verifyEmail(code: string): Promise<{ message: string }> {
+    if (!code)
+      throw new BadRequestException('Code is required');
 
-    const user = await this.userModel.findOne({ email }).exec();
+    const user = await this.userModel.findOne({ code }).exec();
     if (!user) throw new NotFoundException('Account does not exist');
 
     if (user.codeAt) {

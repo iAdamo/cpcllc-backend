@@ -45,15 +45,17 @@ export class SearchController {
     @Query('address') address?: string,
     @Query('sortBy') sortBy?: string,
   ): Promise<{
-    companies: Provider[];
+    providers: Provider[];
     services: Service[];
     totalPages: number;
+    hasExactResults: boolean;
   }> {
     const cacheKey = `search:providers:${page}:${limit}:${engine}:${searchInput}:${lat}:${long}:${address}:${sortBy}`;
     const cachedResult = await this.cacheService.get<{
-      companies: Provider[];
+      providers: Provider[];
       services: Service[];
       totalPages: number;
+      hasExactResults: boolean;
     }>(cacheKey);
     if (!cachedResult) {
       const result = await this.searchService.globalSearch(
@@ -67,6 +69,7 @@ export class SearchController {
         sortBy,
       );
       await this.cacheService.set(cacheKey, result, 3600); // Cache for 1 hour
+      console.log('Cache miss - fetching from DB', result);
       return result;
     }
     return cachedResult;

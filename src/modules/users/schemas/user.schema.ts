@@ -54,7 +54,7 @@ export class User {
   @Prop({ default: 0 })
   phoneEditCount: number;
 
-  @Prop()
+  @Prop({ unique: true, sparse: true, index: true })
   code?: string;
 
   @Prop()

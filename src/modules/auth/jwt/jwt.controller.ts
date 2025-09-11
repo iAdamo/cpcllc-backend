@@ -46,8 +46,8 @@ export class JwtController {
   }
 
   @Post('verify-email')
-  async verifyEmail(@Body() body: { email: string; code: string }) {
-    return this.jwtService.verifyEmail(body.code, body.email);
+  async verifyEmail(@Body() body: { code: string }) {
+    return this.jwtService.verifyEmail(body.code);
   }
 
   @Post('reset-password')

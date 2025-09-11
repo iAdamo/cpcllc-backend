@@ -46,8 +46,13 @@ export class ReviewsController {
     );
   }
 
-  @Get(':providerId')
-  async getReviews(@Param('providerId') providerId: string) {
-    return this.reviewsService.getReviewsByProviderId(providerId);
+  @Get(':providerId?')
+  @UseGuards(JwtAuthGuard)
+  async getReviews(
+    @Req() req: RequestWithUser,
+    @Param('providerId') providerId?: string,
+  ) {
+    const user = req.user.userId;
+    return this.reviewsService.getReviews(providerId, user);
   }
 }

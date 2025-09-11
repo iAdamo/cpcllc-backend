@@ -31,7 +31,7 @@ export class Reviews {
   @Prop({ default: false })
   isDeleted: boolean;
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
+  @Prop({ type: Types.ObjectId, ref: 'User', index: true })
   user: User;
 
   @Prop({ type: Types.ObjectId, ref: 'Provider', index: true })

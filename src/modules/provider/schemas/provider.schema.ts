@@ -1,6 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { Location, LocationSchema } from 'src/modules/provider/schemas/location.schema';
+import {
+  Location,
+  LocationSchema,
+} from 'src/modules/provider/schemas/location.schema';
 import { Reviews } from '@schemas/reviews.schema';
 
 export type ProviderDocument = HydratedDocument<Provider>;
@@ -16,7 +19,12 @@ export class Provider {
   @Prop({ required: false })
   providerEmail: string;
 
-  @Prop({ required: false, match: /^\+?[1-9]\d{1,14}$/, unique: true, index: true })
+  @Prop({
+    required: false,
+    match: /^\+?[1-9]\d{1,14}$/,
+    unique: true,
+    index: true,
+  })
   providerPhoneNumber: string;
 
   @Prop({ required: false })
@@ -41,12 +49,10 @@ export class Provider {
   @Prop({ default: 0 })
   averageRating: number;
 
-  @Prop({
-    type: [Types.ObjectId],
-    ref: 'Subcategory',
-    index: true,
-    default: [],
-  })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], required: true })
+  categories: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Subcategory' }], default: [] })
   subcategories: Types.ObjectId[];
 
   @Prop({

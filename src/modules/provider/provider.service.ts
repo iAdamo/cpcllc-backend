@@ -168,6 +168,7 @@ export class ProviderService {
       providerImages?: Express.Multer.File[];
     },
   ): Promise<User> {
+    console.log('UpdateProviderDto:', updateProviderDto);
     if (!user.userId) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
     }
@@ -176,22 +177,24 @@ export class ProviderService {
         owner: user.userId,
       });
 
-      if (
-        await this.userModel.findOne({
-          email: existingProvider.providerEmail,
-          _id: { $ne: user.userId },
-        })
-      ) {
-        throw new ConflictException('Email already in use');
-      }
+      if (existingProvider) {
+        if (
+          await this.userModel.findOne({
+            email: existingProvider.providerEmail,
+            _id: { $ne: user.userId },
+          })
+        ) {
+          throw new ConflictException('Email already in use');
+        }
 
-      if (
-        await this.userModel.findOne({
-          phoneNumber: existingProvider.providerPhoneNumber,
-          _id: { $ne: user.userId },
-        })
-      ) {
-        throw new ConflictException('Phone number already in use');
+        if (
+          await this.userModel.findOne({
+            phoneNumber: existingProvider.providerPhoneNumber,
+            _id: { $ne: user.userId },
+          })
+        ) {
+          throw new ConflictException('Phone number already in use');
+        }
       }
 
       const fileUrls = await this.storage.handleFileUploads(user.userId, files);
@@ -220,6 +223,7 @@ export class ProviderService {
         return newUser;
       }
     } catch (error) {
+      console.error(error);
       throw new InternalServerErrorException(error);
     }
   }
