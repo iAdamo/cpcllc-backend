@@ -68,8 +68,7 @@ export class SearchController {
         address,
         sortBy,
       );
-      await this.cacheService.set(cacheKey, result, 3600); // Cache for 1 hour
-      console.log('Cache miss - fetching from DB', result);
+      await this.cacheService.set(cacheKey, result, 300); // Cache for 5 mins
       return result;
     }
     return cachedResult;

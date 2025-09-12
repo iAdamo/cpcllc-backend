@@ -11,7 +11,7 @@ import { SearchModule } from '@modules/search.module';
     {
       provide: 'CACHE_INSTANCE',
       useFactory: () => {
-        const secondary = createKeyv('redis://user:pass@localhost:6379');
+        const secondary = createKeyv('redis://localhost:6379');
         return new Cacheable({
           secondary,
           ttl: '4h',
