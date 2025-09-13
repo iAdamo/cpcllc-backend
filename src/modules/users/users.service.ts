@@ -113,9 +113,11 @@ export class UsersService {
         populate: {
           path: 'subcategories',
           model: 'Subcategory',
+          select: 'name description',
           populate: {
-            path: 'category',
+            path: 'categoryId',
             model: 'Category',
+            select: 'name description'
           },
         },
       }).lean();

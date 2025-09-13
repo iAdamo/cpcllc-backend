@@ -28,7 +28,7 @@ export class JwtController {
     @Query('tokenType') tokenType: string,
     @Res() res: Response,
   ): Promise<any> {
-    return this.jwtService.login(loginDto, tokenType, res);
+    await this.jwtService.login(loginDto, tokenType, res);
   }
 
   @Post('logout')

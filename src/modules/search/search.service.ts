@@ -153,7 +153,11 @@ export class SearchService {
                   ? { $and: searchProviderConditions }
                   : {},
               )
-              .populate('subcategories')
+              .populate({
+                path: 'subcategories',
+                model: 'Subcategory',
+                select: 'name description',
+              })
               .sort({
                 averageRating: -1,
                 reviewCount: -1,
@@ -216,6 +220,22 @@ export class SearchService {
       } else {
         // FALLBACK: Return popular/trending results when no matches or engine disabled
         hasExactResults = false;
+        let providerSort: any = {
+          averageRating: -1,
+          reviewCount: -1,
+          favoriteCount: -1,
+        };
+        let serviceSort: any = {
+          'provider.averageRating': -1,
+          'provider.reviewCount': -1,
+        };
+        if (sortBy === 'Newest') {
+          providerSort = { createdAt: -1 };
+          serviceSort = { createdAt: -1 };
+        } else if (sortBy === 'Oldest') {
+          providerSort = { createdAt: 1 };
+          serviceSort = { createdAt: 1 };
+        }
 
         [providerQuery, serviceQuery, totalCompanies, totalServices] =
           await Promise.all([
@@ -223,14 +243,10 @@ export class SearchService {
               .find()
               .populate({
                 path: 'subcategories',
-                populate: { path: 'categoryId', model: 'Category' },
+                model: 'Subcategory',
+                select: 'name description',
               })
-              .sort({
-                averageRating: -1,
-                reviewCount: -1,
-                favoriteCount: -1,
-                createdAt: -1,
-              })
+              .sort(providerSort)
               .skip((pageN - 1) * limitN)
               .limit(limitN)
               .exec(),
@@ -247,11 +263,7 @@ export class SearchService {
               },
               { $unwind: '$provider' },
               {
-                $sort: {
-                  'provider.averageRating': -1,
-                  'provider.reviewCount': -1,
-                  createdAt: -1,
-                },
+                $sort: serviceSort,
               },
               { $skip: (pageN - 1) * limitN },
               { $limit: limitN },

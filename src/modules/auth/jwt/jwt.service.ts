@@ -59,14 +59,6 @@ export class JwtService {
     });
   }
 
-  /**
-   * Retrieve all users.
-   * @returns List of users
-   */
-  async findAll(): Promise<User[]> {
-    return this.userModel.find().exec();
-  }
-
   private async validateUser(
     emailOrPhone: string,
     password: string,
@@ -129,7 +121,7 @@ export class JwtService {
       console.error('Failed to send verification email:', err);
     });
 
-    return this.authResponse(accessToken, tokenType, res, userId);
+    return await this.authResponse(accessToken, tokenType, res, userId);
   }
 
   /**
@@ -148,7 +140,7 @@ export class JwtService {
     };
     const accessToken = this.jwtService.sign(payload);
 
-    return this.authResponse(accessToken, tokenType, res, userId);
+    return await this.authResponse(accessToken, tokenType, res, userId);
   }
 
   /**
@@ -207,11 +199,10 @@ export class JwtService {
    * @returns Confirmation message
    */
   async verifyEmail(code: string): Promise<{ message: string }> {
-    if (!code)
-      throw new BadRequestException('Code is required');
+    if (!code) throw new BadRequestException('Code is required');
 
     const user = await this.userModel.findOne({ code }).exec();
-    if (!user) throw new NotFoundException('Account does not exist');
+    if (!user) throw new BadRequestException('Invalid verification code');
 
     if (user.codeAt) {
       const now = new Date();
@@ -220,8 +211,6 @@ export class JwtService {
       if (codeAgeInMinutes > 30)
         throw new BadRequestException('Code has expired');
     }
-
-    if (user.code !== code) throw new BadRequestException('Code is invalid');
 
     await this.userModel
       .findByIdAndUpdate(

@@ -71,6 +71,7 @@ export class SearchController {
       await this.cacheService.set(cacheKey, result, 300); // Cache for 5 mins
       return result;
     }
+    // console.log('Returning cached search result');
     return cachedResult;
   }
 }

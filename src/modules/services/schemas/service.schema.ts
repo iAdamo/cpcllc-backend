@@ -12,6 +12,7 @@ export class Category {
 
   @Prop()
   description?: string;
+  
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Subcategory' }], default: [] })
   subcategories: Types.ObjectId[];
 }

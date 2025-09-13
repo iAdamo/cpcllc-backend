@@ -44,115 +44,6 @@ export class ProviderService {
     FILE_UPLOAD_FAILED: 'File upload failed',
   };
 
-  // /**
-  //  * Create a Provider
-  //  * @param id User ID
-  //  * @param createProviderDto Provider Data
-  //  * @param files Files to upload
-  //  * @returns Created or Updated Provider
-  //  */
-  // async createProvider(
-  //   userId: string,
-  //   createProviderDto: CreateProviderDto,
-  //   files?: {
-  //     profilePicture?: Express.Multer.File[];
-  //     providerImages?: Express.Multer.File[];
-  //   },
-  // ): Promise<Provider> {
-  //   if (!userId) {
-  //     throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
-  //   }
-
-  //   let validSubcategoryIds: Types.ObjectId[] = [];
-
-  //   if (typeof createProviderDto.subcategories === 'string') {
-  //     createProviderDto.subcategories = JSON.parse(
-  //       createProviderDto.subcategories,
-  //     );
-  //   }
-  //   if (!Array.isArray(createProviderDto.subcategories)) {
-  //     throw new BadRequestException('Subcategories must be an array');
-  //   }
-  //   if (
-  //     createProviderDto.subcategories &&
-  //     createProviderDto.subcategories.length
-  //   ) {
-  //     const subcategories = await this.subcategoryModel.find({
-  //       _id: {
-  //         $in: createProviderDto.subcategories.map(
-  //           (id) => new Types.ObjectId(id),
-  //         ),
-  //       },
-  //     });
-
-  //     if (!subcategories.length) {
-  //       throw new BadRequestException('No valid subcategories found');
-  //     }
-
-  //     if (subcategories.length !== createProviderDto.subcategories.length) {
-  //       const invalidIds = createProviderDto.subcategories.filter(
-  //         (id) => !subcategories.find((s) => s._id.equals(id)),
-  //       );
-  //       throw new BadRequestException(
-  //         `Invalid subcategory IDs: ${invalidIds.join(', ')}`,
-  //       );
-  //     }
-
-  //     validSubcategoryIds = subcategories.map((s) => s._id);
-  //   }
-
-  //   let profilePictureUrl: string | null = null;
-  //   let providerImagesUrl: string[] | null = null;
-
-  //   try {
-  //     if (files?.profilePicture?.length) {
-  //       const [uploaded] = await this.storage.handleFileUpload(
-  //         userId,
-  //         files.profilePicture[0],
-  //       );
-  //       profilePictureUrl = uploaded?.url || null;
-  //     }
-
-  //     if (files?.providerImages?.length) {
-  //       const uploadedProviderImages = await this.storage.handleFileUpload(
-  //         userId,
-  //         files.providerImages,
-  //       );
-  //       providerImagesUrl = uploadedProviderImages.map((item) => item.url);
-  //     }
-  //   } catch (error) {
-  //     throw new InternalServerErrorException(
-  //       this.ERROR_MESSAGES.FILE_UPLOAD_FAILED,
-  //     );
-  //   }
-
-  //   this.processLocationData(createProviderDto, createProviderDto);
-
-  //   const providerData = {
-  //     ...createProviderDto,
-  //     subcategories: validSubcategoryIds,
-  //     owner: userId,
-  //     providerImages: providerImagesUrl,
-  //   };
-
-  //   const provider = await this.providerModel.findOneAndUpdate(
-  //     { owner: userId },
-  //     { $set: providerData },
-  //     { new: true, upsert: true, runValidators: true },
-  //   );
-
-  //   /** 🔹 Step 5. Update User Profile Info */
-  //   await this.userModel.findByIdAndUpdate(userId, {
-  //     firstName: createProviderDto['firstName'],
-  //     lastName: createProviderDto['lastName'],
-  //     profilePicture: profilePictureUrl,
-  //     activeRole: 'Provider',
-  //     activeRoleId: provider._id,
-  //   });
-
-  //   return provider;
-  // }
-
   /**
    * Update a Provider
    * @param userId User ID
@@ -204,6 +95,21 @@ export class ProviderService {
         ...fileUrls,
         owner: new Types.ObjectId(user.userId),
       } as Partial<UpdateProviderDto>;
+
+        // const updateProviderData = {
+        //   ...updateProviderDto,
+        //   ...fileUrls,
+        //   owner: new Types.ObjectId(user.userId),
+        //   categories: updateProviderDto.categories
+        //     ? updateProviderDto.categories.map((id) => new Types.ObjectId(id))
+        //     : [],
+        //   subcategories: updateProviderDto.subcategories
+        //     ? updateProviderDto.subcategories.map(
+        //         (id) => new Types.ObjectId(id),
+        //       )
+        //     : [],
+        // } as Partial<UpdateProviderDto>;
+
 
       const provider = await this.providerModel.findOneAndUpdate(
         { owner: new Types.ObjectId(user.userId) },
