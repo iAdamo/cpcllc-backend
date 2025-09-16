@@ -59,7 +59,6 @@ export class ProviderService {
       providerImages?: Express.Multer.File[];
     },
   ): Promise<User> {
-    console.log('UpdateProviderDto:', updateProviderDto);
     if (!user.userId) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
     }
@@ -94,22 +93,13 @@ export class ProviderService {
         ...updateProviderDto,
         ...fileUrls,
         owner: new Types.ObjectId(user.userId),
-      } as Partial<UpdateProviderDto>;
-
-        // const updateProviderData = {
-        //   ...updateProviderDto,
-        //   ...fileUrls,
-        //   owner: new Types.ObjectId(user.userId),
-        //   categories: updateProviderDto.categories
-        //     ? updateProviderDto.categories.map((id) => new Types.ObjectId(id))
-        //     : [],
-        //   subcategories: updateProviderDto.subcategories
-        //     ? updateProviderDto.subcategories.map(
-        //         (id) => new Types.ObjectId(id),
-        //       )
-        //     : [],
-        // } as Partial<UpdateProviderDto>;
-
+        categories: updateProviderDto.categories
+          ? updateProviderDto.categories.map((id) => new Types.ObjectId(id))
+          : [],
+        subcategories: updateProviderDto.subcategories
+          ? updateProviderDto.subcategories.map((id) => new Types.ObjectId(id))
+          : [],
+      } as unknown as Partial<UpdateProviderDto>;
 
       const provider = await this.providerModel.findOneAndUpdate(
         { owner: new Types.ObjectId(user.userId) },

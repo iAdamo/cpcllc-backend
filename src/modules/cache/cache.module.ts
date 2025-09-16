@@ -2,11 +2,16 @@ import { Module, forwardRef } from '@nestjs/common';
 import { Cacheable } from 'cacheable';
 import { createKeyv } from '@keyv/redis';
 import { CacheService } from './cache.service';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { SearchModule } from '@modules/search.module';
+import { ServicesModule } from '@modules/services.module';
 
 @Module({
-  imports: [ConfigModule, forwardRef(() => SearchModule)],
+  imports: [
+    ConfigModule,
+    forwardRef(() => SearchModule),
+    forwardRef(() => ServicesModule),
+  ],
   providers: [
     {
       provide: 'CACHE_INSTANCE',

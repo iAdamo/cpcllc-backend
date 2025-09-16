@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from '@modules/users.module';
 import { ServicesService } from '@controllers/services.service';
 import { ServicesController } from '@services/services.controller';
+import { CacheModule } from '@modules/cache.module';
 import {
   Subcategory,
   Category,
@@ -15,6 +16,7 @@ import {
 @Module({
   imports: [
     forwardRef(() => UsersModule),
+    forwardRef(() => CacheModule),
     MongooseModule.forFeature([
       { name: Service.name, schema: ServiceSchema },
       { name: Category.name, schema: CategorySchema },

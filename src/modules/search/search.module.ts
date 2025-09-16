@@ -6,7 +6,11 @@ import { ServicesModule } from '@modules/services.module';
 import { CacheModule } from '@modules/cache.module';
 
 @Module({
-  imports: [UsersModule, ServicesModule, forwardRef(() => CacheModule)],
+  imports: [
+    forwardRef(() => CacheModule),
+    forwardRef(() => UsersModule),
+    forwardRef(() => ServicesModule),
+  ],
   controllers: [SearchController],
   providers: [SearchService],
   exports: [SearchService],

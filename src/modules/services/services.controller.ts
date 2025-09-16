@@ -29,6 +29,7 @@ import {
 import { UpdateServiceDto } from '@dto/update-service.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
+import { CacheService } from 'src/modules/cache/cache.service';
 
 export interface RequestWithUser extends Request {
   user: {
@@ -40,7 +41,10 @@ export interface RequestWithUser extends Request {
 @ApiTags('Services')
 @Controller('services')
 export class ServicesController {
-  constructor(private readonly servicesService: ServicesService) {}
+  constructor(
+    private readonly servicesService: ServicesService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -79,7 +83,15 @@ export class ServicesController {
 
   @Get('categories')
   async getAllCategoriesWithSubcategories(): Promise<Category[]> {
-    return this.servicesService.getAllCategoriesWithSubcategories();
+    const cacheKey = 'services:categories-with-subcategories';
+    const cachedResult = await this.cacheService.get<Category[]>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+    const result =
+      await this.servicesService.getAllCategoriesWithSubcategories();
+    await this.cacheService.set(cacheKey, result, 3600); // Cache for 1 hour
+    return result;
   }
 
   @Get('provider/:id')
