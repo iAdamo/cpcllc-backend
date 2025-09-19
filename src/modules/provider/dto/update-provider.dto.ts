@@ -116,7 +116,7 @@ export class UpdateProviderDto {
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
-  categories?: string[];
+  categories: (string | Types.ObjectId)[];
 
   @ApiProperty({
     description: 'Subcategories (array of IDs)',
@@ -126,7 +126,7 @@ export class UpdateProviderDto {
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
-  subcategories?: string[];
+  subcategories: (string | Types.ObjectId)[];
 
   @ApiProperty({
     description: 'Provider location',

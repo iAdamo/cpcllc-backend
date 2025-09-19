@@ -62,65 +62,92 @@ export class ProviderService {
     if (!user.userId) {
       throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
     }
+
     try {
-      const existingProvider = await this.providerModel.findOne({
-        owner: user.userId,
-      });
-
-      if (existingProvider) {
-        if (
-          await this.userModel.findOne({
-            email: existingProvider.providerEmail,
-            _id: { $ne: user.userId },
-          })
-        ) {
-          throw new ConflictException('Email already in use');
-        }
-
-        if (
-          await this.userModel.findOne({
-            phoneNumber: existingProvider.providerPhoneNumber,
-            _id: { $ne: user.userId },
-          })
-        ) {
-          throw new ConflictException('Phone number already in use');
-        }
+      // Check uniqueness of email/phone if new values were provided
+      if (
+        updateProviderDto.providerEmail &&
+        (await this.userModel.findOne({
+          email: updateProviderDto.providerEmail,
+          _id: { $ne: user.userId },
+        }))
+      ) {
+        throw new ConflictException('Email already in use');
       }
+
+      if (
+        updateProviderDto.providerPhoneNumber &&
+        (await this.userModel.findOne({
+          phoneNumber: updateProviderDto.providerPhoneNumber,
+          _id: { $ne: user.userId },
+        }))
+      ) {
+        throw new ConflictException('Phone number already in use');
+      }
+
+      // Upload files if provided
+      // const fileUrls = files
+      //   ? await this.storage.handleFileUploads(user.userId, files)
+      //   : {};
 
       const fileUrls = await this.storage.handleFileUploads(user.userId, files);
 
-      const updateProviderData = {
+      // Build the update payload
+      const updateData: Partial<UpdateProviderDto> = {
         ...updateProviderDto,
         ...fileUrls,
-        owner: new Types.ObjectId(user.userId),
-        categories: updateProviderDto.categories
-          ? updateProviderDto.categories.map((id) => new Types.ObjectId(id))
-          : [],
-        subcategories: updateProviderDto.subcategories
-          ? updateProviderDto.subcategories.map((id) => new Types.ObjectId(id))
-          : [],
-      } as unknown as Partial<UpdateProviderDto>;
+        categories: updateProviderDto.categories?.map(
+          (id) => new Types.ObjectId(id),
+        ),
+        subcategories: updateProviderDto.subcategories?.map(
+          (id) => new Types.ObjectId(id),
+        ),
+      };
 
+      // Update existing provider or create new one if not exists
       const provider = await this.providerModel.findOneAndUpdate(
         { owner: new Types.ObjectId(user.userId) },
-        { $set: updateProviderData },
+        {
+          $set: updateData,
+          $setOnInsert: { owner: new Types.ObjectId(user.userId) },
+        },
         {
           new: true,
-          upsert: existingProvider ? false : true,
+          upsert: true,
           runValidators: true,
         },
       );
 
-      if (provider) {
-        const newUser = await this.userModel.findByIdAndUpdate(user.userId, {
-          activeRole: 'Provider',
-          activeRoleId: provider._id,
-        });
-        return newUser;
-      }
+      // Update user’s active role and populate related models
+      const newUser = await this.userModel
+        .findByIdAndUpdate(
+          user.userId,
+          {
+            activeRole: 'Provider',
+            activeRoleId: provider._id,
+          },
+          { new: true },
+        )
+        .populate({
+          path: 'activeRoleId',
+          model: 'Provider',
+          populate: {
+            path: 'subcategories',
+            model: 'Subcategory',
+            select: 'name description',
+            populate: {
+              path: 'categoryId',
+              model: 'Category',
+              select: 'name description',
+            },
+          },
+        })
+        .exec();
+
+      return newUser;
     } catch (error) {
       console.error(error);
-      throw new InternalServerErrorException(error);
+      throw new InternalServerErrorException(error || 'Something went wrong');
     }
   }
 
