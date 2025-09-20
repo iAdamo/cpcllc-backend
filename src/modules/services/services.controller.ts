@@ -83,14 +83,14 @@ export class ServicesController {
 
   @Get('categories')
   async getAllCategoriesWithSubcategories(): Promise<Category[]> {
-    const cacheKey = 'services:categories-with-subcategories';
-    const cachedResult = await this.cacheService.get<Category[]>(cacheKey);
-    if (cachedResult) {
-      return cachedResult;
-    }
+    // const cacheKey = 'services:categories-with-subcategories';
+      // const cachedResult = await this.cacheService.get<Category[]>(cacheKey);
+  // if (cachedResult) {
+  //     return cachedResult;
+  //   }
     const result =
       await this.servicesService.getAllCategoriesWithSubcategories();
-    await this.cacheService.set(cacheKey, result, 3600); // Cache for 1 hour
+    // await this.cacheService.set(cacheKey, result, 3600); // Cache for 1 hour
     return result;
   }
 

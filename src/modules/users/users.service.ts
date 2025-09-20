@@ -63,7 +63,10 @@ export class UsersService {
 
       let mediaEntries: { url: string }[] = [];
       if (Array.isArray(files) && files.length > 0) {
-        mediaEntries = await this.storage.handleFileUpload(user.email, files);
+        mediaEntries = await this.storage.handleFileUpload(
+          `${user.email}/profile_picture`,
+          files,
+        );
       }
 
       return await this.userModel
@@ -117,10 +120,11 @@ export class UsersService {
           populate: {
             path: 'categoryId',
             model: 'Category',
-            select: 'name description'
+            select: 'name description',
           },
         },
-      }).lean();
+      })
+      .lean();
 
     if (!populatedUser) {
       throw new NotFoundException('User not found');

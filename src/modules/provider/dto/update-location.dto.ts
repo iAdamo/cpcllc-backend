@@ -12,15 +12,18 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 class CoordinatesDto {
-  @ApiProperty({ description: 'Latitude of the location' })
-  @IsNumber()
-  @IsNotEmpty()
-  lat: number;
+  @ApiProperty({
+    description: 'GeoJSON type',
+    enum: ['Point'],
+    default: 'Point',
+  })
+  @IsString()
+  type: string;
 
-  @ApiProperty({ description: 'Longitude of the location' })
-  @IsNumber()
-  @IsNotEmpty()
-  long: number;
+  @ApiProperty({ description: 'Coordinates [long, lat]', type: [Number] })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  coordinates: number[];
 }
 
 class AddressDto {
@@ -46,15 +49,19 @@ class AddressDto {
 }
 
 export class LocationDto {
-  @ApiProperty({ description: 'Coordinates of the location' })
+  @ApiProperty({
+    description: 'Coordinates as GeoJSON',
+    type: CoordinatesDto,
+  })
   @ValidateNested()
   @Type(() => CoordinatesDto)
   coordinates: CoordinatesDto;
 
-  @ApiProperty({ description: 'Address details of the location' })
+  @ApiProperty({ description: 'Address', required: false, type: AddressDto })
+  @IsOptional()
   @ValidateNested()
   @Type(() => AddressDto)
-  address: AddressDto;
+  address?: AddressDto;
 }
 
 class MediaDto {

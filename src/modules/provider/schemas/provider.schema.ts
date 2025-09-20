@@ -89,9 +89,6 @@ export class Provider {
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);
 
-ProviderSchema.index({ 'location.primary.coordinates': '2dsphere' });
-ProviderSchema.index({ 'location.secondary.coordinates': '2dsphere' });
-ProviderSchema.index({ 'location.tertiary.coordinates': '2dsphere' });
 
 ProviderSchema.set('toJSON', {
   transform: (_doc, ret) => {

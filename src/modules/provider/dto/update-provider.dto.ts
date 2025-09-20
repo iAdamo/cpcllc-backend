@@ -10,62 +10,11 @@ import {
   IsObject,
   IsUrl,
   Validate,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
-
-class CoordinatesDto {
-  @ApiProperty({ description: 'Latitude', required: false })
-  @IsOptional()
-  @IsNumber()
-  lat?: number;
-
-  @ApiProperty({ description: 'Longitude', required: false })
-  @IsOptional()
-  @IsNumber()
-  long?: number;
-}
-
-class AddressDto {
-  @ApiProperty({ description: 'ZIP code', required: false })
-  @IsOptional()
-  @IsString()
-  zip?: string;
-
-  @ApiProperty({ description: 'City', required: false })
-  @IsOptional()
-  @IsString()
-  city?: string;
-
-  @ApiProperty({ description: 'State', required: false })
-  @IsOptional()
-  @IsString()
-  state?: string;
-
-  @ApiProperty({ description: 'Country', required: false })
-  @IsOptional()
-  @IsString()
-  country?: string;
-
-  @ApiProperty({ description: 'Address', required: false })
-  @IsOptional()
-  @IsString()
-  address?: string;
-}
-
-class LocationDto {
-  @ApiProperty({ description: 'Coordinates', required: false })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => CoordinatesDto)
-  coordinates?: CoordinatesDto;
-
-  @ApiProperty({ description: 'Address', required: false })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => AddressDto)
-  address?: AddressDto;
-}
+import { LocationDto } from './update-location.dto';
 
 export class UpdateProviderDto {
   @ApiProperty({ description: 'Provider name', required: true })
