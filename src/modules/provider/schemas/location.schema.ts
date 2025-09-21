@@ -4,7 +4,26 @@ import { HydratedDocument, Types } from 'mongoose';
 export type LocationDocument = HydratedDocument<Location>;
 
 @Schema({ _id: false })
-export class Coordinates {
+export class Address {
+  @Prop({ required: false })
+  zip: string;
+
+  @Prop({ required: false })
+  city: string;
+
+  @Prop({ required: false })
+  state: string;
+
+  @Prop({ required: false })
+  country: string;
+
+  @Prop({ required: false })
+  address: string;
+}
+export const AddressSchema = SchemaFactory.createForClass(Address);
+
+@Schema({ _id: false })
+export class Location {
   @Prop({
     type: String,
     enum: ['Point'],
@@ -14,29 +33,6 @@ export class Coordinates {
 
   @Prop({ index: '2dsphere', type: [Number], required: true })
   coordinates: number[];
-}
-@Schema({ _id: false })
-export class Address {
-  @Prop({ required: false })
-  zip: string;
-
-  @Prop({ required: false })
-  city: string;
-
-  @Prop({ required: false })
-  country: string;
-
-  @Prop({ required: false })
-  address: string;
-}
-
-export const CoordinatesSchema = SchemaFactory.createForClass(Coordinates);
-export const AddressSchema = SchemaFactory.createForClass(Address);
-
-@Schema({ _id: false })
-export class Location {
-  @Prop({ type: CoordinatesSchema, required: true })
-  coordinates: Coordinates;
 
   @Prop({ type: AddressSchema, required: false })
   address?: Address;
@@ -52,10 +48,3 @@ AddressSchema.set('toJSON', {
   },
 });
 
-CoordinatesSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    delete ret.__v;
-    delete ret._id;
-    return ret;
-  },
-});

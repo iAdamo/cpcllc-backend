@@ -38,20 +38,18 @@ export class ProviderService {
     const processSingleLocation = (loc: any) => {
       if (!loc) return undefined;
 
-      const result: any = {};
+      let result: any = {};
 
       if (loc.address) {
         result.address = loc.address;
       }
 
       if (loc.coordinates && (loc.coordinates.lat || loc.coordinates.long)) {
-        result.coordinates = {
-          type: 'Point',
-          coordinates: [
-            parseFloat(loc.coordinates.long) || 0,
-            parseFloat(loc.coordinates.lat) || 0,
-          ],
-        };
+        result.coordinates = [
+          parseFloat(loc.coordinates.long) || 0,
+          parseFloat(loc.coordinates.lat) || 0,
+        ];
+        result.type = 'Point';
       }
 
       return Object.keys(result).length > 0 ? result : undefined;
@@ -232,15 +230,16 @@ export class ProviderService {
           JSON.stringify(this.processLocationData(updateProviderDto.location)),
         );
 
+        // console.log('Processed Location:', newLoc);
+
         ['primary', 'secondary', 'tertiary'].forEach((section) => {
           if (newLoc?.[section]) {
             // merge coordinates
             provider.location[section] = {
               ...(provider.location[section] || {}),
-              coordinates: {
-                ...(provider.location[section]?.coordinates || {}),
-                ...(newLoc[section].coordinates || {}),
-              },
+
+             coordinates: (newLoc[section].coordinates || {}),
+              type: 'Point',
               address: {
                 ...(provider.location[section]?.address || {}),
                 ...(newLoc[section].address || {}),
@@ -249,6 +248,8 @@ export class ProviderService {
           }
         });
       }
+
+      // console.log('Final Merged Location:', provider.location);
 
       // merge other fields normally
       Object.assign(provider, {

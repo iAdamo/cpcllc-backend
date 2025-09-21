@@ -11,21 +11,6 @@ import { Types } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-class CoordinatesDto {
-  @ApiProperty({
-    description: 'GeoJSON type',
-    enum: ['Point'],
-    default: 'Point',
-  })
-  @IsString()
-  type: string;
-
-  @ApiProperty({ description: 'Coordinates [long, lat]', type: [Number] })
-  @IsArray()
-  @IsNumber({}, { each: true })
-  coordinates: number[];
-}
-
 class AddressDto {
   @ApiProperty({ description: 'Zip code of the location' })
   @IsString()
@@ -36,6 +21,11 @@ class AddressDto {
   @IsString()
   @IsNotEmpty()
   city: string;
+
+  @ApiProperty({ description: 'State of the location' })
+  @IsString()
+  @IsNotEmpty()
+  state: string;
 
   @ApiProperty({ description: 'Country of the location' })
   @IsString()
@@ -50,12 +40,17 @@ class AddressDto {
 
 export class LocationDto {
   @ApiProperty({
-    description: 'Coordinates as GeoJSON',
-    type: CoordinatesDto,
+    description: 'GeoJSON type',
+    enum: ['Point'],
+    default: 'Point',
   })
-  @ValidateNested()
-  @Type(() => CoordinatesDto)
-  coordinates: CoordinatesDto;
+  @IsString()
+  type: string;
+
+  @ApiProperty({ description: 'Coordinates [long, lat]', type: [Number] })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  coordinates: number[];
 
   @ApiProperty({ description: 'Address', required: false, type: AddressDto })
   @IsOptional()
