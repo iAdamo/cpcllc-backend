@@ -12,28 +12,17 @@ import {
   Provider,
   ProviderDocument,
 } from 'src/modules/provider/schemas/provider.schema';
-import {
-  Service,
-  Category,
-  Subcategory,
-  ServiceDocument,
-  CategoryDocument,
-  SubcategoryDocument,
-} from '@modules/schemas/service.schema';
-import { UpdateProviderDto } from '@dto/update-provider.dto';
+import { CreateProviderDto } from '@dto/create-provider.dto';
+import { UpdateProviderDto } from './dto/update-provider.dto';
 import { DbStorageService } from 'src/utils/dbStorage';
-import { LocationDto } from './dto/update-location.dto';
 
 @Injectable()
 export class ProviderService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
-    @InjectModel(Subcategory.name)
-    private subcategoryModel: Model<SubcategoryDocument>,
+    private readonly storage: DbStorageService,
   ) {}
-
-  private readonly storage = new DbStorageService();
 
   private readonly ERROR_MESSAGES = {
     USER_NOT_FOUND: 'User not found',
@@ -43,194 +32,95 @@ export class ProviderService {
     FILE_UPLOAD_FAILED: 'File upload failed',
   };
 
-  /**
-   * Update a Provider
-   * @param userId User ID
-   * @param updateProviderDto Provider Data
-   * @param files Files to upload
-   * @returns Updated Provider
-   */
-  async updateProvider(
+  private processLocationData(locationData: any) {
+    if (!locationData) return undefined;
+
+    const processSingleLocation = (loc: any) => {
+      if (!loc) return undefined;
+
+      const result: any = {};
+
+      if (loc.address) {
+        result.address = loc.address;
+      }
+
+      if (loc.coordinates && (loc.coordinates.lat || loc.coordinates.long)) {
+        result.coordinates = {
+          type: 'Point',
+          coordinates: [
+            parseFloat(loc.coordinates.long) || 0,
+            parseFloat(loc.coordinates.lat) || 0,
+          ],
+        };
+      }
+
+      return Object.keys(result).length > 0 ? result : undefined;
+    };
+
+    const result: any = {};
+    if (locationData.primary)
+      result.primary = processSingleLocation(locationData.primary);
+    if (locationData.secondary)
+      result.secondary = processSingleLocation(locationData.secondary);
+    if (locationData.tertiary)
+      result.tertiary = processSingleLocation(locationData.tertiary);
+
+    return Object.keys(result).length > 0 ? result : undefined;
+  }
+
+  async createProvider(
+    createProviderDto: CreateProviderDto,
     user: { userId: string; email: string; phoneNumber: string },
-    updateProviderDto: UpdateProviderDto,
     files?: {
       providerLogo?: Express.Multer.File[];
       providerImages?: Express.Multer.File[];
     },
   ): Promise<User> {
-    if (!user.userId) {
-      throw new BadRequestException(this.ERROR_MESSAGES.USER_ID_REQUIRED);
-    }
-
     try {
-      // find existing provider
+      // Check if provider already exists
       const existingProvider = await this.providerModel.findOne({
-        owner: user.userId,
+        $or: [
+          { owner: user.userId },
+          { providerEmail: createProviderDto.providerEmail },
+          { providerName: createProviderDto.providerName },
+          { providerPhoneNumber: createProviderDto.providerPhoneNumber },
+        ],
       });
 
-      // conflict checks only if you are updating (existingProvider)
       if (existingProvider) {
-        if (
-          await this.userModel.findOne({
-            email: existingProvider.providerEmail,
-            _id: { $ne: user.userId },
-          })
-        ) {
-          throw new ConflictException('Email already in use');
-        }
-
-        if (
-          await this.userModel.findOne({
-            phoneNumber: existingProvider.providerPhoneNumber,
-            _id: { $ne: user.userId },
-          })
-        ) {
-          throw new ConflictException('Phone number already in use');
-        }
-      }
-
-      // handle file uploads (returns { providerLogo: 'url', providerImages: ['url'] })
-      const fileUrls = await this.storage.handleFileUploads(user.userId, files);
-
-      let location = updateProviderDto.location || {};
-      console.log('dto location data:', updateProviderDto);
-      console.log('Raw location data:', location);
-      function removeDotNotationKeys(
-        obj: Record<string, any>,
-      ): Record<string, any> {
-        return Object.fromEntries(
-          Object.entries(obj).filter(([k]) => !k.startsWith('location.')),
+        throw new ConflictException(
+          'Provider with this email or name already exists',
         );
       }
-      function dotToNested(obj: Record<string, any>): any {
-        const result = {};
-        for (const key in obj) {
-          if (!obj.hasOwnProperty(key)) continue;
-          const keys = key.split('.');
-          keys.reduce((acc, k, i) => {
-            if (i === keys.length - 1) {
-              acc[k] = obj[key];
-              return;
-            }
-            if (!acc[k]) acc[k] = {};
-            return acc[k];
-          }, result);
-        }
-        return result;
-      }
+      const fileUrls = await this.storage.handleFileUploads(
+        `${user.email}/provider_images`,
+        files,
+      );
 
-      if (
-        Object.keys(location).length === 0 &&
-        Object.keys(updateProviderDto).some((k) => k.startsWith('location.'))
-      ) {
-        location =
-          dotToNested(
-            Object.fromEntries(
-              Object.entries(updateProviderDto).filter(([k]) =>
-                k.startsWith('location.'),
-              ),
-            ),
-          ).location || {};
-      }
-      const buildLocation = (loc: any): LocationDto | undefined => {
-        if (
-          loc?.coordinates?.lat !== undefined &&
-          loc?.coordinates?.long !== undefined
-        ) {
-          const lat = parseFloat(loc.coordinates.lat);
-          const long = parseFloat(loc.coordinates.long);
-
-          return {
-            coordinates: {
-              // matches CoordinatesDto
-              type: 'Point',
-              coordinates: [long, lat],
-            },
-            address: loc.address ? { ...loc.address } : undefined,
-          };
-        }
-        return undefined;
-      };
-
-      location = {
-        primary: buildLocation(location.primary),
-        secondary: buildLocation(location.secondary),
-        tertiary: buildLocation(location.tertiary),
-      };
-      console.log('Processed location data:', location);
-      // Remove dot-notation location keys from DTO
-      const cleanedDto = removeDotNotationKeys(updateProviderDto);
-
-      const updateProviderData: Partial<UpdateProviderDto> = {
-        ...cleanedDto,
+      // Prepare provider data
+      const providerData: any = {
+        ...createProviderDto,
         ...fileUrls,
         owner: new Types.ObjectId(user.userId),
         categories:
-          updateProviderDto.categories?.map((id) => new Types.ObjectId(id)) ||
+          createProviderDto.categories?.map((id) => new Types.ObjectId(id)) ||
           [],
         subcategories:
-          updateProviderDto.subcategories?.map(
+          createProviderDto.subcategories?.map(
             (id) => new Types.ObjectId(id),
           ) || [],
-        location,
+        location: this.processLocationData(createProviderDto.location),
       };
 
-      // upsert if not existing, update if existing
-      const update: any = {
-        ...cleanedDto,
-        ...fileUrls,
-        owner: new Types.ObjectId(user.userId),
-        categories: updateProviderDto.categories?.map(
-          (id) => new Types.ObjectId(id),
-        ),
-        subcategories: updateProviderDto.subcategories?.map(
-          (id) => new Types.ObjectId(id),
-        ),
-      };
+      // Create provider
+      const provider = await this.providerModel.create(providerData);
 
-      // Only set subfields if they are fully defined
-      if (
-        location.primary &&
-        location.primary.coordinates &&
-        Array.isArray(location.primary.coordinates.coordinates)
-      ) {
-        update['location.primary'] = location.primary;
-      }
-      if (
-        location.secondary &&
-        location.secondary.coordinates &&
-        Array.isArray(location.secondary.coordinates.coordinates)
-      ) {
-        update['location.secondary'] = location.secondary;
-      }
-      if (
-        location.tertiary &&
-        location.tertiary.coordinates &&
-        Array.isArray(location.tertiary.coordinates.coordinates)
-      ) {
-        update['location.tertiary'] = location.tertiary;
-      }
-
-      // REMOVE the top-level location field if any subfield is being updated
-      delete update.location;
-      
-      console.log('Final update object:', update);
-      const provider = await this.providerModel.findOneAndUpdate(
-        { owner: new Types.ObjectId(user.userId) },
-        { $set: update },
-        { new: true, upsert: !existingProvider, runValidators: true },
-      );
       if (provider) {
-        // update activeRole in user doc
         const newUser = await this.userModel
-          .findByIdAndUpdate(
-            user.userId,
-            {
-              activeRole: 'Provider',
-              activeRoleId: provider._id,
-            },
-            { new: true },
-          )
+          .findByIdAndUpdate(user.userId, {
+            activeRole: 'Provider',
+            activeRoleId: provider._id,
+          })
           .populate({
             path: 'activeRoleId',
             model: 'Provider',
@@ -244,15 +134,150 @@ export class ProviderService {
                 select: 'name description',
               },
             },
-          })
-          .exec();
-
+          });
         return newUser;
       }
-      throw new InternalServerErrorException('Provider not created/updated');
     } catch (error) {
       console.error(error);
       throw new InternalServerErrorException(error);
+    }
+  }
+
+  /**
+   * Update a Provider
+   * @param userId User ID
+   * @param updateProviderDto Provider Data
+   * @param files Files to upload
+   * @returns Updated Provider
+   */
+  async updateProvider(
+    updateProviderDto: UpdateProviderDto,
+    user: { userId: string; email: string; phoneNumber: string },
+    files?: {
+      providerLogo?: Express.Multer.File[];
+      providerImages?: Express.Multer.File[];
+    },
+  ): Promise<User> {
+    try {
+      // 1. Check duplicate providers
+      const anotherProvider = await this.providerModel.findOne({
+        $and: [
+          { owner: { $ne: new Types.ObjectId(user.userId) } },
+          {
+            $or: [
+              { providerEmail: updateProviderDto.providerEmail },
+              { providerName: updateProviderDto.providerName },
+              { providerPhoneNumber: updateProviderDto.providerPhoneNumber },
+            ],
+          },
+        ],
+      });
+      if (anotherProvider) {
+        throw new ConflictException(
+          'Another provider with this email or name already exists',
+        );
+      }
+
+      // 2. Check duplicate users
+      const anotherUser = await this.userModel.findOne({
+        $and: [
+          { _id: { $ne: user.userId } },
+          {
+            $or: [
+              { email: updateProviderDto.providerEmail },
+              { phoneNumber: updateProviderDto.providerPhoneNumber },
+            ],
+          },
+        ],
+      });
+      if (anotherUser) {
+        throw new ConflictException(
+          'Another user with this email or phone number already exists',
+        );
+      }
+
+      // 3. Find provider doc
+      const provider = await this.providerModel.findOne({
+        owner: new Types.ObjectId(user.userId),
+      });
+      if (!provider) throw new NotFoundException('Provider not found');
+
+      // 4. Upload files (if any)
+      const fileUrls = await this.storage.handleFileUploads(
+        `${user.email}/provider_images`,
+        files,
+      );
+
+      // 5. Convert IDs to ObjectId for categories/subcategories
+      if (updateProviderDto.categories) {
+        updateProviderDto.categories = updateProviderDto.categories.map(
+          (id) => new Types.ObjectId(id),
+        );
+      }
+      if (updateProviderDto.subcategories) {
+        updateProviderDto.subcategories = updateProviderDto.subcategories.map(
+          (id) => new Types.ObjectId(id),
+        );
+      }
+
+      if (updateProviderDto.providerSocialMedia) {
+        updateProviderDto.providerSocialMedia = {
+          ...provider.providerSocialMedia,
+          ...updateProviderDto.providerSocialMedia,
+        };
+      }
+
+      if (updateProviderDto.location) {
+        const newLoc = JSON.parse(
+          JSON.stringify(this.processLocationData(updateProviderDto.location)),
+        );
+
+        ['primary', 'secondary', 'tertiary'].forEach((section) => {
+          if (newLoc?.[section]) {
+            // merge coordinates
+            provider.location[section] = {
+              ...(provider.location[section] || {}),
+              coordinates: {
+                ...(provider.location[section]?.coordinates || {}),
+                ...(newLoc[section].coordinates || {}),
+              },
+              address: {
+                ...(provider.location[section]?.address || {}),
+                ...(newLoc[section].address || {}),
+              },
+            };
+          }
+        });
+      }
+
+      // merge other fields normally
+      Object.assign(provider, {
+        ...updateProviderDto,
+        ...fileUrls,
+        location: provider.location, // keep patched version
+      });
+
+      await provider.save();
+
+      return await this.userModel.findById(user.userId).populate({
+        path: 'activeRoleId',
+        model: 'Provider',
+        populate: {
+          path: 'subcategories',
+          model: 'Subcategory',
+          select: 'name description',
+          populate: {
+            path: 'categoryId',
+            model: 'Category',
+            select: 'name description',
+          },
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      throw new InternalServerErrorException(
+        'Failed to update provider. Please try again later.',
+      );
     }
   }
 

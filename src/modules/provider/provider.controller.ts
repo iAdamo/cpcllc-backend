@@ -15,6 +15,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from '../admin/admin.service';
 import { ProviderService } from './provider.service';
+import { CreateProviderDto } from '@dto/create-provider.dto';
 import { UpdateProviderDto } from '@dto/update-provider.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
@@ -59,7 +60,31 @@ export class ProviderController {
     return this.providerService.toggleFavorite(providerId, req.user.userId);
   }
 
-  @Patch('profile')
+  @Post('')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      {
+        name: 'providerLogo',
+        maxCount: 1,
+      },
+      { name: 'providerImages', maxCount: 10 },
+    ]),
+  )
+  async createProvider(
+    @Body() providerDto: CreateProviderDto,
+    @Req() req: RequestWithUser,
+    @UploadedFiles()
+    files?: {
+      providerLogo?: Express.Multer.File[];
+      providerImages?: Express.Multer.File[];
+    },
+  ) {
+    const user = req.user;
+    return this.providerService.createProvider(providerDto, user, files);
+  }
+
+  @Patch('')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -80,6 +105,6 @@ export class ProviderController {
     },
   ) {
     const user = req.user;
-    return this.providerService.updateProvider(user, providerDto, files);
+    return this.providerService.updateProvider(providerDto, user, files);
   }
 }

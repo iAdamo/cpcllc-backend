@@ -1,10 +1,9 @@
+// src/modules/provider/schemas/provider.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import {
-  Location,
-  LocationSchema,
-} from 'src/modules/provider/schemas/location.schema';
-import { Reviews } from '@schemas/reviews.schema';
+import { Location, LocationSchema } from './location.schema';
+
+import { SchemaTypes } from 'mongoose';
 
 export type ProviderDocument = HydratedDocument<Provider>;
 
@@ -33,12 +32,8 @@ export class Provider {
   @Prop({ type: [String], required: false })
   providerImages: string[];
 
-  @Prop({
-    type: Map,
-    of: String,
-    _id: false,
-  })
-  providerSocialMedia: Map<string, string>;
+  @Prop({ type: SchemaTypes.Mixed, default: {} })
+  providerSocialMedia: Record<string, string>;
 
   @Prop({ default: 0 })
   reviewCount: number;
@@ -49,7 +44,7 @@ export class Provider {
   @Prop({ default: 0 })
   averageRating: number;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], required: true })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], default: [] })
   categories: Types.ObjectId[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Subcategory' }], default: [] })
@@ -84,11 +79,10 @@ export class Provider {
   favoritedBy: Types.ObjectId[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Reviews' }], default: [] })
-  reviews: Reviews[];
+  reviews: Types.ObjectId[];
 }
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);
-
 
 ProviderSchema.set('toJSON', {
   transform: (_doc, ret) => {

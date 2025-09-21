@@ -1,7 +1,9 @@
+import { Injectable } from '@nestjs/common';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import * as fs from 'fs';
 
+@Injectable()
 export class DbStorageService {
   private readonly baseStoragePath = join(__dirname, '..', '..', 'uploads');
   private readonly baseUrl = `${process.env.BASE_URL}/uploads`;
