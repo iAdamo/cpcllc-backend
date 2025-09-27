@@ -63,9 +63,7 @@ export class CreateServiceDto {
     required: true,
   })
   @IsMongoId()
-  @IsArray()
-  @IsString({ each: true })
-  subcategoryId: string[];
+  subcategoryId: string;
 
   @ApiProperty({ description: 'Title of the service', required: true })
   @IsString()
@@ -75,10 +73,10 @@ export class CreateServiceDto {
   @IsString()
   description: string;
 
-  @ApiProperty({ description: 'Price of the service', required: false })
+  @ApiProperty({ description: 'Price range of the service', required: false })
   @IsOptional()
-  @IsNumber()
-  price?: number;
+  @IsString()
+  price?: string;
 
   @ApiProperty({ description: 'TIme duration of the service', required: false })
   @IsOptional()

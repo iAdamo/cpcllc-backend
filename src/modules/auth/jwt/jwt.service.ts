@@ -9,6 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { UsersService } from '@modules/users.service';
 import { User, UserDocument } from '@modules/schemas/user.schema';
+import { Provider, ProviderDocument } from '@modules/schemas/provider.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { Model, Types } from 'mongoose';
 import { MailtrapClient } from 'mailtrap';
@@ -20,6 +21,8 @@ export class JwtService {
   constructor(
     private readonly jwtService: NestJwtService,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(Provider.name)
+    private readonly providerModel: Model<ProviderDocument>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -98,11 +101,30 @@ export class JwtService {
       throw new BadRequestException(this.ERROR_MESSAGES.EMAIL_REQUIRED);
     }
 
-    const existingUser = await this.userModel.findOne({
-      $or: [{ email }, { phoneNumber }],
+    const userWithEmail = await this.userModel.findOne({ email });
+    if (userWithEmail) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const userWithPhone = await this.userModel.findOne({ phoneNumber });
+    if (userWithPhone) {
+      throw new ConflictException('User with this phone number already exists');
+    }
+
+    const providerWithEmail = await this.providerModel.findOne({
+      providerEmail: email,
     });
-    if (existingUser) {
-      throw new ConflictException('Email or phone number already exists');
+    if (providerWithEmail) {
+      throw new ConflictException('Provider with this email already exists');
+    }
+
+    const providerWithPhone = await this.providerModel.findOne({
+      providerPhoneNumber: phoneNumber,
+    });
+    if (providerWithPhone) {
+      throw new ConflictException(
+        'Provider with this phone number already exists',
+      );
     }
 
     const user = await this.userModel.create(createUsersDto);

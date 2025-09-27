@@ -12,7 +12,7 @@ export class Category {
 
   @Prop()
   description?: string;
-  
+
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Subcategory' }], default: [] })
   subcategories: Types.ObjectId[];
 }
@@ -50,20 +50,21 @@ export class Service {
   @Prop({ required: true })
   description: string;
 
-  @Prop({ required: true, default: 0 })
-  price: number;
+  // pricing range
+  @Prop({ required: true })
+  price: string;
 
   @Prop({ required: true, default: 0 })
   duration: number;
+
+  @Prop({ default: null })
+  location?: string;
 
   @Prop({ default: false })
   isActive: boolean;
 
   @Prop({ type: [String], default: [] })
-  images?: string[];
-
-  @Prop({ type: [String], default: [] })
-  videos?: string[];
+  media?: string[];
 
   @Prop({ type: [String], default: [] })
   tags: string[];

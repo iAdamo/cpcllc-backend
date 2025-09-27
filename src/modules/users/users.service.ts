@@ -78,7 +78,27 @@ export class UsersService {
           },
           { new: true, runValidators: true },
         )
-        .exec();
+        .populate('hiredCompanies')
+        .populate({
+          path: 'followedProviders',
+          model: 'Provider',
+          select: 'providerName providerLogo',
+        })
+        .populate({
+          path: 'activeRoleId',
+          model: 'Provider',
+          populate: {
+            path: 'subcategories',
+            model: 'Subcategory',
+            select: 'name description',
+            populate: {
+              path: 'categoryId',
+              model: 'Category',
+              select: 'name description',
+            },
+          },
+        })
+        .lean();
     } catch (error) {
       console.error('Error updating user:', error);
       throw new InternalServerErrorException(
@@ -96,6 +116,7 @@ export class UsersService {
     if (!id) {
       throw new BadRequestException('User ID is required');
     }
+    console.log("This is the user id in user profile service: ", id);
 
     const populatedUser = await this.userModel
       .findOne({
@@ -110,6 +131,11 @@ export class UsersService {
         ],
       })
       .populate('hiredCompanies')
+      .populate({
+        path: 'followedProviders',
+        model: 'Provider',
+        select: 'providerName providerLogo',
+      })
       .populate({
         path: 'activeRoleId',
         model: 'Provider',
@@ -132,5 +158,81 @@ export class UsersService {
     // console.log(populatedUser);
 
     return sanitizeUser(populatedUser);
+  }
+
+  /**
+   * Toggle follow/unfollow a provider
+   * @param userId User ID
+   * @param providerId Provider ID
+   * @return Updated User
+   */
+  async toggleFollowProvider(
+    userId: string,
+    providerId: string,
+  ): Promise<User> {
+    if (!userId || !providerId) {
+      throw new BadRequestException('User ID and Provider ID are required');
+    }
+    const userObjectId = new Types.ObjectId(userId);
+    const providerObjectId = new Types.ObjectId(providerId);
+
+    const user = await this.userModel.findById(userObjectId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const provider = await this.providerModel.findById(providerObjectId);
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
+    const isFollowing = user.followedProviders.includes(providerObjectId);
+
+    const userUpdate = isFollowing
+      ? {
+          $pull: { followedProviders: providerObjectId },
+          $inc: { followingCount: -1 },
+        }
+      : {
+          $addToSet: { followedProviders: providerObjectId },
+          $inc: { followingCount: 1 },
+        };
+    const providerUpdate = isFollowing
+      ? {
+          $pull: { followedBy: userObjectId },
+          $inc: { followersCount: -1 },
+        }
+      : {
+          $addToSet: { followedBy: userObjectId },
+          $inc: { followersCount: 1 },
+        };
+
+    await this.providerModel.findByIdAndUpdate(
+      providerObjectId,
+      providerUpdate,
+    );
+    const updatedUser = await this.userModel
+      .findByIdAndUpdate(userObjectId, userUpdate, { new: true })
+      .populate('hiredCompanies')
+      .populate({
+        path: 'followedProviders',
+        model: 'Provider',
+        select: 'providerName providerLogo',
+      })
+      .populate({
+        path: 'activeRoleId',
+        model: 'Provider',
+        populate: {
+          path: 'subcategories',
+          model: 'Subcategory',
+          select: 'name description',
+          populate: {
+            path: 'categoryId',
+            model: 'Category',
+            select: 'name description',
+          },
+        },
+      })
+      .lean();
+
+    return sanitizeUser(updatedUser);
   }
 }

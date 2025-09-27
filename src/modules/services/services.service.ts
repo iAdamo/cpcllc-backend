@@ -75,14 +75,13 @@ export class ServicesService {
   }
   // Admin
 
-   async getAllCategoriesWithSubcategories(): Promise<Category[]> {
+  async getAllCategoriesWithSubcategories(): Promise<Category[]> {
     return this.categoryModel
       .find()
       .populate({
         path: 'subcategories',
         model: 'Subcategory',
         select: 'name description', // add more fields if needed
-
       })
       .sort({ createdAt: 1 })
       .exec();
@@ -94,31 +93,36 @@ export class ServicesService {
 
   async createService(
     serviceData: CreateServiceDto,
-    userId: string,
-    files: {
-      images?: Express.Multer.File[];
-      videos?: Express.Multer.File[];
-    },
+    user: { userId: string; email: string; phoneNumber?: string },
+    files: { media?: Express.Multer.File[] },
   ): Promise<ServiceDocument> {
-    const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const provider = await this.providerModel.findById(user.activeRoleId);
+    const provider = await this.providerModel.findOne({ owner: user.userId });
     if (!provider) {
       throw new NotFoundException('You are not a provider yet!');
     }
 
     const fileUrls = await this.storage.handleFileUploads(
-      `${user._id}/services/images`,
+      `${user.email}/services/${serviceData.title.replace(/\s+/g, '_')}`,
       files,
     );
 
+    // Validate subcategory IDs
+    const validSubcategories = await this.subcategoryModel.find({
+      _id: { $in: serviceData.subcategoryId },
+    });
+    if (validSubcategories.length !== serviceData.subcategoryId.length) {
+      throw new BadRequestException('One or more subcategory IDs are invalid');
+    }
+
     const service = new this.serviceModel({
       ...serviceData,
-      userId: user._id,
+      userId: user.userId,
       providerId: provider._id,
+      subcategoryId: new Types.ObjectId(serviceData.subcategoryId),
       ...fileUrls,
     });
 
@@ -128,10 +132,8 @@ export class ServicesService {
   async updateService(
     serviceId: string,
     updateData: UpdateServiceDto,
-    files: {
-      images?: Express.Multer.File[];
-      videos?: Express.Multer.File[];
-    },
+    user: { userId: string; email: string; phoneNumber?: string },
+    files: { media?: Express.Multer.File[] },
   ): Promise<ServiceDocument> {
     const service = await this.serviceModel.findById(serviceId);
     if (!service) {
@@ -149,11 +151,10 @@ export class ServicesService {
       );
     }
 
-    const fileUrls = await this.storage.handleFileUploads(
-      `${service.userId}/services/images`,
-      files,
-    );
-
+  const fileUrls = await this.storage.handleFileUploads(
+    `${user.email}/services/${service.title.replace(/\s+/g, '_')}`,
+    files,
+  );
     const updateDataWithFiles = { ...updateData, ...fileUrls };
     // Remove providerId and user from update data to prevent changes
     const { providerId, userId, ...safeUpdate } = updateDataWithFiles;

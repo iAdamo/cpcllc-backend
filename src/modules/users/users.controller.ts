@@ -22,12 +22,13 @@ import { CreateUserDto } from '@modules/dto/create-user.dto';
 import { CreateAdminDto } from '@dto/create-admin.dto';
 import { UpdateUserDto } from '@modules/dto/update-user.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from '@guards/jwt.guard';
+import { JwtAuthGuard, ProfileViewOnceGuard } from '@guards/jwt.guard';
 
 export interface RequestWithUser extends Request {
   user: {
     email: string;
     userId: string;
+    phoneNumber?: string;
   };
 }
 
@@ -64,6 +65,7 @@ export class UsersController {
     return this.usersService.userProfile(id);
   }
 
+  @UseGuards(ProfileViewOnceGuard)
   @Get('profile/:id')
   async getUserById(@Param('id') id: string) {
     return this.usersService.userProfile(id);

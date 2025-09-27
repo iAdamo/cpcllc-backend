@@ -158,6 +158,11 @@ export class SearchService {
                 model: 'Subcategory',
                 select: 'name description',
               })
+              .populate({
+                path: 'followedBy',
+                model: 'User',
+                select: 'profilePic firstName lastName email',
+              })
               .sort({
                 averageRating: -1,
                 reviewCount: -1,
@@ -245,6 +250,11 @@ export class SearchService {
                 path: 'subcategories',
                 model: 'Subcategory',
                 select: 'name description',
+              })
+              .populate({
+                path: 'followedBy',
+                model: 'User',
+                select: 'profilePic firstName lastName email',
               })
               .sort(providerSort)
               .skip((pageN - 1) * limitN)

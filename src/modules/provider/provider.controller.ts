@@ -64,10 +64,7 @@ export class ProviderController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([
-      {
-        name: 'providerLogo',
-        maxCount: 1,
-      },
+      { name: 'providerLogo', maxCount: 1 },
       { name: 'providerImages', maxCount: 10 },
     ]),
   )

@@ -29,11 +29,17 @@ export class Provider {
   @Prop({ required: false })
   providerLogo: string;
 
+  @Prop({ default: false })
+  isVerified: boolean;
+
   @Prop({ type: [String], required: false })
   providerImages: string[];
 
   @Prop({ type: SchemaTypes.Mixed, default: {} })
   providerSocialMedia: Record<string, string>;
+
+  @Prop({ default: 0 })
+  followersCount: number;
 
   @Prop({ default: 0 })
   reviewCount: number;
@@ -80,6 +86,9 @@ export class Provider {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Reviews' }], default: [] })
   reviews: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  followedBy: Types.ObjectId[];
 }
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);

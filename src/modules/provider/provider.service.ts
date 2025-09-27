@@ -115,10 +115,14 @@ export class ProviderService {
 
       if (provider) {
         const newUser = await this.userModel
-          .findByIdAndUpdate(user.userId, {
-            activeRole: 'Provider',
-            activeRoleId: provider._id,
-          })
+          .findByIdAndUpdate(
+            user.userId,
+            {
+              activeRole: 'Provider',
+              activeRoleId: provider._id,
+            },
+            { new: true },
+          )
           .populate({
             path: 'activeRoleId',
             model: 'Provider',
@@ -238,7 +242,7 @@ export class ProviderService {
             provider.location[section] = {
               ...(provider.location[section] || {}),
 
-             coordinates: (newLoc[section].coordinates || {}),
+              coordinates: newLoc[section].coordinates || {},
               type: 'Point',
               address: {
                 ...(provider.location[section]?.address || {}),

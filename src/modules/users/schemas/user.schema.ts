@@ -32,6 +32,14 @@ export class User {
   @Prop({ required: false })
   address?: string;
 
+  // following count
+  @Prop({ default: 0 })
+  followingCount: number;
+
+  // followed providers
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Provider' }], default: [] })
+  followedProviders: Types.ObjectId[];
+
   // geographical coordinates
   @Prop({ required: false })
   latitude?: number;
@@ -59,9 +67,6 @@ export class User {
 
   @Prop()
   codeAt?: Date;
-
-  @Prop({ default: false })
-  isVerified: boolean;
 
   @Prop({ default: true })
   isActive: boolean;
