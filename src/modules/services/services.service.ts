@@ -156,8 +156,7 @@ export class ServicesService {
     files,
   );
     const updateDataWithFiles = { ...updateData, ...fileUrls };
-    // Remove providerId and user from update data to prevent changes
-    const { providerId, userId, ...safeUpdate } = updateDataWithFiles;
+    const { ...safeUpdate } = updateDataWithFiles;
     return await this.serviceModel.findByIdAndUpdate(serviceId, safeUpdate, {
       new: true,
     });

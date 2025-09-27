@@ -48,17 +48,6 @@ export class CreateSubcategoryDto {
  */
 export class CreateServiceDto {
   @ApiProperty({
-    description: 'Provider ID offering the service',
-    required: true,
-  })
-  @IsMongoId()
-  providerId: string;
-
-  @ApiProperty({ description: 'User ID creating the service', required: true })
-  @IsMongoId()
-  userId: string;
-
-  @ApiProperty({
     description: 'Subcategory ID associated with the service',
     required: true,
   })
@@ -73,10 +62,15 @@ export class CreateServiceDto {
   @IsString()
   description: string;
 
-  @ApiProperty({ description: 'Price range of the service', required: false })
+  @ApiProperty({ description: 'Minimum price of the service', required: false })
   @IsOptional()
-  @IsString()
-  price?: string;
+  @IsNumber()
+  minPrice?: number;
+
+  @ApiProperty({ description: 'Maximum price of the service', required: false })
+  @IsOptional()
+  @IsNumber()
+  maxPrice?: number;
 
   @ApiProperty({ description: 'TIme duration of the service', required: false })
   @IsOptional()
@@ -89,30 +83,15 @@ export class CreateServiceDto {
   isActive?: boolean;
 
   @ApiProperty({
-    description: 'Array of image URLs for the service',
+    description: 'Array of media URLs for the service',
     type: [String],
     required: false,
   })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  images?: string[];
+  media?: string[];
 
-  @ApiProperty({
-    description: 'Array of video URLs for the service',
-    type: [String],
-    required: false,
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  videos?: string[];
-
-  @ApiProperty({
-    description: 'Array of tags for the service',
-    type: [String],
-    required: false,
-  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

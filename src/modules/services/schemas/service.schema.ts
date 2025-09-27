@@ -50,17 +50,19 @@ export class Service {
   @Prop({ required: true })
   description: string;
 
-  // pricing range
-  @Prop({ required: true })
-  price: string;
+  @Prop({ required: false, default: null, index: true })
+  minPrice: number;
+
+  @Prop({ required: false, default: null, index: true })
+  maxPrice: number;
 
   @Prop({ required: true, default: 0 })
   duration: number;
 
-  @Prop({ default: null })
+  @Prop({ default: null, index: true })
   location?: string;
 
-  @Prop({ default: false })
+  @Prop({ default: true })
   isActive: boolean;
 
   @Prop({ type: [String], default: [] })

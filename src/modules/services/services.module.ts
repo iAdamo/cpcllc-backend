@@ -12,11 +12,13 @@ import {
   CategorySchema,
   SubcategorySchema,
 } from '@modules/schemas/service.schema';
+import { ProviderModule } from '@modules/provider.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
     forwardRef(() => CacheModule),
+    forwardRef(() => ProviderModule),
     MongooseModule.forFeature([
       { name: Service.name, schema: ServiceSchema },
       { name: Category.name, schema: CategorySchema },

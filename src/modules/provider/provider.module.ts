@@ -11,8 +11,8 @@ import { DbStorageService } from 'src/utils/dbStorage';
 @Module({
   imports: [
     forwardRef(() => UsersModule),
-    ServicesModule,
-    AdminModule,
+    forwardRef(() => ServicesModule),
+    forwardRef(() => AdminModule),
     MongooseModule.forFeature([
       { name: Provider.name, schema: ProviderSchema },
     ]),
