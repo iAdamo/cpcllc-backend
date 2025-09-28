@@ -4,14 +4,12 @@ import { Provider, ProviderSchema } from './schemas/provider.schema';
 import { ProviderService } from './provider.service';
 import { ProviderController } from './provider.controller';
 import { UsersModule } from '../users/users.module';
-import { ServicesModule } from '@services/services.module';
 import { AdminModule } from '../admin/admin.module';
 import { DbStorageService } from 'src/utils/dbStorage';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
-    forwardRef(() => ServicesModule),
     forwardRef(() => AdminModule),
     MongooseModule.forFeature([
       { name: Provider.name, schema: ProviderSchema },

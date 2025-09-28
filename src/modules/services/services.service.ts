@@ -99,8 +99,9 @@ export class ServicesService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
-    const provider = await this.providerModel.findOne({ owner: user.userId });
+    const provider = await this.providerModel.findOne({
+      owner: new Types.ObjectId(user.userId),
+    });
     if (!provider) {
       throw new NotFoundException('You are not a provider yet!');
     }
@@ -110,17 +111,16 @@ export class ServicesService {
       files,
     );
 
-    // Validate subcategory IDs
     const validSubcategories = await this.subcategoryModel.find({
-      _id: { $in: serviceData.subcategoryId },
+      _id: { $in: [new Types.ObjectId(serviceData.subcategoryId)] },
     });
-    if (validSubcategories.length !== serviceData.subcategoryId.length) {
-      throw new BadRequestException('One or more subcategory IDs are invalid');
+    if (validSubcategories.length !== 1) {
+      throw new BadRequestException('Subcategory ID is invalid');
     }
 
     const service = new this.serviceModel({
       ...serviceData,
-      userId: user.userId,
+      userId: new Types.ObjectId(user.userId),
       providerId: provider._id,
       subcategoryId: new Types.ObjectId(serviceData.subcategoryId),
       ...fileUrls,
@@ -151,10 +151,10 @@ export class ServicesService {
       );
     }
 
-  const fileUrls = await this.storage.handleFileUploads(
-    `${user.email}/services/${service.title.replace(/\s+/g, '_')}`,
-    files,
-  );
+    const fileUrls = await this.storage.handleFileUploads(
+      `${user.email}/services/${service.title.replace(/\s+/g, '_')}`,
+      files,
+    );
     const updateDataWithFiles = { ...updateData, ...fileUrls };
     const { ...safeUpdate } = updateDataWithFiles;
     return await this.serviceModel.findByIdAndUpdate(serviceId, safeUpdate, {

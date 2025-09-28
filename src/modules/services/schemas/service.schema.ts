@@ -39,10 +39,12 @@ export class Service {
   userId: Types.ObjectId;
 
   @Prop({
-    type: [{ type: Types.ObjectId, ref: 'Subcategory' }],
+    type: Types.ObjectId,
+    ref: 'Subcategory',
     required: true,
+    index: true,
   })
-  subcategoryId: Types.ObjectId[];
+  subcategoryId: Types.ObjectId;
 
   @Prop({ required: true })
   title: string;
