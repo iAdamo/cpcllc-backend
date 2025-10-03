@@ -157,9 +157,21 @@ export class ServicesService {
     );
     const updateDataWithFiles = { ...updateData, ...fileUrls };
     const { ...safeUpdate } = updateDataWithFiles;
-    return await this.serviceModel.findByIdAndUpdate(serviceId, safeUpdate, {
-      new: true,
-    });
+    return await this.serviceModel
+      .findByIdAndUpdate(serviceId, safeUpdate, {
+        new: true,
+      })
+      .populate('providerId', 'providerName providerLogo isVerified')
+      .populate({
+        path: 'subcategoryId',
+        model: 'Subcategory',
+        select: '_id name description',
+        populate: {
+          path: 'categoryId',
+          model: 'Category',
+          select: '_id name description',
+        },
+      });
   }
 
   async deleteService(serviceId: string): Promise<ServiceDocument> {
@@ -179,8 +191,17 @@ export class ServicesService {
 
       const services = await this.serviceModel
         .find({ providerId: provider._id })
-        .populate('providerId', 'providerName providerImages');
-
+        .populate('providerId', 'providerName providerLogo isVerified')
+        .populate({
+          path: 'subcategoryId',
+          model: 'Subcategory',
+          select: '_id name description',
+          populate: {
+            path: 'categoryId',
+            model: 'Category',
+            select: '_id name description',
+          },
+        });
       return services;
     } catch (error) {
       console.error(error);
@@ -189,8 +210,18 @@ export class ServicesService {
 
   async getServiceById(serviceId: string): Promise<ServiceDocument> {
     const service = await this.serviceModel
-      .findById(serviceId)
-      .populate('providerId', 'providerName providerImages');
+      .findById(new Types.ObjectId(serviceId))
+      .populate('providerId', 'providerName providerLogo isVerified')
+      .populate({
+        path: 'subcategoryId',
+        model: 'Subcategory',
+        select: '_id name description',
+        populate: {
+          path: 'categoryId',
+          model: 'Category',
+          select: '_id name description',
+        },
+      });
 
     if (!service) {
       throw new NotFoundException('Service not found');

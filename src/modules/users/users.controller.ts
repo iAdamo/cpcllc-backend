@@ -41,7 +41,7 @@ export class UsersController {
     private readonly adminService: AdminService,
   ) {}
 
-  @Patch("profile")
+  @Patch('profile')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'profilePicture', maxCount: 1 }]),
@@ -69,5 +69,15 @@ export class UsersController {
   @Get('profile/:id')
   async getUserById(@Param('id') id: string) {
     return this.usersService.userProfile(id);
+  }
+
+  @Patch('follow/:providerId')
+  @UseGuards(JwtAuthGuard)
+  async followProvider(
+    @Param('providerId') providerId: string,
+    @Req() req: RequestWithUser,
+  ) {
+    const userId = req.user.userId;
+    return this.usersService.toggleFollowProvider(userId, providerId);
   }
 }

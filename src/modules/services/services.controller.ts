@@ -91,7 +91,14 @@ export class ServicesController {
   async getServicesByProvider(
     @Param('id') providerId: string,
   ): Promise<Service[]> {
-    return this.servicesService.getServicesByProvider(providerId);
+    const cacheKey = `services:provider:${providerId}`;
+    const cachedResult = await this.cacheService.get<Service[]>(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+    const result = await this.servicesService.getServicesByProvider(providerId);
+    await this.cacheService.set(cacheKey, result, 60); // Cache for 1 minute
+    return result;
   }
 
   @Get(':id')
