@@ -14,7 +14,7 @@ import {
 } from 'src/modules/provider/schemas/provider.schema';
 import { CreateProviderDto } from '@dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
-import { DbStorageService } from 'src/utils/dbStorage';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Injectable()
 export class ProviderService {

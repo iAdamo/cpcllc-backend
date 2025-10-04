@@ -12,7 +12,7 @@ import { Admin, AdminDocument } from 'src/modules/admin/schemas/admin.schema';
 import { CreateAdminDto } from '@dto/create-admin.dto';
 import { UpdateAdminDto } from '@dto/update-admin.dto';
 import { CreateUserDto } from '@dto/create-user.dto';
-import { DbStorageService } from 'src/utils/dbStorage';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Injectable()
 export class AdminService {

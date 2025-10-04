@@ -4,6 +4,20 @@ import * as bcrypt from 'bcrypt';
 
 export type UserDocument = HydratedDocument<User>;
 
+class Device {
+  @Prop({ required: true })
+  deviceId: string;
+
+  @Prop({ required: true })
+  pushToken: string;
+
+  @Prop()
+  lastSeen: Date;
+
+  @Prop()
+  publicKey: string;
+}
+
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: false })
@@ -73,6 +87,12 @@ export class User {
 
   @Prop({ default: false })
   forgetPassword: boolean;
+
+  @Prop({ required: false })
+  status: string;
+
+  @Prop({ type: [Device], default: [] })
+  devices: Device[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Provider' }], default: [] })
   hiredCompanies: Types.ObjectId[];

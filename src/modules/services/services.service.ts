@@ -26,7 +26,7 @@ import {
   ServiceDocument,
 } from '@modules/schemas/service.schema';
 import { UpdateServiceDto } from '@modules/dto/update-service.dto';
-import { DbStorageService } from 'src/utils/dbStorage';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Injectable()
 export class ServicesService {

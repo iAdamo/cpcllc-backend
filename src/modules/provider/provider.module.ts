@@ -5,7 +5,7 @@ import { ProviderService } from './provider.service';
 import { ProviderController } from './provider.controller';
 import { UsersModule } from '../users/users.module';
 import { AdminModule } from '../admin/admin.module';
-import { DbStorageService } from 'src/utils/dbStorage';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Module({
   imports: [

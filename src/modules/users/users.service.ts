@@ -22,7 +22,7 @@ import {
 } from '@modules/schemas/service.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
-import { DbStorageService } from 'src/utils/dbStorage';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Injectable()
 export class UsersService {
@@ -116,7 +116,7 @@ export class UsersService {
     if (!id) {
       throw new BadRequestException('User ID is required');
     }
-    console.log("This is the user id in user profile service: ", id);
+    console.log('This is the user id in user profile service: ', id);
 
     const populatedUser = await this.userModel
       .findOne({

@@ -14,7 +14,7 @@ import {
   ProviderDocument,
 } from 'src/modules/provider/schemas/provider.schema';
 import { Reviews, ReviewsDocument } from '@schemas/reviews.schema';
-import { DbStorageService } from 'src/utils/dbStorage';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Injectable()
 export class ReviewsService {
@@ -99,10 +99,7 @@ export class ReviewsService {
    * @param providerId The ID of the provider
    * @returns Array of reviews for the specified provider
    */
-  async getReviews(
-    providerId?: string,
-    user?: string,
-  ): Promise<Reviews[]> {
+  async getReviews(providerId?: string, user?: string): Promise<Reviews[]> {
     const objId = providerId ? providerId : user;
     if (!Types.ObjectId.isValid(objId)) {
       throw new BadRequestException('Invalid ID');

@@ -14,6 +14,7 @@ import { ProviderModule } from './modules/provider/provider.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MediaModule } from './modules/media/media.module';
 import { CacheModule } from './modules/cache/cache.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -37,20 +38,6 @@ import { CacheModule } from './modules/cache/cache.module';
       },
       inject: [ConfigService],
     }),
-    // CacheModule.registerAsync({
-    //  useFactory: async () => {
-    //    return {
-    //      stores: [
-    //        new Keyv({
-    //          store: new CacheableMemory({ ttl: 60000, lruSize: 5000 }),
-    //        }),
-    //        createKeyv('redis://127.0.0.1:6379'),
-    //      ],
-    //    };
-    //  },
-    //  inject: [ConfigService],
-    //  isGlobal: true,
-    //}),
 
     UsersModule,
     AuthModule,
@@ -61,6 +48,7 @@ import { CacheModule } from './modules/cache/cache.module';
     ProviderModule,
     MediaModule,
     CacheModule,
+    ChatModule,
   ],
   controllers: [],
   providers: [],

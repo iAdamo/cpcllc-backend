@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { VersioningType } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
+import { logger } from './common/middleware/logger.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -25,6 +26,7 @@ async function bootstrap() {
 
   // Use cookie-parser middleware
   app.use(cookieParser());
+  app.use(logger);
 
   // CORS
   app.enableCors({

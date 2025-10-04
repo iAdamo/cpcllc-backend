@@ -24,4 +24,13 @@ export class CacheService {
   async has(key: string): Promise<boolean> {
     return this.cache.has(key);
   }
+
+  async publish(channel: string, message: string): Promise<void> {
+    if (typeof (this.cache as any).publish === 'function') {
+      
+      await (this.cache as any).publish(channel, message);
+    } else {
+      throw new Error('Cache instance does not support publish');
+    }
+  }
 }
