@@ -56,8 +56,6 @@ export class ChatService {
     const user = new Types.ObjectId(currentUserId);
     const provider = new Types.ObjectId(participants[0]);
 
-    console.log(user, provider);
-
     // if (await this.userModel.exists({ _id: user, activeRoleId: provider })) {
     //   throw new BadRequestException('User and provider cannot be the same');
     // }

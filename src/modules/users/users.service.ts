@@ -116,7 +116,7 @@ export class UsersService {
     if (!id) {
       throw new BadRequestException('User ID is required');
     }
-    console.log('This is the user id in user profile service: ', id);
+    // console.log('This is the user id in user profile service: ', id);
 
     const populatedUser = await this.userModel
       .findOne({

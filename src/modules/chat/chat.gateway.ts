@@ -1,4 +1,4 @@
-// chat.gateway.ts
+import * as jwt from 'jsonwebtoken';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { Types } from 'mongoose';
-import { WsJwtGuard } from '@modules/jwt/jwt.guard';
+import { WsJwtGuard, JwtAuthGuard } from '@modules/jwt/jwt.guard';
 
 interface AuthenticatedSocket extends Socket {
   userId: Types.ObjectId;
@@ -29,9 +29,13 @@ interface AuthenticatedSocket extends Socket {
     origin: '*',
   },
   namespace: 'chat',
+  path:
+    process.env.NODE_ENV === 'production'
+      ? process.env.WEBSOCKET_PATH
+      : '',
 })
 @UseGuards(WsJwtGuard)
-@UsePipes(new ValidationPipe())
+@UsePipes(new ValidationPipe({ transform: true }))
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
@@ -41,7 +45,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(private readonly chatService: ChatService) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
-    const userId = client.data.user.id;
+    const token =
+      client.handshake?.auth?.token ||
+      client.handshake?.headers?.authorization?.split(' ')[1];
+    if (!token) {
+      this.logger.error(`Client connection rejected: No token provided`);
+      client.disconnect();
+      return;
+    }
+
+    try {
+      const payload = jwt.verify(token, process.env.JWT_SECRET) as {
+        userId: string;
+        email: string;
+      };
+      client.userId = new Types.ObjectId(payload.userId);
+    } catch (error) {
+      this.logger.error(`Client connection rejected: Invalid token`);
+      client.disconnect();
+      return;
+    }
+
+    const userId = client.userId?.toString();
     if (!userId) {
       client.disconnect();
       return;
@@ -109,7 +134,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Emit to all participants in the chat
       this.server.to(data.chatId).emit('new_message', {
-        message: await message.populate('senderId', 'firstName lastName profilePicture'),
+        message: await message.populate(
+          'senderId',
+          'firstName lastName profilePicture',
+        ),
       });
 
       // Send notifications to offline users

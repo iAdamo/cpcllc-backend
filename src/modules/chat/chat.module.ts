@@ -5,13 +5,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { User, UserSchema } from '@modules/schemas/user.schema';
 import { Chat, ChatSchema } from './schemas/chat.schema';
-import { AuthModule } from '@modules/auth.module';
 import { CacheModule } from '@modules/cache.module';
 import { ChatController } from './chat.controller';
 
 @Module({
   imports: [
-    AuthModule,
     CacheModule,
     MongooseModule.forFeature([
       { name: Message.name, schema: MessageSchema },

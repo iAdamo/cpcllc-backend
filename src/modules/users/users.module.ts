@@ -11,17 +11,13 @@ import { ProviderModule } from 'src/modules/provider/provider.module';
 import { AdminModule } from '../admin/admin.module';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-// import { JwtModule } from '@nestjs/jwt';
 import { CacheModule } from '@modules/cache.module';
-// import { AuthModule } from '@modules/auth.module';
 
 @Module({
   imports: [
     forwardRef(() => ProviderModule),
     forwardRef(() => ServicesModule),
     forwardRef(() => AdminModule),
-    // forwardRef(() => AuthModule),
-    // JwtModule,
     CacheModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },

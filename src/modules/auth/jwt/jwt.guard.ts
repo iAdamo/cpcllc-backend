@@ -66,12 +66,18 @@ export class ProfileViewOnceGuard implements CanActivate {
 
 @Injectable()
 export class WsJwtGuard implements CanActivate {
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  constructor() {
+  }
+  canActivate(context: ExecutionContext): boolean {
     const client = context.switchToWs().getClient();
+    console.log('WebSocket Client:', client);
     const token =
       client.handshake?.auth?.token ||
       client.handshake?.headers?.authorization?.split(' ')[1];
-    if (!token) return false;
+    if (!token) {
+      console.log('No token provided');
+      return false;
+    }
     try {
       // validate token using JwtService
       const payload = jwt.verify(token, process.env.JWT_SECRET) as AuthUser;

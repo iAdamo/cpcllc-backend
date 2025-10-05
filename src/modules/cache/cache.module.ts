@@ -16,7 +16,9 @@ import { ServicesModule } from '@modules/services.module';
     {
       provide: 'CACHE_INSTANCE',
       useFactory: () => {
-        const secondary = createKeyv('redis://localhost:6379');
+        const secondary = createKeyv(
+          process.env.REDIS_URL || 'redis://localhost:6379',
+        );
         return new Cacheable({
           secondary,
           ttl: '4h',
