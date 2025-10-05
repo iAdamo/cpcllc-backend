@@ -51,11 +51,6 @@ export class ChatController {
     return this.chatService.createChat(currentUserId, createChatDto);
   }
 
-  //    participants: [
-  //         new Types.ObjectId(currentUserId),
-  //         ...createChatDto.participants.map((id) => new Types.ObjectId(id)),
-  //       ],
-
   @Get('user/chats')
   async getUserChats(
     @Req() req: RequestWithUser,

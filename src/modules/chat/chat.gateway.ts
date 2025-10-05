@@ -56,10 +56,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const payload = jwt.verify(token, process.env.JWT_SECRET) as {
-        userId: string;
+        sub: string;
         email: string;
       };
-      client.userId = new Types.ObjectId(payload.userId);
+      client.userId = new Types.ObjectId(payload.sub);
     } catch (error) {
       this.logger.error(`Client connection rejected: Invalid token`);
       client.disconnect();

@@ -48,7 +48,7 @@ export class ProfileViewOnceGuard implements CanActivate {
 
     const cacheKey = `profile_viewed:${profileId}:${userId}`;
     const hasViewed = await this.cacheService.get<boolean>(cacheKey);
-    console.log('ProfileViewOnceGuard:', { profileId, userId, hasViewed });
+    // console.log('ProfileViewOnceGuard:', { profileId, userId, hasViewed });
 
     if (hasViewed) {
       if (!req.user) {
@@ -66,16 +66,13 @@ export class ProfileViewOnceGuard implements CanActivate {
 
 @Injectable()
 export class WsJwtGuard implements CanActivate {
-  constructor() {
-  }
+  constructor() {}
   canActivate(context: ExecutionContext): boolean {
     const client = context.switchToWs().getClient();
-    console.log('WebSocket Client:', client);
     const token =
       client.handshake?.auth?.token ||
       client.handshake?.headers?.authorization?.split(' ')[1];
     if (!token) {
-      console.log('No token provided');
       return false;
     }
     try {

@@ -1,3 +1,4 @@
+import { model } from 'mongoose';
 // chat.service.ts
 import {
   Injectable,
@@ -11,6 +12,7 @@ import { Chat, ChatDocument } from './schemas/chat.schema';
 import { Message, MessageDocument, MessageType } from '@schemas/message.schema';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { CreateChatDto } from './dto/create-chat.dto';
+import path from 'path';
 
 // interface CreateChatDto {
 //   participants: Types.ObjectId[];
@@ -54,22 +56,23 @@ export class ChatService {
     }
 
     const user = new Types.ObjectId(currentUserId);
-    const provider = new Types.ObjectId(participants[0]);
+    const otherUser = new Types.ObjectId(participants[0]);
 
-    // if (await this.userModel.exists({ _id: user, activeRoleId: provider })) {
-    //   throw new BadRequestException('User and provider cannot be the same');
-    // }
+    if (user.equals(otherUser)) {
+      throw new BadRequestException('Cannot create chat with yourself');
+    }
 
-    const userExists = await this.userModel.exists({ _id: user });
-    const providerExists = await this.userModel.exists({
-      activeRoleId: provider,
-    });
-    if (!userExists || !providerExists) {
+    // Ensure both users exist
+    const usersExists = await this.userModel
+      .find({ _id: { $in: [user, otherUser] } })
+      .countDocuments();
+    if (usersExists !== 2) {
       throw new NotFoundException('One or more participants not found');
     }
+
     // Check for existing chat between the two participants
     let chat = await this.chatModel.findOne({
-      participants: { $all: [user, provider], $size: 2 },
+      participants: { $all: [user, otherUser], $size: 2 },
       isActive: true,
     });
 
@@ -79,38 +82,14 @@ export class ChatService {
 
     // Create new chat
     chat = new this.chatModel({
-      participants: [user, provider],
+      participants: [user, otherUser],
       isActive: true,
     });
     await chat.save({ session });
     this.logger.log(
-      `Chat created between user ${user} and provider ${provider}`,
+      `Chat created between user ${user} and provider ${otherUser}`,
     );
     return chat;
-
-    // // Validate participants
-    // if (participants.length !== 2) {
-    //   throw new BadRequestException(
-    //     'Direct chat must have exactly 2 participants',
-    //   );
-    // }
-
-    // // Check if direct chat already exists
-    // const existingChat = await this.chatModel.findOne({
-    //   participants: { $all: participants, $size: 2 },
-    //   isActive: true,
-    // });
-    // if (existingChat) {
-    //   return existingChat;
-    // }
-
-    // const chatData: any = {
-    //   participants,
-    //   isActive: true,
-    // };
-
-    // const chat = new this.chatModel(chatData);
-    // return chat.save({ session });
   }
 
   async sendMessage(
@@ -212,17 +191,46 @@ export class ChatService {
   ): Promise<ChatDocument[]> {
     const skip = (page - 1) * limit;
 
-    return this.chatModel
-      .find({
-        participants: userId,
-        isActive: true,
-      })
-      .populate('participants', 'username avatarUrl')
-      .populate('lastMessage.sender', 'username')
-      .sort({ 'lastMessage.createdAt': -1 })
-      .skip(skip)
-      .limit(limit)
-      .exec();
+    return (
+      this.chatModel
+        .find({
+          participants: userId,
+          isActive: true,
+        })
+        .populate({
+          path: 'participants',
+          model: 'User',
+          select: 'firstName lastName profilePicture',
+          match: { _id: { $ne: userId } },
+          populate: [
+            {
+              path: 'followedProviders',
+              model: 'Provider',
+              select: 'providerName providerLogo',
+            },
+            {
+              path: 'activeRoleId',
+              model: 'Provider',
+              match: { _id: { $ne: userId } },
+              populate: {
+                path: 'subcategories',
+                model: 'Subcategory',
+                select: 'name description',
+                populate: {
+                  path: 'categoryId',
+                  model: 'Category',
+                  select: 'name description',
+                },
+              },
+            },
+          ],
+        })
+        // .populate('lastMessage.sender', 'firstName lastName')
+        // .sort({ 'lastMessage.createdAt': -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec()
+    );
   }
 
   async getChatMessages(
