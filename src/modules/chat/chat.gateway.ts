@@ -29,10 +29,7 @@ interface AuthenticatedSocket extends Socket {
     origin: '*',
   },
   namespace: 'chat',
-  path:
-    process.env.NODE_ENV === 'production'
-      ? process.env.WEBSOCKET_PATH
-      : '',
+  path: '/sanuxsocket/socket.io',
 })
 @UseGuards(WsJwtGuard)
 @UsePipes(new ValidationPipe({ transform: true }))
@@ -87,13 +84,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.join(userIdStr);
   }
 
-  handleDisconnect(client: AuthenticatedSocket): void {
+  async handleDisconnect(client: AuthenticatedSocket): Promise<void> {
     const userIdStr = client.userId?.toString();
     if (userIdStr && this.userSockets.has(userIdStr)) {
       const userSockets = this.userSockets.get(userIdStr);
       userSockets.delete(client.id);
       if (userSockets.size === 0) {
         this.userSockets.delete(userIdStr);
+
+        await this.chatService.updateLastSeen(userIdStr, new Date());
+        this.logger.log(`User ${userIdStr} is now offline`);
       }
     }
     this.logger.log(`Client disconnected: ${client.id}`);
@@ -224,5 +224,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return (
       this.userSockets.has(userId) && this.userSockets.get(userId).size > 0
     );
+  }
+
+  @SubscribeMessage('check_online')
+  handleCheckOnline(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { userId: string },
+  ) {
+    const online = this.isUserOnline(data.userId);
+    this.logger.log(`Checked online status for ${data.userId}: ${online}`);
+    client.emit('online_status', { userId: data.userId, online });
   }
 }

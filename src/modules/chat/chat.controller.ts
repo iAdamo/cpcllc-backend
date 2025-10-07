@@ -70,11 +70,11 @@ export class ChatController {
   @Get(':chatId/messages')
   async getChatMessages(
     @Param('chatId') chatId: string,
+    @Req() req: RequestWithUser,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 100,
   ) {
-    // In production, you'd get this from auth context
-    const userId = new Types.ObjectId('current-user-id');
+    const userId = new Types.ObjectId(req.user.userId);
 
     return this.chatService.getChatMessages(
       new Types.ObjectId(chatId),
@@ -109,5 +109,11 @@ export class ChatController {
     await this.chatService.deleteMessage(new Types.ObjectId(messageId), userId);
 
     return { success: true };
+  }
+
+  @Get('lastseen/:userId')
+  async getLastSeen(@Param('userId') userId: string) {
+    const lastSeen = await this.chatService.getLastSeen(userId);
+    return { lastSeen: lastSeen || null };
   }
 }

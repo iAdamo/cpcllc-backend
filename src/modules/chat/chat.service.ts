@@ -11,6 +11,7 @@ import { Model, Types, ClientSession } from 'mongoose';
 import { Chat, ChatDocument } from './schemas/chat.schema';
 import { Message, MessageDocument, MessageType } from '@schemas/message.schema';
 import { User, UserDocument } from '@modules/schemas/user.schema';
+import { Presence, PresenceDocument } from '@schemas/presence.schema';
 import { CreateChatDto } from './dto/create-chat.dto';
 import path from 'path';
 
@@ -41,55 +42,82 @@ export class ChatService {
     @InjectModel(Chat.name) private chatModel: Model<ChatDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Presence.name) private presenceModel: Model<PresenceDocument>,
   ) {}
+
+  private async chatEligibilyStatus(
+    currentUserId: Types.ObjectId,
+    otherUserId: Types.ObjectId,
+  ) {
+    const isFollowing = this.userModel.exists({
+      _id: currentUserId,
+      followedProviders: otherUserId,
+    });
+
+    if (isFollowing) {
+      return true;
+    }
+    return false;
+  }
 
   async createChat(
     currentUserId: string,
     createChatDto: CreateChatDto,
     session?: ClientSession,
   ): Promise<ChatDocument> {
-    const { participants } = createChatDto;
-    if (!participants || participants.length !== 1) {
-      throw new BadRequestException(
-        'Direct chat must have exactly 1 other participant',
+    try {
+      const { participants } = createChatDto;
+      if (!participants) {
+        throw new BadRequestException(
+          'Direct chat must have exactly 1 other participant',
+        );
+      }
+
+      const user = new Types.ObjectId(currentUserId);
+      const otherUser = new Types.ObjectId(participants);
+
+      if (user.equals(otherUser)) {
+        throw new BadRequestException('Cannot create chat with yourself');
+      }
+
+      // Ensure both users exist
+      const usersExists = await this.userModel
+        .find({ _id: { $in: [user, otherUser] } })
+        .countDocuments();
+      if (usersExists !== 2) {
+        throw new NotFoundException('One or more participants not found');
+      }
+
+      if (!(await this.chatEligibilyStatus(user, otherUser))) {
+        throw new BadRequestException(
+          'You must follow the provider to initiate chat',
+        );
+      }
+
+      // Check for existing chat between the two participants
+      let chat = await this.chatModel.findOne({
+        participants: { $all: [user, otherUser], $size: 2 },
+        isActive: true,
+      });
+
+      if (chat) {
+        return chat;
+      }
+
+      // Create new chat
+      chat = new this.chatModel({
+        participants: [user, otherUser],
+        isActive: true,
+      });
+      await chat.save({ session });
+      this.logger.log(
+        `Chat created between user ${user} and provider ${otherUser}`,
       );
-    }
-
-    const user = new Types.ObjectId(currentUserId);
-    const otherUser = new Types.ObjectId(participants[0]);
-
-    if (user.equals(otherUser)) {
-      throw new BadRequestException('Cannot create chat with yourself');
-    }
-
-    // Ensure both users exist
-    const usersExists = await this.userModel
-      .find({ _id: { $in: [user, otherUser] } })
-      .countDocuments();
-    if (usersExists !== 2) {
-      throw new NotFoundException('One or more participants not found');
-    }
-
-    // Check for existing chat between the two participants
-    let chat = await this.chatModel.findOne({
-      participants: { $all: [user, otherUser], $size: 2 },
-      isActive: true,
-    });
-
-    if (chat) {
       return chat;
+    } catch (err) {
+      console.log(err);
+      // throw err;
     }
-
-    // Create new chat
-    chat = new this.chatModel({
-      participants: [user, otherUser],
-      isActive: true,
-    });
-    await chat.save({ session });
-    this.logger.log(
-      `Chat created between user ${user} and provider ${otherUser}`,
-    );
-    return chat;
   }
 
   async sendMessage(
@@ -191,12 +219,29 @@ export class ChatService {
   ): Promise<ChatDocument[]> {
     const skip = (page - 1) * limit;
 
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.isActive) {
+      throw new BadRequestException('Inactive users cannot access chats');
+    }
+
+    let query: any = {
+      participants: userId,
+      isActive: true,
+    };
+
+    if (user.activeRole === 'Client') {
+      query['participants.0'] = userId;
+    } else if (user.activeRole === 'Provider') {
+      query['participants.0'] = { $ne: userId };
+    }
+
     return (
       this.chatModel
-        .find({
-          participants: userId,
-          isActive: true,
-        })
+        .find(query)
         .populate({
           path: 'participants',
           model: 'User',
@@ -298,5 +343,18 @@ export class ChatService {
     message.deleted = true;
     message.deletedAt = new Date();
     await message.save();
+  }
+
+  async updateLastSeen(userId: string, lastSeen: Date) {
+    await this.presenceModel.updateOne(
+      { userId },
+      { $set: { isOnline: false, lastSeen } },
+      { upsert: true },
+    );
+  }
+
+  async getLastSeen(userId: string): Promise<Date | null> {
+    const presence = await this.presenceModel.findOne({ userId });
+    return presence?.lastSeen || null;
   }
 }
