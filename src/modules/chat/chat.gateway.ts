@@ -235,4 +235,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`Checked online status for ${data.userId}: ${online}`);
     client.emit('online_status', { userId: data.userId, online });
   }
+
+  @SubscribeMessage('leave_chats')
+  async handleLeaveChats(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() chatIds: string[],
+  ): Promise<void> {
+    chatIds.forEach((chatId) => {
+      client.leave(chatId);
+    });
+    this.logger.log(`User ${client.userId} left chats: ${chatIds.join(', ')}`);
+  }
 }

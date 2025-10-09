@@ -34,7 +34,7 @@ export interface RequestWithUser extends Request {
 
 @ApiTags('Chat')
 @Controller('chat')
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard)
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
@@ -73,6 +73,7 @@ export class ChatController {
     @Req() req: RequestWithUser,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 100,
+    @Query('userTimezone') userTimezone: string,
   ) {
     const userId = new Types.ObjectId(req.user.userId);
 
@@ -81,6 +82,7 @@ export class ChatController {
       userId,
       page,
       limit,
+      userTimezone,
     );
   }
 

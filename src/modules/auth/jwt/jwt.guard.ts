@@ -12,6 +12,7 @@ import * as jwt from 'jsonwebtoken';
 
 interface AuthUser {
   id: string;
+  sub?: string;
   email: string;
   admin: boolean;
 }

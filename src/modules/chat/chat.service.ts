@@ -13,11 +13,8 @@ import { Message, MessageDocument, MessageType } from '@schemas/message.schema';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Presence, PresenceDocument } from '@schemas/presence.schema';
 import { CreateChatDto } from './dto/create-chat.dto';
-import path from 'path';
-
-// interface CreateChatDto {
-//   participants: Types.ObjectId[];
-// }
+import { format, isToday, isYesterday } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 
 interface SendMessageDto {
   chatId: Types.ObjectId;
@@ -277,14 +274,14 @@ export class ChatService {
         .exec()
     );
   }
-
   async getChatMessages(
     chatId: Types.ObjectId,
     userId: Types.ObjectId,
     page: number = 1,
     limit: number = 100,
-  ): Promise<MessageDocument[]> {
-    // Verify user is participant
+    userTimezone: string = 'Africa/Lagos', // default fallback
+  ): Promise<{ title: string; data: MessageDocument[] }[]> {
+    // Verify user participation
     const chat = await this.chatModel.findOne({
       _id: chatId,
       participants: userId,
@@ -297,17 +294,53 @@ export class ChatService {
 
     const skip = (page - 1) * limit;
 
-    return this.messageModel
+    const messages = await this.messageModel
       .find({
         chatId,
         deleted: false,
       })
-      .populate('senderId', 'username avatarUrl')
+      .populate('senderId', 'username profilePicture')
       .populate('replyTo')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      .lean()
       .exec();
+
+    // --- Group messages by localized date ---
+    const grouped = messages.reduce(
+      (acc, message) => {
+        const localDate = toZonedTime(message.createdAt, userTimezone);
+
+        let title: string;
+        if (isToday(localDate)) title = 'Today';
+        else if (isYesterday(localDate)) title = 'Yesterday';
+        else title = format(localDate, 'MMM d, yyyy'); // e.g. "Oct 7, 2025"
+
+        if (!acc[title]) acc[title] = [];
+        acc[title].push(message);
+        return acc;
+      },
+      {} as Record<string, MessageDocument[]>,
+    );
+
+    // --- Sort and format to SectionList structure ---
+    const sections = Object.keys(grouped)
+      .sort((a, b) => {
+        const parse = (label: string) => {
+          if (label === 'Today') return new Date();
+          if (label === 'Yesterday')
+            return new Date(Date.now() - 24 * 60 * 60 * 1000);
+          return new Date(label);
+        };
+        return parse(b).getTime() - parse(a).getTime();
+      })
+      .map((title) => ({
+        title,
+        data: grouped[title],
+      }));
+
+    return sections;
   }
 
   async markMessagesAsDelivered(
