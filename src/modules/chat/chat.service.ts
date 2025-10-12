@@ -15,6 +15,7 @@ import { Presence, PresenceDocument } from '@schemas/presence.schema';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { format, isToday, isYesterday } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 interface SendMessageDto {
   chatId: Types.ObjectId;
@@ -34,6 +35,7 @@ interface SendMessageDto {
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
+  private readonly storage = new DbStorageService();
 
   constructor(
     @InjectModel(Chat.name) private chatModel: Model<ChatDocument>,
@@ -110,11 +112,21 @@ export class ChatService {
       this.logger.log(
         `Chat created between user ${user} and provider ${otherUser}`,
       );
-      return chat;
+
+      return chat.populate({
+        path: 'participants',
+        model: 'User',
+        select: 'firstName lastName profilePicture',
+        match: { _id: { $ne: user } },
+      });
     } catch (err) {
       console.log(err);
       // throw err;
     }
+  }
+
+  async uploadFile(email: string, file: { file: Express.Multer.File[] }) {
+    return this.storage.handleFileUploads(`${email}/chats/${Date.now}`, file);
   }
 
   async sendMessage(

@@ -11,13 +11,13 @@ import { CacheService } from 'src/modules/cache/cache.service';
 import * as jwt from 'jsonwebtoken';
 
 interface AuthUser {
-  id: string;
+  userId: string;
   sub?: string;
   email: string;
   admin: boolean;
 }
 interface AuthenticatedRequest extends Request {
-  user?: AuthUser;
+  user: AuthUser;
 }
 
 @Injectable()
@@ -45,14 +45,13 @@ export class ProfileViewOnceGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const res = context.switchToHttp().getResponse<Response>();
     const profileId = req.params.id;
-    const userId = req.user?.id ?? '__guest__';
+    const userId = req.user?.userId ?? '__guest__';
 
     const cacheKey = `profile_viewed:${profileId}:${userId}`;
     const hasViewed = await this.cacheService.get<boolean>(cacheKey);
-    // console.log('ProfileViewOnceGuard:', { profileId, userId, hasViewed });
 
     if (hasViewed) {
-      if (!req.user) {
+      if (!req.user.userId) {
         res
           .status(401)
           .json({ message: 'Authentication required to view this profile.' });

@@ -65,7 +65,7 @@ export class UsersController {
     return this.usersService.userProfile(id);
   }
 
-  @UseGuards(ProfileViewOnceGuard)
+  @UseGuards(JwtAuthGuard, ProfileViewOnceGuard)
   @Get('profile/:id')
   async getUserById(@Param('id') id: string) {
     return this.usersService.userProfile(id);

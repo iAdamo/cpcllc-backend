@@ -34,7 +34,7 @@ export interface RequestWithUser extends Request {
 
 @ApiTags('Chat')
 @Controller('chat')
-// @UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
@@ -86,20 +86,26 @@ export class ChatController {
     );
   }
 
-  //   @Post('upload')
-  //   @UseInterceptors(FileInterceptor('file'))
-  //   async uploadFile(@UploadedFile() file: Express.Multer.File) {
-  //     if (!file) {
-  //       throw new BadRequestException('No file provided');
-  //     }
+  @UseGuards(JwtAuthGuard)
+  @Post('upload')
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'file', maxCount: 50 }]))
+  async uploadFile(
+    @Req() req: RequestWithUser,
+    @UploadedFiles() file: Express.Multer.File[],
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
 
-  //     const uploadResult = await this.fileUploadService.uploadFile(file);
+    const uploadResult = await this.chatService.uploadFile(req.user.email, {
+      file,
+    });
 
-  //     return {
-  //       success: true,
-  //       data: uploadResult,
-  //     };
-  //   }
+    return {
+      success: true,
+      data: uploadResult,
+    };
+  }
 
   @Delete('message/:messageId')
   async deleteMessage(

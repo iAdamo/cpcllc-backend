@@ -5,10 +5,18 @@ import * as fs from 'fs';
 
 @Injectable()
 export class DbStorageService {
-  private readonly baseStoragePath = join(__dirname, '..', '..', 'uploads');
-  private readonly baseUrl = process.env.NODE_ENV === 'production'
-    ? process.env.BASE_URL_PROD || 'http://localhost:3333/uploads'
-    : process.env.BASE_URL || 'http://localhost:3333/uploads';
+  private readonly baseStoragePath = join(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'uploads',
+  );
+  private readonly baseUrl =
+    process.env.NODE_ENV === 'production'
+      ? `${process.env.BASE_URL_PROD}/uploads` ||
+        'http://localhost:3333/uploads'
+      : `${process.env.BASE_URL}/uploads` || 'http://localhost:3333/uploads';
 
   constructor() {}
 
