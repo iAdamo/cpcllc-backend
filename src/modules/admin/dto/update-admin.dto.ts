@@ -4,9 +4,7 @@ import { IsString, IsMongoId, IsOptional, IsArray } from 'class-validator';
 import { CreateAdminDto } from './create-admin.dto';
 
 export class UpdateAdminDto extends PartialType(CreateAdminDto) {
-  @ApiProperty({ description: 'Profile picture URL', required: false })
-  @IsOptional()
-  profilePicture?: string;
+  // profilePicture handled via multipart upload and service; not in DTO
 
   @ApiProperty({
     description: 'List of monitored client IDs',

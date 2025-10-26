@@ -22,9 +22,8 @@ export class ReviewsService {
     @InjectModel(Reviews.name) private reviewsModel: Model<ReviewsDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
+    private readonly storage: DbStorageService,
   ) {}
-
-  private readonly storage = new DbStorageService();
 
   async createReview(
     reviewData: CreateReviewDto,

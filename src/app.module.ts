@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import databaseConfig from '@config/database.config';
+import databaseConfig from '@config/app.config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { UsersModule } from './modules/users/users.module';
-import { DatabaseConfig } from '@types';
+import { AppConfig } from '@types';
 import { AuthModule } from './modules/auth/auth.module';
 import { ServicesModule } from './modules/services/services.module';
 import { ReviewsModule } from './modules/review/reviews.module';
@@ -30,7 +30,7 @@ import { ChatModule } from './modules/chat/chat.module';
     MongooseModule.forRootAsync({
       useFactory: async (configService: ConfigService) => {
         const databaseConfig =
-          configService.get<DatabaseConfig['database']>('database');
+          configService.get<AppConfig['database']>('database');
         if (!databaseConfig) {
           throw new Error('Database configuration not found');
         }

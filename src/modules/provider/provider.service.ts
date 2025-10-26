@@ -95,10 +95,26 @@ export class ProviderService {
         files,
       );
 
+      // Map uploaded media to schema fields
+      const providerLogoMedia = fileUrls.providerLogo as
+        | { type: string; url: string; thumbnail?: string | null }
+        | null
+        | undefined;
+      const providerImagesMedia = fileUrls.providerImages as
+        | { type: string; url: string; thumbnail?: string | null }[]
+        | undefined;
+
       // Prepare provider data
       const providerData: any = {
         ...createProviderDto,
-        ...fileUrls,
+        providerLogo: providerLogoMedia ? providerLogoMedia.url : undefined,
+        providerImages: providerImagesMedia
+          ? providerImagesMedia.map((m) => ({
+              type: m.type,
+              url: m.url,
+              thumbnail: m.thumbnail,
+            }))
+          : [],
         owner: new Types.ObjectId(user.userId),
         categories:
           createProviderDto.categories?.map((id) => new Types.ObjectId(id)) ||
@@ -210,6 +226,14 @@ export class ProviderService {
         files,
       );
 
+      const providerLogoMedia = fileUrls.providerLogo as
+        | { type: string; url: string; thumbnail?: string | null }
+        | null
+        | undefined;
+      const providerImagesMedia = fileUrls.providerImages as
+        | { type: string; url: string; thumbnail?: string | null }[]
+        | undefined;
+
       // 5. Convert IDs to ObjectId for categories/subcategories
       if (updateProviderDto.categories) {
         updateProviderDto.categories = updateProviderDto.categories.map(
@@ -258,9 +282,23 @@ export class ProviderService {
       // merge other fields normally
       Object.assign(provider, {
         ...updateProviderDto,
-        ...fileUrls,
         location: provider.location, // keep patched version
       });
+
+      // Apply uploaded media: providerLogo replace, providerImages append
+      if (providerLogoMedia) {
+        provider.providerLogo = providerLogoMedia;
+      }
+      if (providerImagesMedia && providerImagesMedia.length) {
+        const newImages = providerImagesMedia.map((m) => ({
+          type: m.type,
+          url: m.url,
+          thumbnail: m.thumbnail,
+        }));
+        provider.providerImages = (provider.providerImages || []).concat(
+          newImages as any,
+        );
+      }
 
       await provider.save();
 

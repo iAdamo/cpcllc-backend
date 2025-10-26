@@ -36,11 +36,6 @@ export class CreateUserDto {
   @IsNotEmpty()
   password: string;
 
-  @ApiProperty({ example: 'https://example.com/profile.jpg', required: false })
-  @IsOptional()
-  @IsString()
-  profilePicture?: string;
-
   @ApiProperty({ example: 'en', required: false })
   @IsOptional()
   @IsString()

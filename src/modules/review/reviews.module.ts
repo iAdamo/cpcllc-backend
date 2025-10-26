@@ -4,12 +4,14 @@ import { ReviewsService } from './reviews.service';
 import { Reviews, ReviewsSchema } from '@services/schemas/reviews.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from '@modules/users.module';
+import { DbStorageService } from 'src/common/utils/dbStorage';
+
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Reviews.name, schema: ReviewsSchema }]),
     UsersModule,
   ],
-  providers: [ReviewsService],
+  providers: [ReviewsService, DbStorageService],
   controllers: [ReviewsController],
   exports: [MongooseModule],
 })

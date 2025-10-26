@@ -12,6 +12,7 @@ import { AdminModule } from '../admin/admin.module';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { CacheModule } from '@modules/cache.module';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { CacheModule } from '@modules/cache.module';
       { name: Provider.name, schema: ProviderSchema },
     ]),
   ],
-  providers: [UsersService],
+  providers: [UsersService, DbStorageService],
   controllers: [UsersController],
   exports: [UsersService, MongooseModule],
 })

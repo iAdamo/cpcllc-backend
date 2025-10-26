@@ -13,6 +13,7 @@ import {
   SubcategorySchema,
 } from '@schemas/service.schema';
 import { ProviderSchema, Provider } from '@schemas/provider.schema';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { ProviderSchema, Provider } from '@schemas/provider.schema';
     ]),
   ],
 
-  providers: [ServicesService],
+  providers: [ServicesService, DbStorageService],
   controllers: [ServicesController],
   exports: [MongooseModule],
 })

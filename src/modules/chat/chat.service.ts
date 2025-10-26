@@ -35,13 +35,13 @@ interface SendMessageDto {
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
-  private readonly storage = new DbStorageService();
 
   constructor(
     @InjectModel(Chat.name) private chatModel: Model<ChatDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Presence.name) private presenceModel: Model<PresenceDocument>,
+    private readonly storage: DbStorageService,
   ) {}
 
   private async chatEligibilyStatus(
@@ -125,8 +125,11 @@ export class ChatService {
     }
   }
 
-  async uploadFile(email: string, file: { file: Express.Multer.File[] }) {
-    return this.storage.handleFileUploads(`${email}/chats/${Date.now}`, file);
+  async uploadFile(email: string, files: { file: Express.Multer.File[] }) {
+    return this.storage.handleFileUploads(
+      `${email}/chats/${Date.now()}`,
+      files,
+    );
   }
 
   async sendMessage(

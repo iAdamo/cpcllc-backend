@@ -37,9 +37,9 @@ export class ServicesService {
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
     @InjectModel(Subcategory.name)
     private subcategoryModel: Model<SubcategoryDocument>,
+    private readonly storage: DbStorageService,
   ) {}
 
-  private readonly storage = new DbStorageService();
 
   // Admin
   async createCategory(

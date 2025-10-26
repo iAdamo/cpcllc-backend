@@ -4,6 +4,24 @@ import * as bcrypt from 'bcrypt';
 
 export type UserDocument = HydratedDocument<User>;
 
+@Schema({ _id: false })
+export class ProfilePicture {
+  @Prop()
+  type?: string;
+
+  @Prop()
+  url?: string;
+
+  @Prop()
+  thumbnail?: string;
+
+  @Prop()
+  index?: number;
+}
+
+export const ProfilePictureSchema =
+  SchemaFactory.createForClass(ProfilePicture);
+
 class Device {
   @Prop({ required: true })
   deviceId: string;
@@ -29,18 +47,18 @@ export class User {
   @Prop({
     required: true,
     unique: true,
-    match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
+    match: /^[a-zA-Z0-9._%-]@[a-zA-Z0-9.-]\.[a-zA-Z]{2,4}$/,
   })
   email: string;
 
-  @Prop({ required: true, unique: true, match: /^\+?\d{1,15}$/ })
+  @Prop({ required: true, unique: true, match: /^\?\d{1,15}$/ })
   phoneNumber: string;
 
   @Prop({ required: true })
   password: string;
 
-  @Prop()
-  profilePicture?: string;
+  @Prop({ type: ProfilePictureSchema, default: null })
+  profilePicture?: ProfilePicture | null;
 
   // residential address
   @Prop({ required: false })

@@ -19,9 +19,8 @@ export class AdminService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Admin.name) private adminModel: Model<AdminDocument>,
+    private readonly storage: DbStorageService,
   ) {}
-
-  private readonly storage = new DbStorageService();
 
   private readonly ERROR_MESSAGES = {
     USER_NOT_FOUND: 'User not found',
@@ -143,22 +142,36 @@ export class AdminService {
 
     const admin = await this.adminModel.findById(id);
     if (!admin) throw new NotFoundException(this.ERROR_MESSAGES.USER_NOT_FOUND);
+    const updatePayload: any = { ...updateAdminDto };
     if (files && files.length > 0) {
       try {
         const uploadedFiles = await this.storage.handleFileUpload(
           admin.user.toString(),
           files,
         );
-        updateAdminDto.profilePicture =
-          uploadedFiles[0]?.url || admin.profilePicture;
+
+        const uploaded = uploadedFiles[0];
+        const currentProfile =
+          typeof admin.profilePicture === 'string' && admin.profilePicture
+            ? { type: 'image', url: admin.profilePicture, thumbnail: null }
+            : admin.profilePicture || null;
+
+        updatePayload.profilePicture = uploaded
+          ? {
+              type: uploaded.type || 'image',
+              url: uploaded.url,
+              thumbnail: uploaded.thumbnail || null,
+            }
+          : currentProfile;
       } catch (error) {
         throw new InternalServerErrorException(
           this.ERROR_MESSAGES.FILE_UPLOAD_FAILED,
         );
       }
     }
+
     const updatedAdmin = await this.adminModel
-      .findByIdAndUpdate(id, updateAdminDto, { new: true, runValidators: true })
+      .findByIdAndUpdate(id, updatePayload, { new: true, runValidators: true })
       .populate('user', 'email name profilePicture')
       .exec();
     return updatedAdmin;

@@ -1,12 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { ProfilePicture } from '@modules/schemas/user.schema';
 
 export type AdminDocument = HydratedDocument<Admin>;
 
 @Schema()
 export class Admin {
   @Prop({ required: false })
-  profilePicture?: string;
+  profilePicture?: ProfilePicture;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, unique: true })
   user: Types.ObjectId;

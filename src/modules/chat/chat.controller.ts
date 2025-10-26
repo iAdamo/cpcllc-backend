@@ -91,20 +91,13 @@ export class ChatController {
   @UseInterceptors(FileFieldsInterceptor([{ name: 'file', maxCount: 50 }]))
   async uploadFile(
     @Req() req: RequestWithUser,
-    @UploadedFiles() file: Express.Multer.File[],
+    @UploadedFiles() files: { file: Express.Multer.File[] },
   ) {
-    if (!file) {
+    if (!files || !files.file || files.file.length === 0) {
       throw new BadRequestException('No file provided');
     }
 
-    const uploadResult = await this.chatService.uploadFile(req.user.email, {
-      file,
-    });
-
-    return {
-      success: true,
-      data: uploadResult,
-    };
+    return await this.chatService.uploadFile(req.user.email, files);
   }
 
   @Delete('message/:messageId')

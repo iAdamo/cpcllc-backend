@@ -31,9 +31,8 @@ export class UsersService {
     @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
     @InjectModel(Subcategory.name)
     private subcategoryModel: Model<SubcategoryDocument>,
+    private readonly storage: DbStorageService,
   ) {}
-
-  private readonly storage = new DbStorageService();
 
   private readonly ERROR_MESSAGES = {
     USER_NOT_FOUND: 'User not found',
@@ -61,7 +60,7 @@ export class UsersService {
       if (!user)
         throw new NotFoundException(this.ERROR_MESSAGES.USER_NOT_FOUND);
 
-      let mediaEntries: { url: string }[] = [];
+      let mediaEntries: any[] = [];
       if (Array.isArray(files) && files.length > 0) {
         mediaEntries = await this.storage.handleFileUpload(
           `${user.email}/profile_picture`,
@@ -69,15 +68,32 @@ export class UsersService {
         );
       }
 
+      // Normalize existing profilePicture if it's a string (legacy)
+      const currentProfile =
+        typeof user.profilePicture === 'string' && user.profilePicture
+          ? { type: 'image', url: user.profilePicture, thumbnail: null }
+          : user.profilePicture || null;
+
+      const newProfilePic = mediaEntries[0]
+        ? {
+            type: mediaEntries[0].type || 'image',
+            url: mediaEntries[0].url,
+            thumbnail: mediaEntries[0].thumbnail || null,
+          }
+        : currentProfile;
+
+      const updatePayload: any = {
+        ...updateUserDto,
+        profilePicture: newProfilePic,
+      };
+
+      console.log('Media Entries:', mediaEntries);
+
       return await this.userModel
-        .findByIdAndUpdate(
-          userId,
-          {
-            ...updateUserDto,
-            profilePicture: mediaEntries[0]?.url || user.profilePicture,
-          },
-          { new: true, runValidators: true },
-        )
+        .findByIdAndUpdate(userId, updatePayload, {
+          new: true,
+          runValidators: true,
+        })
         .populate('hiredCompanies')
         .populate({
           path: 'followedProviders',

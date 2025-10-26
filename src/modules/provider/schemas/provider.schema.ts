@@ -2,10 +2,24 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Location, LocationSchema } from './location.schema';
+import { ProfilePicture } from '@modules/schemas/user.schema';
 
 import { SchemaTypes } from 'mongoose';
 
 export type ProviderDocument = HydratedDocument<Provider>;
+
+@Schema()
+export class ProviderImage {
+  @Prop({ required: true })
+  type: string;
+
+  @Prop({ required: true })
+  url: string;
+
+  @Prop({ required: false })
+  thumbnail?: string;
+}
+export const ProviderImageSchema = SchemaFactory.createForClass(ProviderImage);
 
 @Schema({ timestamps: true })
 export class Provider {
@@ -27,13 +41,13 @@ export class Provider {
   providerPhoneNumber: string;
 
   @Prop({ required: false })
-  providerLogo: string;
+  providerLogo: ProfilePicture;
 
   @Prop({ default: false })
   isVerified: boolean;
 
-  @Prop({ type: [String], required: false })
-  providerImages: string[];
+  @Prop({ type: [ProviderImageSchema], default: [] })
+  providerImages: ProviderImage[];
 
   @Prop({ type: SchemaTypes.Mixed, default: {} })
   providerSocialMedia: Record<string, string>;

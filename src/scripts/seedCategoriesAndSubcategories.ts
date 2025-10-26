@@ -6,7 +6,8 @@ import {
   Subcategory,
 } from '../modules/services/schemas/service.schema';
 
-const MONGO_URI = 'mongodb://localhost:27017/cpcdb';
+const MONGO_URI =
+  'mongodb+srv://tundey520:qDMOY925z0RNAKzH@sanuxtech0.cdjjozr.mongodb.net/?retryWrites=true&w=majority&appName=Sanuxtech0';
 
 export async function seedCategoriesAndSubcategories() {
   await connect(MONGO_URI);

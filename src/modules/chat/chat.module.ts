@@ -8,6 +8,7 @@ import { Chat, ChatSchema } from './schemas/chat.schema';
 import { Presence, PresenceSchema } from './schemas/presence.schema';
 import { CacheModule } from '@modules/cache.module';
 import { ChatController } from './chat.controller';
+import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { ChatController } from './chat.controller';
       { name: Presence.name, schema: PresenceSchema },
     ]),
   ],
-  providers: [ChatService, ChatGateway],
+  providers: [ChatService, ChatGateway, DbStorageService],
   controllers: [ChatController],
   exports: [ChatService],
 })
