@@ -80,4 +80,19 @@ export class UsersController {
     const userId = req.user.userId;
     return this.usersService.toggleFollowProvider(userId, providerId);
   }
+
+  /**
+   * Delete files by their URLs
+   * @param fileUrls Array of file URLs to delete
+   * @returns Deletion result
+   **/
+  @Post('delete-files')
+  @UseGuards(JwtAuthGuard)
+  async deleteFiles(
+    @Body('fileUrls') fileUrls: string[],
+    @Req() req: RequestWithUser,
+  ) {
+    const userId = req.user.userId;
+    return this.usersService.removeMediaFiles(userId, fileUrls);
+  }
 }

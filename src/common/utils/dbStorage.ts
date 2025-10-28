@@ -505,7 +505,8 @@ export class DbStorageService {
       try {
         if (fileList.length === 1) {
           const [uploaded] = await this.handleFileUpload(userId, fileList[0]);
-          result[fieldName] = uploaded || null;
+          // Always return an array for consistency: single upload -> [item]
+          result[fieldName] = uploaded ? [uploaded] : [];
         } else {
           const uploadedFiles = await this.handleFileUpload(userId, fileList);
           result[fieldName] = uploadedFiles;
@@ -533,5 +534,103 @@ export class DbStorageService {
    */
   getStorageType(): string {
     return this.config.type;
+  }
+
+  /**
+   * Delete files at specified paths (local storage only)
+   */
+  async deleteFilesAtPaths(paths: string[]): Promise<void> {
+    if (this.config.type !== 'local') {
+      this.logger.warn('File deletion only supported for local storage');
+      return;
+    }
+    for (const filePath of paths) {
+      try {
+        if (existsSync(filePath)) {
+          await rm(filePath, { force: true });
+          this.logger.log(`Deleted file: ${filePath}`);
+        }
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to delete file ${filePath}: ${error.message}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Delete a specific file by its URL
+   */
+  async deleteFileByUrl(fileUrl: string): Promise<void> {
+    // Reuse the bulk delete implementation for a single URL
+    await this.deleteFilesByUrls([fileUrl]);
+  }
+
+  /**
+   * Delete multiple files by their public URLs (local storage only).
+   * This resolves each public URL to a storage path and deletes the files.
+   */
+  async deleteFilesByUrls(fileUrls: string[]): Promise<void> {
+    if (this.config.type !== 'local') {
+      this.logger.warn('File deletion only supported for local storage');
+      return;
+    }
+
+    if (!Array.isArray(fileUrls) || fileUrls.length === 0) return;
+
+    const storageConfig = this.getStorageConfig();
+    const baseUrl = (storageConfig.baseUrl || '').replace(/\/+$|\/+$/g, '');
+
+    const pathsToDelete: string[] = [];
+    const pathsSet = new Set<string>();
+
+    for (const fileUrl of fileUrls) {
+      try {
+        if (!fileUrl || typeof fileUrl !== 'string') continue;
+
+        if (!fileUrl.startsWith(baseUrl)) {
+          this.logger.warn(
+            `File URL ${fileUrl} does not match storage base URL ${baseUrl}`,
+          );
+          continue;
+        }
+
+        // Remove the baseUrl and any leading slashes, then split into segments
+        const relativePath = fileUrl
+          .substring(baseUrl.length)
+          .replace(/^\/+/, '');
+        const segments = relativePath.split('/').filter(Boolean);
+        if (segments.length === 0) continue;
+
+        const filePath = join(storageConfig.baseStoragePath, ...segments);
+        // add main file
+        if (!pathsSet.has(filePath)) {
+          pathsSet.add(filePath);
+          pathsToDelete.push(filePath);
+        }
+
+        // compute probable thumbnail path (baseName + _thumb.jpg) and add it
+        try {
+          const base = filePath.split(/[\\/]/).pop() || '';
+          const baseName = base.replace(/\.[^.]+$/, '');
+          const thumbPath = join(dirname(filePath), `${baseName}_thumb.jpg`);
+          if (!pathsSet.has(thumbPath)) {
+            pathsSet.add(thumbPath);
+            pathsToDelete.push(thumbPath);
+          }
+        } catch (e) {
+          // ignore thumbnail computation errors for this file
+        }
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to compute path for URL ${fileUrl}: ${err.message}`,
+        );
+      }
+    }
+
+    if (pathsToDelete.length === 0) return;
+
+    // Delegate deletion to existing helper which handles logging/errors
+    await this.deleteFilesAtPaths(pathsToDelete);
   }
 }

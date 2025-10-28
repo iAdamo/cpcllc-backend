@@ -95,19 +95,26 @@ export class ProviderService {
         files,
       );
 
+      console.log('File URLs after upload:', fileUrls);
+
       // Map uploaded media to schema fields
       const providerLogoMedia = fileUrls.providerLogo as
         | { type: string; url: string; thumbnail?: string | null }
         | null
         | undefined;
       const providerImagesMedia = fileUrls.providerImages as
-        | { type: string; url: string; thumbnail?: string | null }[]
+        | {
+            type: string;
+            url: string;
+            thumbnail?: string | null;
+            index?: number;
+          }[]
         | undefined;
 
       // Prepare provider data
       const providerData: any = {
         ...createProviderDto,
-        providerLogo: providerLogoMedia ? providerLogoMedia.url : undefined,
+        providerLogo: providerLogoMedia || undefined,
         providerImages: providerImagesMedia
           ? providerImagesMedia.map((m) => ({
               type: m.type,
@@ -226,12 +233,19 @@ export class ProviderService {
         files,
       );
 
+      // console.log('File URLs after upload:', fileUrls);
+
       const providerLogoMedia = fileUrls.providerLogo as
         | { type: string; url: string; thumbnail?: string | null }
         | null
         | undefined;
       const providerImagesMedia = fileUrls.providerImages as
-        | { type: string; url: string; thumbnail?: string | null }[]
+        | {
+            type: string;
+            url: string;
+            thumbnail?: string | null;
+            index?: number;
+          }[]
         | undefined;
 
       // 5. Convert IDs to ObjectId for categories/subcategories
@@ -289,11 +303,12 @@ export class ProviderService {
       if (providerLogoMedia) {
         provider.providerLogo = providerLogoMedia;
       }
-      if (providerImagesMedia && providerImagesMedia.length) {
+      if (Array.isArray(providerImagesMedia) && providerImagesMedia.length > 0) {
         const newImages = providerImagesMedia.map((m) => ({
           type: m.type,
           url: m.url,
           thumbnail: m.thumbnail,
+          index: m.index,
         }));
         provider.providerImages = (provider.providerImages || []).concat(
           newImages as any,
@@ -302,7 +317,7 @@ export class ProviderService {
 
       await provider.save();
 
-      return await this.userModel.findById(user.userId).populate({
+      return await this.userModel.findById(new Types.ObjectId(user.userId)).populate({
         path: 'activeRoleId',
         model: 'Provider',
         populate: {

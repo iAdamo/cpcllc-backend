@@ -47,11 +47,11 @@ export class User {
   @Prop({
     required: true,
     unique: true,
-    match: /^[a-zA-Z0-9._%-]@[a-zA-Z0-9.-]\.[a-zA-Z]{2,4}$/,
+    match: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
   })
   email: string;
 
-  @Prop({ required: true, unique: true, match: /^\?\d{1,15}$/ })
+  @Prop({ required: true, unique: true, match: /^\+?\d{6,15}$/ })
   phoneNumber: string;
 
   @Prop({ required: true })

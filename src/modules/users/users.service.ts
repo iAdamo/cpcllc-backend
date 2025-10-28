@@ -60,34 +60,27 @@ export class UsersService {
       if (!user)
         throw new NotFoundException(this.ERROR_MESSAGES.USER_NOT_FOUND);
 
+      let newProfilePic: any;
       let mediaEntries: any[] = [];
       if (Array.isArray(files) && files.length > 0) {
         mediaEntries = await this.storage.handleFileUpload(
           `${user.email}/profile_picture`,
           files,
         );
+
+        newProfilePic = {
+          type: mediaEntries[0].type || 'image',
+          url: mediaEntries[0].url,
+          thumbnail: mediaEntries[0].thumbnail || null,
+          index: mediaEntries[0].index || 0,
+        };
       }
-
-      // Normalize existing profilePicture if it's a string (legacy)
-      const currentProfile =
-        typeof user.profilePicture === 'string' && user.profilePicture
-          ? { type: 'image', url: user.profilePicture, thumbnail: null }
-          : user.profilePicture || null;
-
-      const newProfilePic = mediaEntries[0]
-        ? {
-            type: mediaEntries[0].type || 'image',
-            url: mediaEntries[0].url,
-            thumbnail: mediaEntries[0].thumbnail || null,
-          }
-        : currentProfile;
-
       const updatePayload: any = {
         ...updateUserDto,
         profilePicture: newProfilePic,
       };
 
-      console.log('Media Entries:', mediaEntries);
+      // console.log('Update Payload:', updatePayload);
 
       return await this.userModel
         .findByIdAndUpdate(userId, updatePayload, {
@@ -250,5 +243,37 @@ export class UsersService {
       .lean();
 
     return sanitizeUser(updatedUser);
+  }
+
+  async removeMediaFiles(userId: string, fileUrl: string[]): Promise<User> {
+    if (!userId || !fileUrl) {
+      throw new BadRequestException('User ID and File URL are required');
+    }
+    const userObjectId = new Types.ObjectId(userId);
+    const user = await this.userModel.findById(userObjectId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    try {
+      await this.storage.deleteFilesByUrls(fileUrl);
+    } catch (error) {
+      throw new InternalServerErrorException('File deletion failed');
+    }
+    // If the file to be removed is the profile picture, set it to null
+    // check for providers too
+    if (user.profilePicture && user.profilePicture.url === fileUrl[0]) {
+      user.profilePicture = null;
+    } else if (user.activeRole === 'Provider' && user.activeRoleId) {
+      const provider = await this.providerModel.findById(user.activeRoleId);
+      if (provider) {
+        const updatedImages = provider.providerImages.filter(
+          (img) => !fileUrl.includes(img.url),
+        );
+        provider.providerImages = updatedImages;
+        await provider.save();
+      }
+
+      return await user.save();
+    }
   }
 }

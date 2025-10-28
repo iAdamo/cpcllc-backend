@@ -112,12 +112,33 @@ export class ChatService {
       this.logger.log(
         `Chat created between user ${user} and provider ${otherUser}`,
       );
-
       return chat.populate({
         path: 'participants',
         model: 'User',
         select: 'firstName lastName profilePicture',
         match: { _id: { $ne: user } },
+        populate: [
+          {
+            path: 'followedProviders',
+            model: 'Provider',
+            select: 'providerName providerLogo',
+          },
+          {
+            path: 'activeRoleId',
+            model: 'Provider',
+            match: { _id: { $ne: user } },
+            populate: {
+              path: 'subcategories',
+              model: 'Subcategory',
+              select: 'name description',
+              populate: {
+                path: 'categoryId',
+                model: 'Category',
+                select: 'name description',
+              },
+            },
+          },
+        ],
       });
     } catch (err) {
       console.log(err);

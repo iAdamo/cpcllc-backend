@@ -12,7 +12,6 @@ import { ReviewsModule } from './modules/review/reviews.module';
 import { SearchModule } from './modules/search/search.module';
 import { ProviderModule } from './modules/provider/provider.module';
 import { AdminModule } from './modules/admin/admin.module';
-import { MediaModule } from './modules/media/media.module';
 import { CacheModule } from './modules/cache/cache.module';
 import { ChatModule } from './modules/chat/chat.module';
 
@@ -46,7 +45,6 @@ import { ChatModule } from './modules/chat/chat.module';
     ReviewsModule,
     SearchModule,
     ProviderModule,
-    MediaModule,
     CacheModule,
     ChatModule,
   ],
