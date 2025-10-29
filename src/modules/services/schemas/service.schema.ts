@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { ProfilePicture } from '@modules/schemas/user.schema';
 
 export type CategoryDocument = HydratedDocument<Category>;
 export type SubcategoryDocument = HydratedDocument<Subcategory>;
@@ -67,8 +68,8 @@ export class Service {
   @Prop({ default: true })
   isActive: boolean;
 
-  @Prop({ type: [String], default: [] })
-  media?: string[];
+  @Prop({ default: [] })
+  media?: ProfilePicture[];
 
   @Prop({ type: [String], default: [] })
   tags: string[];

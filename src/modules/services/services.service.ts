@@ -40,7 +40,6 @@ export class ServicesService {
     private readonly storage: DbStorageService,
   ) {}
 
-
   // Admin
   async createCategory(
     categoryData: CreateCategoryDto,
@@ -110,6 +109,14 @@ export class ServicesService {
       `${user.email}/services/${serviceData.title.replace(/\s+/g, '_')}`,
       files,
     );
+    const serviceImagesMedia = fileUrls.media as
+      | {
+          type: string;
+          url: string;
+          thumbnail?: string | null;
+          index?: number;
+        }[]
+      | undefined;
 
     const validSubcategories = await this.subcategoryModel.find({
       _id: { $in: [new Types.ObjectId(serviceData.subcategoryId)] },
@@ -117,6 +124,8 @@ export class ServicesService {
     if (validSubcategories.length !== 1) {
       throw new BadRequestException('Subcategory ID is invalid');
     }
+
+    
 
     const service = new this.serviceModel({
       ...serviceData,
