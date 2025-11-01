@@ -19,7 +19,36 @@ import {
   ServiceDocument,
   CategoryDocument,
   SubcategoryDocument,
-} from '@modules/schemas/service.schema';
+} from '@schemas/service.schema';
+import { JobPost, JobPostDocument } from '@schemas/job.schema';
+import { Proposal, ProposalDocument } from '@schemas/proposal.schema';
+
+interface SearchParams {
+  page: string;
+  limit: string;
+  model: string;
+  radius: string;
+  engine: string;
+  searchInput?: string;
+  lat?: string;
+  long?: string;
+  address?: string;
+  sortBy?: string[];
+}
+
+interface SearchResult {
+  providers?: Provider[];
+  services?: Service[];
+  jobs?: JobPost[];
+  totalPages: number;
+  hasExactResults: boolean;
+}
+
+interface PaginationConfig {
+  page: number;
+  limit: number;
+  skip: number;
+}
 
 @Injectable()
 export class SearchService {
@@ -30,6 +59,8 @@ export class SearchService {
     private subcategoryModel: Model<SubcategoryDocument>,
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
     @InjectModel(Service.name) private serviceModel: Model<ServiceDocument>,
+    @InjectModel(JobPost.name) private jobPostModel: Model<JobPostDocument>,
+    @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
   ) {}
 
   private readonly ERROR_MESSAGES = {
@@ -41,273 +72,345 @@ export class SearchService {
   };
 
   /**
-   * Global search across providers and services with pagination and optional filters.
-   * @param page - Page number for pagination (default 1).
-   * @param limit - Number of results per page (default 10, max 100).
-   * @param engine - Whether to use the search engine (true/false).
-   * @param searchInput - Optional search input for text matching.
-   * @param lat - Optional latitude for geo search.
-   * @param long - Optional longitude for geo search.
-   * @param address - Optional address for location-based search.
-   * @param sortBy - Optional sorting criteria (e.g., 'rating', 'popularity').
-   * @return An object containing providers, services, total pages, and whether exact results were found.
-   **/
-  async globalSearch(
-    page: string,
-    limit: string,
-    engine: string,
-    searchInput?: string,
-    lat?: string,
-    long?: string,
-    address?: string,
-    sortBy?: string,
-  ): Promise<{
-    providers: Provider[];
-    services: Service[];
-    totalPages: number;
-    hasExactResults: boolean;
-  }> {
+   * Global search across providers, services, and jobs with pagination and filters
+   */
+  async globalSearch(params: SearchParams): Promise<SearchResult> {
     try {
-      // Validate and parse inputs
-      const pageN = Math.max(1, parseInt(page) || 1);
-      const limitN = Math.min(100, Math.max(1, parseInt(limit) || 10));
+      const { page, limit, model, engine } = params;
+      const pagination = this.parsePaginationParams(page, limit);
       const useEngine = engine === 'true';
 
-      const searchProviderConditions: any[] = [];
-      const searchServiceConditions: any[] = [{ isActive: true }];
-
-      // ===== ENGINE-ENABLED SEARCH =====
-      if (useEngine) {
-        // Geo search
-        if (lat && long) {
-          const coordinates = [parseFloat(long), parseFloat(lat)];
-          const radiusInRadians = 1000 / 6378137;
-          const geoWithin = {
-            $geoWithin: { $centerSphere: [coordinates, radiusInRadians] },
-          };
-
-          searchProviderConditions.push({
-            $or: [
-              { 'location.primary.coordinates': geoWithin },
-              { 'location.secondary.coordinates': geoWithin },
-              { 'location.tertiary.coordinates': geoWithin },
-            ],
-          });
-        }
-
-        // Address search
-        if (address) {
-          const addressRegex = new RegExp(address, 'i');
-          searchProviderConditions.push({
-            $or: [
-              { 'location.primary.address.address': addressRegex },
-              { 'location.secondary.address.address': addressRegex },
-              { 'location.tertiary.address.address': addressRegex },
-            ],
-          });
-        }
-
-        // Text search
-        if (searchInput) {
-          const searchRegex = new RegExp(searchInput, 'i');
-
-          searchServiceConditions.push({
-            $or: [
-              { tags: searchRegex },
-              { title: searchRegex },
-              { description: searchRegex },
-            ],
-          });
-
-          searchProviderConditions.push({
-            $or: [
-              { providerName: searchRegex },
-              { providerDescription: searchRegex },
-              { 'subcategories.name': searchRegex },
-              { 'providerSocialMedia.facebook': searchRegex },
-              { 'providerSocialMedia.instagram': searchRegex },
-              { 'providerSocialMedia.twitter': searchRegex },
-            ],
-          });
-        }
+      switch (model) {
+        case 'providers':
+          return await this.searchProviders(params, pagination, useEngine);
+        case 'jobs':
+          return await this.searchJobs(params, pagination, useEngine);
+        default:
+          throw new BadRequestException(`Unsupported model type: ${model}`);
       }
-
-      // ===== EXECUTE QUERIES =====
-      let providerQuery: Provider[] = [];
-      let serviceQuery: Service[] = [];
-      let totalCompanies = 0;
-      let totalServices = 0;
-      let hasExactResults = true;
-
-      if (
-        useEngine &&
-        (searchProviderConditions.length > 0 ||
-          searchServiceConditions.length > 1)
-      ) {
-        // Engine search with conditions
-        [providerQuery, serviceQuery, totalCompanies, totalServices] =
-          await Promise.all([
-            this.providerModel
-              .find(
-                searchProviderConditions.length
-                  ? { $and: searchProviderConditions }
-                  : {},
-              )
-              .populate({
-                path: 'subcategories',
-                model: 'Subcategory',
-                select: 'name description',
-              })
-              .populate({
-                path: 'followedBy',
-                model: 'User',
-                select: 'profilePic firstName lastName email',
-              })
-              .sort({
-                averageRating: -1,
-                reviewCount: -1,
-                favoriteCount: -1,
-              })
-              .skip((pageN - 1) * limitN)
-              .limit(limitN)
-              .exec(),
-
-            this.serviceModel.aggregate([
-              {
-                $match: searchServiceConditions.length
-                  ? { $and: searchServiceConditions }
-                  : {},
-              },
-              {
-                $lookup: {
-                  from: 'providers',
-                  localField: 'providerId',
-                  foreignField: '_id',
-                  as: 'provider',
-                },
-              },
-              { $unwind: '$provider' },
-              {
-                $sort: {
-                  'provider.averageRating': -1,
-                  'provider.reviewCount': -1,
-                  price: 1,
-                },
-              },
-              { $skip: (pageN - 1) * limitN },
-              { $limit: limitN },
-              {
-                $project: {
-                  title: 1,
-                  description: 1,
-                  price: 1,
-                  duration: 1,
-                  tags: 1,
-                  'provider.providerName': 1,
-                  'provider.location': 1,
-                  'provider.averageRating': 1,
-                  'provider.reviewCount': 1,
-                },
-              },
-            ]),
-
-            this.providerModel.countDocuments(
-              searchProviderConditions.length
-                ? { $and: searchProviderConditions }
-                : {},
-            ),
-            this.serviceModel.countDocuments(
-              searchServiceConditions.length
-                ? { $and: searchServiceConditions }
-                : {},
-            ),
-          ]);
-      } else {
-        // FALLBACK: Return popular/trending results when no matches or engine disabled
-        hasExactResults = false;
-        let providerSort: any = {
-          averageRating: -1,
-          reviewCount: -1,
-          favoriteCount: -1,
-        };
-        let serviceSort: any = {
-          'provider.averageRating': -1,
-          'provider.reviewCount': -1,
-        };
-        if (sortBy === 'Newest') {
-          providerSort = { createdAt: -1 };
-          serviceSort = { createdAt: -1 };
-        } else if (sortBy === 'Oldest') {
-          providerSort = { createdAt: 1 };
-          serviceSort = { createdAt: 1 };
-        }
-
-        [providerQuery, serviceQuery, totalCompanies, totalServices] =
-          await Promise.all([
-            this.providerModel
-              .find()
-              .populate({
-                path: 'subcategories',
-                model: 'Subcategory',
-                select: 'name description',
-              })
-              .populate({
-                path: 'followedBy',
-                model: 'User',
-                select: 'profilePic firstName lastName email',
-              })
-              .sort(providerSort)
-              .skip((pageN - 1) * limitN)
-              .limit(limitN)
-              .exec(),
-
-            this.serviceModel.aggregate([
-              { $match: { isActive: true } },
-              {
-                $lookup: {
-                  from: 'providers',
-                  localField: 'providerId',
-                  foreignField: '_id',
-                  as: 'provider',
-                },
-              },
-              { $unwind: '$provider' },
-              {
-                $sort: serviceSort,
-              },
-              { $skip: (pageN - 1) * limitN },
-              { $limit: limitN },
-              {
-                $project: {
-                  title: 1,
-                  description: 1,
-                  price: 1,
-                  duration: 1,
-                  tags: 1,
-                  'provider.providerName': 1,
-                  'provider.location': 1,
-                  'provider.averageRating': 1,
-                  'provider.reviewCount': 1,
-                },
-              },
-            ]),
-
-            this.providerModel.countDocuments(),
-            this.serviceModel.countDocuments({ isActive: true }),
-          ]);
-      }
-
-      const totalPages = Math.ceil((totalCompanies + totalServices) / limitN);
-
-      return {
-        providers: providerQuery,
-        services: serviceQuery,
-        totalPages,
-        hasExactResults,
-      };
     } catch (error) {
       console.error('Global search error:', error);
-      throw new InternalServerErrorException(error);
+      throw new InternalServerErrorException(
+        error instanceof Error ? error.message : 'Search failed',
+      );
     }
+  }
+
+  private parsePaginationParams(page: string, limit: string): PaginationConfig {
+    const pageN = Math.max(1, parseInt(page) || 1);
+    const limitN = Math.min(100, Math.max(1, parseInt(limit) || 10));
+
+    return {
+      page: pageN,
+      limit: limitN,
+      skip: (pageN - 1) * limitN,
+    };
+  }
+
+  private createGeoQuery(lat: string, long: string, radius: string) {
+    const coordinates = [parseFloat(long), parseFloat(lat)];
+    const radiusInRadians = Number(radius) || 1000 / 6378137;
+
+    return {
+      $geoWithin: { $centerSphere: [coordinates, radiusInRadians] },
+    };
+  }
+
+  private createTextSearchRegex(searchInput: string): RegExp {
+    return new RegExp(this.escapeRegex(searchInput), 'i');
+  }
+
+  private escapeRegex(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private async searchProviders(
+    params: SearchParams,
+    pagination: PaginationConfig,
+    useEngine: boolean,
+  ): Promise<SearchResult> {
+    const { searchInput, lat, long, address, sortBy, radius } = params;
+    const { skip, limit } = pagination;
+
+    if (useEngine) {
+      return this.searchProvidersWithEngine(
+        { searchInput, lat, long, address, sortBy, radius },
+        pagination,
+      );
+    } else {
+      return this.searchProvidersFallback(sortBy, pagination);
+    }
+  }
+
+  private async searchProvidersWithEngine(
+    filters: {
+      searchInput?: string;
+      lat?: string;
+      long?: string;
+      address?: string;
+      sortBy?: string[];
+      radius?: string;
+    },
+    pagination: PaginationConfig,
+  ): Promise<SearchResult> {
+    const { searchInput, lat, long, address, radius } = filters;
+    const { skip, limit } = pagination;
+
+    const providerConditions: any[] = [];
+    const serviceConditions: any[] = [{ isActive: true }];
+
+    // Geo search
+    if (lat && long) {
+      const geoQuery = this.createGeoQuery(lat, long, radius);
+      providerConditions.push({
+        $or: [
+          { 'location.primary.coordinates': geoQuery },
+          { 'location.secondary.coordinates': geoQuery },
+          { 'location.tertiary.coordinates': geoQuery },
+        ],
+      });
+    }
+
+    // Address search
+    if (address) {
+      const addressRegex = this.createTextSearchRegex(address);
+      providerConditions.push({
+        $or: [
+          { 'location.primary.address.address': addressRegex },
+          { 'location.secondary.address.address': addressRegex },
+          { 'location.tertiary.address.address': addressRegex },
+        ],
+      });
+    }
+
+    // Text search
+    if (searchInput) {
+      const searchRegex = this.createTextSearchRegex(searchInput);
+
+      serviceConditions.push({
+        $or: [
+          { tags: searchRegex },
+          { title: searchRegex },
+          { description: searchRegex },
+        ],
+      });
+
+      providerConditions.push({
+        $or: [
+          { providerName: searchRegex },
+          { providerDescription: searchRegex },
+          { 'subcategories.name': searchRegex },
+          { 'providerSocialMedia.facebook': searchRegex },
+          { 'providerSocialMedia.instagram': searchRegex },
+          { 'providerSocialMedia.twitter': searchRegex },
+        ],
+      });
+    }
+
+    const [providers, services, totalCompanies, totalServices] =
+      await Promise.all([
+        this.executeProviderQuery(providerConditions, skip, limit),
+        this.executeServiceQuery(serviceConditions, skip, limit),
+        this.providerModel.countDocuments(
+          providerConditions.length ? { $and: providerConditions } : {},
+        ),
+        this.serviceModel.countDocuments(
+          serviceConditions.length ? { $and: serviceConditions } : {},
+        ),
+      ]);
+
+    const totalPages = Math.ceil((totalCompanies + totalServices) / limit);
+
+    return {
+      providers,
+      services,
+      totalPages,
+      hasExactResults: true,
+    };
+  }
+
+  private async searchProvidersFallback(
+    sortBy: string[] = [],
+    pagination: PaginationConfig,
+  ): Promise<SearchResult> {
+    const { skip, limit } = pagination;
+
+    const providerSort = this.getProviderSortCriteria(sortBy);
+    const serviceSort = this.getServiceSortCriteria(sortBy);
+
+    const [providers, services, totalCompanies, totalServices] =
+      await Promise.all([
+        this.executeProviderQuery([], skip, limit, providerSort),
+        this.executeServiceQuery(
+          [{ isActive: true }],
+          skip,
+          limit,
+          serviceSort,
+        ),
+        this.providerModel.countDocuments(),
+        this.serviceModel.countDocuments({ isActive: true }),
+      ]);
+
+    const totalPages = Math.ceil((totalCompanies + totalServices) / limit);
+
+    return {
+      providers,
+      services,
+      totalPages,
+      hasExactResults: false,
+    };
+  }
+
+  private async executeProviderQuery(
+    conditions: any[],
+    skip: number,
+    limit: number,
+    sort: any = { averageRating: -1, reviewCount: -1, favoriteCount: -1 },
+  ): Promise<Provider[]> {
+    const query = conditions.length ? { $and: conditions } : {};
+
+    return this.providerModel
+      .find(query)
+      .populate({
+        path: 'subcategories',
+        model: 'Subcategory',
+        select: 'name description',
+      })
+      .populate({
+        path: 'followedBy',
+        model: 'User',
+        select: 'profilePic firstName lastName email',
+      })
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .exec();
+  }
+
+  private async executeServiceQuery(
+    conditions: any[],
+    skip: number,
+    limit: number,
+    sort: any = { 'provider.averageRating': -1, 'provider.reviewCount': -1 },
+  ): Promise<Service[]> {
+    const matchStage = conditions.length
+      ? { $match: { $and: conditions } }
+      : { $match: {} };
+
+    return this.serviceModel.aggregate([
+      matchStage,
+      {
+        $lookup: {
+          from: 'providers',
+          localField: 'providerId',
+          foreignField: '_id',
+          as: 'provider',
+        },
+      },
+      { $unwind: '$provider' },
+      { $sort: sort },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          title: 1,
+          description: 1,
+          price: 1,
+          duration: 1,
+          tags: 1,
+          'provider.providerName': 1,
+          'provider.location': 1,
+          'provider.averageRating': 1,
+          'provider.reviewCount': 1,
+        },
+      },
+    ]);
+  }
+
+  private async searchJobs(
+    params: SearchParams,
+    pagination: PaginationConfig,
+    useEngine: boolean,
+  ): Promise<SearchResult> {
+    const { searchInput, lat, long, sortBy, radius } = params;
+    const { skip, limit } = pagination;
+
+    const conditions: any[] = [{ isActive: true }];
+
+    if (useEngine && searchInput) {
+      const searchRegex = this.createTextSearchRegex(searchInput);
+      conditions.push({
+        $or: [
+          { title: searchRegex },
+          { description: searchRegex },
+          { tags: searchRegex },
+          { location: searchRegex },
+        ],
+      });
+    }
+
+    if (!useEngine && lat && long && sortBy?.includes('Distance')) {
+      const geoQuery = this.createGeoQuery(lat, long, radius);
+      conditions.push({ coordinates: geoQuery });
+    }
+
+    const sortCriteria = this.getJobSortCriteria(sortBy, lat, long);
+
+    const [jobs, totalJobs] = await Promise.all([
+      this.jobPostModel
+        .find(conditions.length ? { $and: conditions } : {})
+        .sort(sortCriteria)
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.jobPostModel.countDocuments(
+        conditions.length ? { $and: conditions } : {},
+      ),
+    ]);
+
+    const totalPages = Math.ceil(totalJobs / limit);
+
+    return {
+      jobs,
+      totalPages,
+      hasExactResults: useEngine,
+    };
+  }
+
+  private getProviderSortCriteria(sortBy: string[] = []): any {
+    const sortMap: { [key: string]: any } = {
+      Newest: { createdAt: -1 },
+      Oldest: { createdAt: 1 },
+      default: { averageRating: -1, reviewCount: -1, favoriteCount: -1 },
+    };
+
+    return sortMap[sortBy[0]] || sortMap.default;
+  }
+
+  private getServiceSortCriteria(sortBy: string[] = []): any {
+    const sortMap: { [key: string]: any } = {
+      Newest: { createdAt: -1 },
+      Oldest: { createdAt: 1 },
+      default: { 'provider.averageRating': -1, 'provider.reviewCount': -1 },
+    };
+
+    return sortMap[sortBy[0]] || sortMap.default;
+  }
+
+  private getJobSortCriteria(
+    sortBy: string[] = [],
+    lat?: string,
+    long?: string,
+  ): any {
+    const sortMap: { [key: string]: any } = {
+      Deadline: { deadline: 1, createdAt: -1 },
+      Distance:
+        lat && long ? { coordinates: 1, createdAt: -1 } : { createdAt: -1 },
+      Newest: { createdAt: -1 },
+      Oldest: { createdAt: 1 },
+      default: { createdAt: -1 },
+    };
+
+    return sortMap[sortBy[0]] || sortMap.default;
   }
 }

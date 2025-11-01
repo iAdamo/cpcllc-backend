@@ -13,6 +13,8 @@ import {
   SubcategorySchema,
 } from '@schemas/service.schema';
 import { ProviderSchema, Provider } from '@schemas/provider.schema';
+import { JobPostSchema, JobPost } from '@schemas/job.schema';
+import { ProposalSchema, Proposal } from '@schemas/proposal.schema';
 import { DbStorageService } from 'src/common/utils/dbStorage';
 
 @Module({
@@ -24,6 +26,8 @@ import { DbStorageService } from 'src/common/utils/dbStorage';
       { name: Category.name, schema: CategorySchema },
       { name: Subcategory.name, schema: SubcategorySchema },
       { name: Provider.name, schema: ProviderSchema },
+      { name: JobPost.name, schema: JobPostSchema },
+      { name: Proposal.name, schema: ProposalSchema },
     ]),
   ],
 

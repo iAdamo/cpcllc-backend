@@ -27,9 +27,14 @@ import {
   CreateServiceDto,
 } from '@modules/dto/create-service.dto';
 import { UpdateServiceDto } from '@dto/update-service.dto';
+import { CreateJobDto } from '@modules/dto/create-job.dto';
+import { UpdateJobDto } from '@modules/dto/update-job.dto';
+import { CreateProposalDto } from '@modules/dto/create-proposal.dto';
+import { UpdateProposalDto } from '@modules/dto/update-proposal.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
 import { CacheService } from 'src/modules/cache/cache.service';
+import { UsePipes, ValidationPipe } from '@nestjs/common';
 
 export interface RequestWithUser extends Request {
   user: {
@@ -45,6 +50,87 @@ export class ServicesController {
     private readonly servicesService: ServicesService,
     private readonly cacheService: CacheService,
   ) {}
+
+  /* Jobs */
+  @Post('jobs')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'media', maxCount: 10 }]))
+  async createJob(
+    @Body() jobDto: CreateJobDto,
+    @Req() req: RequestWithUser,
+    @UploadedFiles() files?: { media?: Express.Multer.File[] },
+  ) {
+    return this.servicesService.createJob(jobDto, req.user, files);
+  }
+
+  @Patch('jobs/:id')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'media', maxCount: 10 }]))
+  async patchJob(
+    @Param('id') jobId: string,
+    @Body() jobDto: UpdateJobDto,
+    @Req() req: RequestWithUser,
+    @UploadedFiles() files?: { media?: Express.Multer.File[] },
+  ) {
+    return this.servicesService.patchJob(jobId, jobDto, req.user, files);
+  }
+
+  @Delete('jobs/:id')
+  @UseGuards(JwtAuthGuard)
+  async deleteJob(@Param('id') jobId: string, @Req() req: RequestWithUser) {
+    return this.servicesService.deleteJobPost(jobId, req.user);
+  }
+
+  /* Proposals */
+  @Post('jobs/:id/proposals')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor([{ name: 'attachments', maxCount: 10 }]),
+  )
+  async createProposal(
+    @Param('id') jobId: string,
+    @Body() proposalDto: CreateProposalDto,
+    @Req() req: RequestWithUser,
+    @UploadedFiles() files?: { attachments?: Express.Multer.File[] },
+  ) {
+    return this.servicesService.createProposal(
+      jobId,
+      proposalDto,
+      req.user,
+      files,
+    );
+  }
+
+  @Patch('jobs/:jobId/proposals/:proposalId')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor([{ name: 'attachments', maxCount: 10 }]),
+  )
+  async patchProposal(
+    @Param('jobId') jobId: string,
+    @Param('proposalId') proposalId: string,
+    @Body() proposalDto: UpdateProposalDto,
+    @Req() req: RequestWithUser,
+    @UploadedFiles() files?: { attachments?: Express.Multer.File[] },
+  ) {
+    return this.servicesService.patchProposal(
+      jobId,
+      proposalId,
+      proposalDto,
+      req.user,
+      files,
+    );
+  }
+
+  @Delete('jobs/:jobId/proposals/:proposalId')
+  @UseGuards(JwtAuthGuard)
+  async deleteProposal(
+    @Param('jobId') jobId: string,
+    @Param('proposalId') proposalId: string,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.servicesService.deleteProposal(jobId, proposalId, req.user);
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard)

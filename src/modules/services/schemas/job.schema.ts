@@ -71,14 +71,14 @@ export class JobPost {
   @Prop({ type: String, default: null })
   location?: string;
 
-  @Prop({
-    type: {
-      latitude: { type: Number },
-      longitude: { type: Number },
-    },
-    default: null,
-  })
-  coordinates?: { latitude: number; longitude: number };
+  // @Prop({
+  //   type: {
+  //     latitude: { type: Number },
+  //     longitude: { type: Number },
+  //   },
+  //   default: null,
+  // })
+  // coordinates?: { latitude: number; longitude: number };
 
   /** Urgency: 'normal' | 'urgent' | 'immediate' */
   @Prop({
@@ -86,7 +86,7 @@ export class JobPost {
     enum: ['normal', 'urgent', 'immediate'],
     default: 'normal',
   })
-  urgency: string;
+  urgency?: string;
 
   /** Visibility: public or only verified providers */
   @Prop({
@@ -94,7 +94,7 @@ export class JobPost {
     enum: ['public', 'verified_only'],
     default: 'public',
   })
-  visibility: string;
+  visibility?: string;
 
   /** Contact preferences */
   @Prop({
@@ -102,7 +102,7 @@ export class JobPost {
     enum: ['chat', 'call', 'both'],
     default: ['chat'],
   })
-  contactPreference: string[];
+  contactPreference?: string[];
 
   /** Media attachments (images/videos) */
   @Prop({ default: [] })
@@ -110,7 +110,7 @@ export class JobPost {
 
   /** Tags or keywords */
   @Prop({ type: [String], default: [] })
-  tags: string[];
+  tags?: string[];
 
   /** Active / status states */
   @Prop({
