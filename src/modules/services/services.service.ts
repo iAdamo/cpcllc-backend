@@ -40,7 +40,7 @@ import { CreateJobDto } from '@modules/dto/create-job.dto';
 import { UpdateJobDto } from '@modules/dto/update-job.dto';
 import { CreateProposalDto } from '@modules/dto/create-proposal.dto';
 import { UpdateProposalDto } from '@modules/dto/update-proposal.dto';
-import path from 'path';
+import { numberToDate } from 'src/common/utils/numberToDate';
 
 @Injectable()
 export class ServicesService {
@@ -275,8 +275,11 @@ export class ServicesService {
       files,
     );
 
+    const parsedDate = numberToDate(jobData.deadline);
+
     const job = new this.jobPostModel({
       ...jobData,
+      deadline: parsedDate,
       userId: new Types.ObjectId(user.userId),
       subcategoryId: new Types.ObjectId(jobData.subcategoryId),
       media: (fileUrls.media as any) || [],
@@ -309,6 +312,11 @@ export class ServicesService {
       fileUrls.media.length
     )
       job.media = (job.media || []).concat(fileUrls.media as any);
+
+    if (updateData.deadline) {
+      const parsedDate = numberToDate(updateData.deadline);
+      job.deadline = parsedDate;
+    }
 
     // apply other updates
     Object.assign(job, { ...updateData, media: job.media });

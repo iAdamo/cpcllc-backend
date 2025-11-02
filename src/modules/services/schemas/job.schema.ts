@@ -71,20 +71,20 @@ export class JobPost {
   @Prop({ type: String, default: null })
   location?: string;
 
-  // @Prop({
-  //   type: {
-  //     latitude: { type: Number },
-  //     longitude: { type: Number },
-  //   },
-  //   default: null,
-  // })
-  // coordinates?: { latitude: number; longitude: number };
+  @Prop({
+    type: {
+      lat: { type: Number },
+      long: { type: Number },
+    },
+    default: null,
+  })
+  coordinates?: { lat: number; long: number };
 
   /** Urgency: 'normal' | 'urgent' | 'immediate' */
   @Prop({
     type: String,
-    enum: ['normal', 'urgent', 'immediate'],
-    default: 'normal',
+    enum: ['Normal', 'Urgent', 'Immediate'],
+    default: 'Normal',
   })
   urgency?: string;
 

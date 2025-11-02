@@ -81,6 +81,15 @@ export class ServicesController {
     return this.servicesService.deleteJobPost(jobId, req.user);
   }
 
+  @Get('jobs/:id?') // :id is optional
+  @UseGuards(JwtAuthGuard)
+  async getJobsByUser(
+    @Req() req: RequestWithUser,
+    @Param('id') userId?: string,
+  ) {
+    return this.servicesService.getJobsByUser(userId || req.user.userId);
+  }
+
   /* Proposals */
   @Post('jobs/:id/proposals')
   @UseGuards(JwtAuthGuard)
