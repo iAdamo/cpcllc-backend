@@ -41,6 +41,7 @@ interface SearchResult {
   services?: Service[];
   jobs?: JobPost[];
   totalPages: number;
+  page: number;
   hasExactResults: boolean;
 }
 
@@ -225,6 +226,7 @@ export class SearchService {
       providers,
       services,
       totalPages,
+      page: pagination.page,
       hasExactResults: true,
     };
   }
@@ -257,6 +259,7 @@ export class SearchService {
       providers,
       services,
       totalPages,
+      page: pagination.page,
       hasExactResults: false,
     };
   }
@@ -359,6 +362,16 @@ export class SearchService {
     const [jobs, totalJobs] = await Promise.all([
       this.jobPostModel
         .find(conditions.length ? { $and: conditions } : {})
+        .populate({
+          path: 'subcategoryId',
+          model: 'Subcategory',
+          select: '_id name description',
+          populate: {
+            path: 'categoryId',
+            model: 'Category',
+            select: '_id name description',
+          },
+        })
         .sort(sortCriteria)
         .skip(skip)
         .limit(limit)
@@ -373,6 +386,7 @@ export class SearchService {
     return {
       jobs,
       totalPages,
+      page: pagination.page,
       hasExactResults: useEngine,
     };
   }
