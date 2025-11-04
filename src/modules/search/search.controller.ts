@@ -38,9 +38,9 @@ export class SearchController {
   @Get(':model')
   @UseGuards(JwtAuthGuard)
   async searchCompanies(
+    @Param('model') model: string,
     @Query('page') page: string,
     @Query('limit') limit: string,
-    @Param('model') model: string,
     @Query('engine') engine: string,
     @Query('searchInput') searchInput?: string,
     @Query('lat') lat?: string,
@@ -70,8 +70,11 @@ export class SearchController {
       const sortByArray = Array.isArray(sortBy)
         ? sortBy
         : sortBy
-        ? sortBy.split(',').map(s => s.trim()).filter(Boolean)
-        : undefined;
+          ? sortBy
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : undefined;
       const result = await this.searchService.globalSearch({
         page,
         limit,

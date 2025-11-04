@@ -91,8 +91,8 @@ export class JobPost {
   /** Visibility: public or only verified providers */
   @Prop({
     type: String,
-    enum: ['public', 'verified_only'],
-    default: 'public',
+    enum: ['Public', 'Verified', 'Private'],
+    default: 'Public',
   })
   visibility?: string;
 

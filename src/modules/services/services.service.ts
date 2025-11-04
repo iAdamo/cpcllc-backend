@@ -285,7 +285,17 @@ export class ServicesService {
       media: (fileUrls.media as any) || [],
     });
 
-    return await job.save();
+    const saved = await job.save();
+    return await saved.populate({
+      path: 'subcategoryId',
+      model: 'Subcategory',
+      select: '_id name description',
+      populate: {
+        path: 'categoryId',
+        model: 'Category',
+        select: '_id name description',
+      },
+    });
   }
 
   async patchJob(
@@ -320,7 +330,17 @@ export class ServicesService {
 
     // apply other updates
     Object.assign(job, { ...updateData, media: job.media });
-    return await job.save();
+    const saved = await job.save();
+    return await saved.populate({
+      path: 'subcategoryId',
+      model: 'Subcategory',
+      select: '_id name description',
+      populate: {
+        path: 'categoryId',
+        model: 'Category',
+        select: '_id name description',
+      },
+    });
   }
 
   async deleteJobPost(
