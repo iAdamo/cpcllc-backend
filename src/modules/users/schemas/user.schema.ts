@@ -68,10 +68,6 @@ export class User {
   @Prop({ default: 0 })
   followingCount: number;
 
-  // followed providers
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Provider' }], default: [] })
-  followedProviders: Types.ObjectId[];
-
   // geographical coordinates
   @Prop({ required: false })
   latitude?: number;
@@ -93,6 +89,12 @@ export class User {
 
   @Prop({ default: 0 })
   phoneEditCount: number;
+
+  @Prop({ default: 0 })
+  reviewCount: number;
+
+  @Prop({ default: 0 })
+  averageRating: number;
 
   @Prop({ sparse: true, index: true })
   code?: string;
@@ -124,6 +126,12 @@ export class User {
 
   @Prop({ type: Types.ObjectId, refPath: 'activeRole', index: true })
   activeRoleId: Types.ObjectId;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Provider' }], default: [] })
+  followedProviders: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Reviews' }], default: [] })
+  reviews: Types.ObjectId[];
 
   async comparePassword(password: string): Promise<boolean> {
     return bcrypt.compare(password, this.password);

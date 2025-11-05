@@ -20,6 +20,7 @@ import {
   CategoryDocument,
   SubcategoryDocument,
 } from '@modules/schemas/service.schema';
+import { Reviews } from '@modules/schemas/reviews.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
 import { DbStorageService } from 'src/common/utils/dbStorage';

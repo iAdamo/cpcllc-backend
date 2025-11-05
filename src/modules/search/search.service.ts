@@ -363,6 +363,11 @@ export class SearchService {
       this.jobPostModel
         .find(conditions.length ? { $and: conditions } : {})
         .populate({
+          path: 'userId',
+          model: 'User',
+          select: 'firstName lastName profilePicture',
+        })
+        .populate({
           path: 'subcategoryId',
           model: 'Subcategory',
           select: '_id name description',

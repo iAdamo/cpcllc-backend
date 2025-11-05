@@ -32,10 +32,10 @@ export class Reviews {
   isDeleted: boolean;
 
   @Prop({ type: Types.ObjectId, ref: 'User', index: true })
-  user: User;
+  creator: User;
 
-  @Prop({ type: Types.ObjectId, ref: 'Provider', index: true })
-  provider: Provider;
+  @Prop({ type: Types.ObjectId, ref: 'User', index: true })
+  recipient: User;
 
   @Prop({ type: Date, index: -1 })
   createdAt: Date;

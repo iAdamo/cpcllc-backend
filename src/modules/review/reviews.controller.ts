@@ -29,30 +29,44 @@ export interface RequestWithUser extends Request {
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
-  @Post(':providerId')
+  @Post(':id')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'images', maxCount: 10 }]))
   async createReview(
     @Body() reviewDto: CreateReviewDto,
-    @Param('providerId') providerId: string,
+    @Param('id') id: string,
     @Req() req: RequestWithUser,
     @UploadedFiles() files?: { images?: Express.Multer.File[] },
   ) {
     return this.reviewsService.createReview(
       reviewDto,
       req.user.userId,
-      providerId,
-      files?.images || [],
+      id,
+      files,
     );
   }
 
-  @Get(':providerId?')
+  @Get(':id?')
   @UseGuards(JwtAuthGuard)
-  async getReviews(
-    @Req() req: RequestWithUser,
-    @Param('providerId') providerId?: string,
-  ) {
+  async getReviews(@Req() req: RequestWithUser, @Param('id') id?: string) {
     const user = req.user.userId;
-    return this.reviewsService.getReviews(providerId, user);
+    return this.reviewsService.getReviews(id, user);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'images', maxCount: 10 }]))
+  async updateReview(
+    @Param('id') reviewId: string,
+    @Req() req: RequestWithUser,
+    @Body() body: Partial<CreateReviewDto>,
+    @UploadedFiles() files?: { images?: Express.Multer.File[] },
+  ) {
+    return this.reviewsService.updateReview(
+      reviewId,
+      req.user.userId,
+      body,
+      files,
+    );
   }
 }
