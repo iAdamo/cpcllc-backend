@@ -502,6 +502,10 @@ export class ServicesService {
     return this.jobPostModel
       .find({ userId: new Types.ObjectId(userId) })
       .populate({
+        path: 'userId',
+        model: 'User',
+      })
+      .populate({
         path: 'subcategoryId',
         model: 'Subcategory',
         select: '_id name description',
@@ -516,6 +520,10 @@ export class ServicesService {
   async getJobById(jobId: string): Promise<JobPostDocument> {
     const job = await this.jobPostModel
       .findById(new Types.ObjectId(jobId))
+      .populate({
+        path: 'userId',
+        model: 'User',
+      })
       .populate({
         path: 'subcategoryId',
         model: 'Subcategory',

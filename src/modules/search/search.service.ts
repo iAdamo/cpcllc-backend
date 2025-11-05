@@ -365,7 +365,6 @@ export class SearchService {
         .populate({
           path: 'userId',
           model: 'User',
-          select: 'firstName lastName profilePicture',
         })
         .populate({
           path: 'subcategoryId',
