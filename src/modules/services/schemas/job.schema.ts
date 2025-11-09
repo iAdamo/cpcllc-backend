@@ -40,6 +40,10 @@ export class JobPost {
   @Prop({ type: Types.ObjectId, ref: 'Provider', default: null })
   providerId?: Types.ObjectId;
 
+  /** All proposals */
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Proposal' }], default: [] })
+  proposals: Types.ObjectId[];
+
   /** Job category/subcategory references */
   @Prop({
     type: Types.ObjectId,

@@ -41,6 +41,7 @@ import { UpdateJobDto } from '@modules/dto/update-job.dto';
 import { CreateProposalDto } from '@modules/dto/create-proposal.dto';
 import { UpdateProposalDto } from '@modules/dto/update-proposal.dto';
 import { numberToDate } from 'src/common/utils/numberToDate';
+import path from 'path';
 
 @Injectable()
 export class ServicesService {
@@ -386,6 +387,17 @@ export class ServicesService {
     const job = await this.jobPostModel.findById(new Types.ObjectId(jobId));
     if (!job) throw new NotFoundException('Job not found');
 
+    // prevent duplicate proposals from the same provider for the same job
+    const existing = await this.proposalModel.findOne({
+      jobId: job._id,
+      providerId: provider._id,
+    });
+    if (existing) {
+      // provider already submitted a proposal for this job
+      // use ConflictException (409) to indicate duplicate resource
+      throw new ConflictException('Proposal already submitted for this job');
+    }
+
     const fileUrls = await this.storage.handleFileUploads(
       `${user.email}/proposals/${jobId}`,
       files as any,
@@ -397,6 +409,18 @@ export class ServicesService {
       providerId: provider._id,
       attachments: (fileUrls.attachments as any) || [],
     });
+
+    // update job to add proposals
+    // add the created proposal id to the job's proposals array
+    job.proposals = job.proposals || [];
+    const proposalIdStr = proposal._id.toString();
+    const hasProposal = job.proposals.some(
+      (p: any) => p && p.toString && p.toString() === proposalIdStr,
+    );
+    if (!hasProposal) {
+      job.proposals.push(proposal._id);
+      await job.save();
+    }
 
     return await proposal.save();
   }
@@ -506,6 +530,15 @@ export class ServicesService {
         model: 'User',
       })
       .populate({
+        path: 'proposals',
+        model: 'Proposal',
+        populate: {
+          path: 'providerId',
+          model: 'Provider',
+          select: 'providerName providerLogo isVerified',
+        },
+      })
+      .populate({
         path: 'subcategoryId',
         model: 'Subcategory',
         select: '_id name description',
@@ -523,6 +556,15 @@ export class ServicesService {
       .populate({
         path: 'userId',
         model: 'User',
+      })
+      .populate({
+        path: 'proposals',
+        model: 'Proposal',
+        populate: {
+          path: 'providerId',
+          model: 'Provider',
+          select: 'providerName providerLogo isVerified',
+        },
       })
       .populate({
         path: 'subcategoryId',
