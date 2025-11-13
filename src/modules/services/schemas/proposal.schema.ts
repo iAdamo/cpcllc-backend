@@ -49,3 +49,8 @@ export class Proposal {
 }
 
 export const ProposalSchema = SchemaFactory.createForClass(Proposal);
+
+// Compound index to make job+provider lookups fast (used to check duplicate proposals)
+ProposalSchema.index({ jobId: 1, providerId: 1 }, { unique: true });
+
+// Export schema (already exported above via ProposalSchema const)

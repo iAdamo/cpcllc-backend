@@ -284,6 +284,10 @@ export class ServicesService {
       userId: new Types.ObjectId(user.userId),
       subcategoryId: new Types.ObjectId(jobData.subcategoryId),
       media: (fileUrls.media as any) || [],
+      // If coordinates provided (expected [long, lat]), set type and coordinates for 2dsphere index
+      ...(Array.isArray(jobData.coordinates) && jobData.coordinates.length === 2
+        ? { type: 'Point', coordinates: jobData.coordinates }
+        : {}),
     });
 
     const saved = await job.save();
@@ -327,6 +331,23 @@ export class ServicesService {
     if (updateData.deadline) {
       const parsedDate = numberToDate(updateData.deadline);
       job.deadline = parsedDate;
+    }
+
+    // If coordinates are provided in updateData, validate and set them (expected [long, lat])
+    if (updateData.coordinates && Array.isArray(updateData.coordinates)) {
+      const coords = updateData.coordinates as any;
+      if (
+        coords.length === 2 &&
+        typeof coords[0] === 'number' &&
+        typeof coords[1] === 'number'
+      ) {
+        job.type = 'Point';
+        job.coordinates = coords;
+      } else {
+        throw new BadRequestException(
+          'coordinates must be an array of two numbers: [long, lat]',
+        );
+      }
     }
 
     // apply other updates

@@ -76,13 +76,14 @@ export class JobPost {
   location?: string;
 
   @Prop({
-    type: {
-      lat: { type: Number },
-      long: { type: Number },
-    },
-    default: null,
+    type: String,
+    enum: ['Point'],
+    default: 'Point',
   })
-  coordinates?: { lat: number; long: number };
+  type: string;
+
+  @Prop({ index: '2dsphere', type: [Number] })
+  coordinates?: number[];
 
   /** Urgency: 'normal' | 'urgent' | 'immediate' */
   @Prop({

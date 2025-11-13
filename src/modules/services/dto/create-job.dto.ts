@@ -6,6 +6,8 @@ import {
   IsOptional,
   IsBoolean,
   IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
   IsDateString,
   IsIn,
 } from 'class-validator';
@@ -41,6 +43,17 @@ export class CreateJobDto {
   @IsOptional()
   @IsString()
   location?: string;
+
+  @ApiProperty({
+    description: 'GeoJSON coordinates [long, lat]',
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(2)
+  @IsNumber({}, { each: true })
+  coordinates?: number[];
 
   @ApiProperty({
     description: "Urgency: 'normal'|'urgent'|'immediate'",

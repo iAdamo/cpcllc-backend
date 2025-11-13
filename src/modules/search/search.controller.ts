@@ -48,6 +48,7 @@ export class SearchController {
     @Query('address') address?: string,
     @Query('radius') radius?: string,
     @Query('sortBy') sortBy?: string | string[],
+    @Query('categories') categories?: string[],
   ): Promise<{
     providers?: Provider[];
     services?: Service[];
@@ -59,7 +60,7 @@ export class SearchController {
       'search:' +
       `${model}:${engine}:${searchInput || ''}:` +
       `${lat || ''}:${long || ''}:${address || ''}:` +
-      `${radius || ''}:${sortBy || ''}:${page}:${limit}`;
+      `${radius || ''}:${sortBy || ''}:${(categories || []).join(',')}:${page}:${limit}`;
     const cachedResult = await this.cacheService.get<{
       providers: Provider[];
       services: Service[];
@@ -86,6 +87,7 @@ export class SearchController {
         long,
         address,
         sortBy: sortByArray,
+        categories,
       });
       await this.cacheService.set(cacheKey, result, 300); // Cache for 5 mins
       return result;
