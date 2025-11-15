@@ -26,7 +26,6 @@ import {
   Service,
   ServiceDocument,
 } from '@modules/schemas/service.schema';
-import { CacheService } from '@modules/cache.service';
 import {
   JobPost,
   JobPostDocument,
@@ -42,7 +41,6 @@ import { UpdateJobDto } from '@modules/dto/update-job.dto';
 import { CreateProposalDto } from '@modules/dto/create-proposal.dto';
 import { UpdateProposalDto } from '@modules/dto/update-proposal.dto';
 import { numberToDate } from 'src/common/utils/numberToDate';
-import path from 'path';
 
 @Injectable()
 export class ServicesService {

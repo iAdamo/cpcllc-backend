@@ -1,5 +1,3 @@
-import { model } from 'mongoose';
-// chat.service.ts
 import {
   Injectable,
   Logger,

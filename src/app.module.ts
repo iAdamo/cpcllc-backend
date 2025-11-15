@@ -14,6 +14,7 @@ import { ProviderModule } from './modules/provider/provider.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CacheModule } from './modules/cache/cache.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { NotificatonModule } from './modules/notificaton/notificaton.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { ChatModule } from './modules/chat/chat.module';
     ProviderModule,
     CacheModule,
     ChatModule,
+    NotificatonModule,
   ],
   controllers: [],
   providers: [],
