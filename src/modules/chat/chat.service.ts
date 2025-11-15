@@ -12,6 +12,8 @@ import { Chat, ChatDocument } from './schemas/chat.schema';
 import { Message, MessageDocument, MessageType } from '@schemas/message.schema';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Presence, PresenceDocument } from '@schemas/presence.schema';
+import { Proposal, ProposalDocument } from '@schemas/proposal.schema';
+import { JobPost, JobPostDocument } from '@schemas/job.schema';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { format, isToday, isYesterday } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
@@ -41,6 +43,9 @@ export class ChatService {
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Presence.name) private presenceModel: Model<PresenceDocument>,
+    @InjectModel(Proposal.name)
+    private proposalModel: Model<ProposalDocument>,
+    @InjectModel(JobPost.name) private jobPostModel: Model<JobPostDocument>,
     private readonly storage: DbStorageService,
   ) {}
 
@@ -48,14 +53,31 @@ export class ChatService {
     currentUserId: Types.ObjectId,
     otherUserId: Types.ObjectId,
   ) {
-    const isFollowing = this.userModel.exists({
+    // Check if current user follows the provider
+    const isFollowing = await this.userModel.exists({
       _id: currentUserId,
       followedProviders: otherUserId,
     });
+    if (isFollowing) return true;
 
-    if (isFollowing) {
-      return true;
-    }
+    const jobs = await this.jobPostModel
+      .find({ userId: currentUserId })
+      .select('_id')
+      .lean();
+    if (!jobs.length) return false;
+
+    const jobIds = jobs.map((j: any) => j._id);
+
+    const accepted = await this.proposalModel
+      .findOne({
+        providerId: otherUserId,
+        status: 'accepted',
+        jobId: { $in: jobIds },
+      })
+      .lean();
+
+    if (accepted) return true;
+
     return false;
   }
 
@@ -89,6 +111,7 @@ export class ChatService {
 
       if (!(await this.chatEligibilyStatus(user, otherUser))) {
         throw new BadRequestException(
+          { chatCreation: false },
           'You must follow the provider to initiate chat',
         );
       }

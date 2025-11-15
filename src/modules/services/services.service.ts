@@ -9,6 +9,7 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -45,6 +46,7 @@ import path from 'path';
 
 @Injectable()
 export class ServicesService {
+  private readonly logger = new Logger(ServicesService.name);
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
@@ -332,7 +334,6 @@ export class ServicesService {
       const parsedDate = numberToDate(updateData.deadline);
       job.deadline = parsedDate;
     }
-
     // If coordinates are provided in updateData, validate and set them (expected [long, lat])
     if (updateData.coordinates && Array.isArray(updateData.coordinates)) {
       const coords = updateData.coordinates as any;
@@ -346,6 +347,58 @@ export class ServicesService {
       } else {
         throw new BadRequestException(
           'coordinates must be an array of two numbers: [long, lat]',
+        );
+      }
+    }
+
+    // If providerId is provided in the update, limit job.proposals to only proposals from that provider
+    if (updateData.providerId) {
+      const providerObjectId = new Types.ObjectId(updateData.providerId);
+
+      // Validate provider exists
+      const provider = await this.providerModel.findById(providerObjectId);
+      if (!provider) throw new BadRequestException('Invalid providerId');
+
+      // Find accepted proposals for this job by that provider
+      const providerProposals = await this.proposalModel
+        .find({
+          jobId: job._id,
+          providerId: providerObjectId,
+          status: 'accepted',
+        })
+        .select('_id')
+        .lean();
+
+      let assignProvider = false;
+
+      if (providerProposals && providerProposals.length) {
+        job.proposals = providerProposals.map((p: any) => p._id);
+        assignProvider = true;
+      } else {
+        // No direct proposals found; check whether any existing proposal ids on the job belong to this provider
+        const existingFromProvider = await this.proposalModel
+          .find({
+            _id: { $in: job.proposals || [] },
+            providerId: providerObjectId,
+          })
+          .select('_id')
+          .lean();
+
+        if (existingFromProvider && existingFromProvider.length) {
+          job.proposals = existingFromProvider.map((p: any) => p._id);
+          assignProvider = true;
+        } else {
+          job.proposals = [];
+        }
+      }
+
+      // Only set job.providerId when we actually have accepted proposals from that provider (or had existing matching ids)
+      if (assignProvider) {
+        job.providerId = providerObjectId;
+        // TODO: notify assigned provider's owner (e.g., push notification / email).
+        // We don't have a NotificationService here; log a placeholder for now.
+        this.logger.log(
+          `Provider ${providerObjectId.toString()} assigned to job ${job._id.toString()}`,
         );
       }
     }
@@ -539,7 +592,7 @@ export class ServicesService {
   async getProposalsByJob(jobId: string): Promise<ProposalDocument[]> {
     return this.proposalModel
       .find({ jobId: new Types.ObjectId(jobId) })
-      .populate('providerId', 'providerName providerLogo isVerified')
+      .populate('providerId', 'providerName providerLogo isVerified owner')
       .lean();
   }
 
@@ -556,7 +609,7 @@ export class ServicesService {
         populate: {
           path: 'providerId',
           model: 'Provider',
-          select: 'providerName providerLogo isVerified',
+          select: 'providerName providerLogo isVerified owner',
         },
       })
       .populate({

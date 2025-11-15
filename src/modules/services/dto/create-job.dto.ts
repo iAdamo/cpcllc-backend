@@ -13,6 +13,11 @@ import {
 } from 'class-validator';
 
 export class CreateJobDto {
+  // provider id
+  @ApiProperty({ description: 'Provider ID for the job', required: false })
+  @IsMongoId()
+  providerId: string;
+
   @ApiProperty({ description: 'Subcategory ID for the job', required: true })
   @IsMongoId()
   subcategoryId: string;
