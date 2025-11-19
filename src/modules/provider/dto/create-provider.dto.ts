@@ -1,28 +1,22 @@
 import {
-  IsArray,
+  isNotEmpty,
   IsEmail,
   IsNotEmpty,
+  IsArray,
+  IsEnum,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
-  IsUrl,
   ValidateNested,
+  ArrayMinSize,
+  ArrayMaxSize,
+  IsInt,
+  IsUrl,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
-
-class CoordinatesDto {
-  @ApiProperty({ example: '28.0455755' })
-  @IsString()
-  @IsOptional()
-  lat?: string;
-
-  @ApiProperty({ example: '-82.737696' })
-  @IsString()
-  @IsOptional()
-  long?: string;
-}
 
 class AddressDto {
   @ApiProperty({ example: '30109 US Hwy 19 N, Clearwater, FL 33761' })
@@ -51,18 +45,21 @@ class AddressDto {
   zip?: string;
 }
 
-class LocationDto {
-  @ApiProperty()
+export class LocationDto {
+  @IsOptional()
+  @IsEnum(['Point'])
+  type?: 'Point' = 'Point';
+
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(2)
+  @IsNumber({}, { each: true })
+  coordinates: number[];
+
   @IsOptional()
   @ValidateNested()
   @Type(() => AddressDto)
   address?: AddressDto;
-
-  @ApiProperty()
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => CoordinatesDto)
-  coordinates?: CoordinatesDto;
 }
 
 export class CreateProviderDto {

@@ -84,87 +84,82 @@ export class ChatService {
     createChatDto: CreateChatDto,
     session?: ClientSession,
   ): Promise<ChatDocument> {
-    try {
-      const { participants } = createChatDto;
-      if (!participants) {
-        throw new BadRequestException(
-          'Direct chat must have exactly 1 other participant',
-        );
-      }
-
-      const user = new Types.ObjectId(currentUserId);
-      const otherUser = new Types.ObjectId(participants);
-
-      if (user.equals(otherUser)) {
-        throw new BadRequestException('Cannot create chat with yourself');
-      }
-
-      // Ensure both users exist
-      const usersExists = await this.userModel
-        .find({ _id: { $in: [user, otherUser] } })
-        .countDocuments();
-      if (usersExists !== 2) {
-        throw new NotFoundException('One or more participants not found');
-      }
-
-      if (!(await this.chatEligibilyStatus(user, otherUser))) {
-        throw new BadRequestException(
-          { chatCreation: false },
-          'You must follow the provider to initiate chat',
-        );
-      }
-
-      // Check for existing chat between the two participants
-      let chat = await this.chatModel.findOne({
-        participants: { $all: [user, otherUser], $size: 2 },
-        isActive: true,
-      });
-
-      if (chat) {
-        return chat;
-      }
-
-      // Create new chat
-      chat = new this.chatModel({
-        participants: [user, otherUser],
-        isActive: true,
-      });
-      await chat.save({ session });
-      this.logger.log(
-        `Chat created between user ${user} and provider ${otherUser}`,
+    const { participants } = createChatDto;
+    if (!participants) {
+      throw new BadRequestException(
+        'Direct chat must have exactly 1 other participant',
       );
-      return chat.populate({
-        path: 'participants',
-        model: 'User',
-        select: 'firstName lastName profilePicture',
-        match: { _id: { $ne: user } },
-        populate: [
-          {
-            path: 'followedProviders',
-            model: 'Provider',
-            select: 'providerName providerLogo',
-          },
-          {
-            path: 'activeRoleId',
-            model: 'Provider',
-            match: { _id: { $ne: user } },
+    }
+
+    const user = new Types.ObjectId(currentUserId);
+    const otherUser = new Types.ObjectId(participants);
+
+    if (user.equals(otherUser)) {
+      throw new BadRequestException('Cannot create chat with yourself');
+    }
+
+    // Ensure both users exist
+    const usersExists = await this.userModel
+      .find({ _id: { $in: [user, otherUser] } })
+      .countDocuments();
+    if (usersExists !== 2) {
+      throw new NotFoundException('One or more participants not found');
+    }
+
+    if (!(await this.chatEligibilyStatus(user, otherUser))) {
+      throw new BadRequestException(
+        { chatCreation: false },
+        'You must follow the provider to initiate chat',
+      );
+    }
+
+    // Check for existing chat between the two participants
+    let chat = await this.chatModel.findOne({
+      participants: { $all: [user, otherUser], $size: 2 },
+      isActive: true,
+    });
+
+    if (chat) {
+      return chat;
+    }
+
+    // Create new chat
+    chat = new this.chatModel({
+      participants: [user, otherUser],
+      isActive: true,
+    });
+    await chat.save({ session });
+    this.logger.log(
+      `Chat created between user ${user} and provider ${otherUser}`,
+    );
+    return chat.populate({
+      path: 'participants',
+      model: 'User',
+      select: 'firstName lastName profilePicture',
+      match: { _id: { $ne: user } },
+      populate: [
+        {
+          path: 'followedProviders',
+          model: 'Provider',
+          select: 'providerName providerLogo',
+        },
+        {
+          path: 'activeRoleId',
+          model: 'Provider',
+          match: { _id: { $ne: user } },
+          populate: {
+            path: 'subcategories',
+            model: 'Subcategory',
+            select: 'name description',
             populate: {
-              path: 'subcategories',
-              model: 'Subcategory',
+              path: 'categoryId',
+              model: 'Category',
               select: 'name description',
-              populate: {
-                path: 'categoryId',
-                model: 'Category',
-                select: 'name description',
-              },
             },
           },
-        ],
-      });
-    } catch (err) {
-      console.log(err);
-      // throw err;
-    }
+        },
+      ],
+    });
   }
 
   async uploadFile(email: string, files: { file: Express.Multer.File[] }) {

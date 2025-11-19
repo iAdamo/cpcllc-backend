@@ -18,6 +18,9 @@ export class ProviderImage {
 
   @Prop({ required: false })
   thumbnail?: string;
+
+  @Prop()
+  index?: number;
 }
 export const ProviderImageSchema = SchemaFactory.createForClass(ProviderImage);
 

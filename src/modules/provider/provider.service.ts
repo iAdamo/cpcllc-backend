@@ -44,10 +44,10 @@ export class ProviderService {
         result.address = loc.address;
       }
 
-      if (loc.coordinates && (loc.coordinates.lat || loc.coordinates.long)) {
+      if (loc.coordinates && (loc.coordinates[0] || loc.coordinates[1])) {
         result.coordinates = [
-          parseFloat(loc.coordinates.long) || 0,
-          parseFloat(loc.coordinates.lat) || 0,
+          parseFloat(loc.coordinates[0]) || 0,
+          parseFloat(loc.coordinates[1]) || 0,
         ];
         result.type = 'Point';
       }
@@ -95,18 +95,23 @@ export class ProviderService {
         files,
       );
 
-      console.log('File URLs after upload:', fileUrls);
+      // console.log('File URLs after upload:', fileUrls);
 
       // Map uploaded media to schema fields
-      const providerLogoMedia = fileUrls.providerLogo as
-        | { type: string; url: string; thumbnail?: string | null }
+      const providerLogoMedia = fileUrls.providerLogo[0] as
+        | {
+            type: string;
+            url: string;
+            thumbnail: string;
+            index?: number | null;
+          }
         | null
         | undefined;
       const providerImagesMedia = fileUrls.providerImages as
         | {
             type: string;
             url: string;
-            thumbnail?: string | null;
+            thumbnail: string | null;
             index?: number;
           }[]
         | undefined;
@@ -114,7 +119,7 @@ export class ProviderService {
       // Prepare provider data
       const providerData: any = {
         ...createProviderDto,
-        providerLogo: providerLogoMedia || undefined,
+        providerLogo: providerLogoMedia[0] || undefined,
         providerImages: providerImagesMedia
           ? providerImagesMedia.map((m) => ({
               type: m.type,
@@ -235,7 +240,7 @@ export class ProviderService {
 
       // console.log('File URLs after upload:', fileUrls);
 
-      const providerLogoMedia = fileUrls.providerLogo as
+      const providerLogoMedia = fileUrls.providerLogo[0] as
         | { type: string; url: string; thumbnail?: string | null }
         | null
         | undefined;
@@ -303,7 +308,10 @@ export class ProviderService {
       if (providerLogoMedia) {
         provider.providerLogo = providerLogoMedia;
       }
-      if (Array.isArray(providerImagesMedia) && providerImagesMedia.length > 0) {
+      if (
+        Array.isArray(providerImagesMedia) &&
+        providerImagesMedia.length > 0
+      ) {
         const newImages = providerImagesMedia.map((m) => ({
           type: m.type,
           url: m.url,
@@ -317,20 +325,22 @@ export class ProviderService {
 
       await provider.save();
 
-      return await this.userModel.findById(new Types.ObjectId(user.userId)).populate({
-        path: 'activeRoleId',
-        model: 'Provider',
-        populate: {
-          path: 'subcategories',
-          model: 'Subcategory',
-          select: 'name description',
+      return await this.userModel
+        .findById(new Types.ObjectId(user.userId))
+        .populate({
+          path: 'activeRoleId',
+          model: 'Provider',
           populate: {
-            path: 'categoryId',
-            model: 'Category',
+            path: 'subcategories',
+            model: 'Subcategory',
             select: 'name description',
+            populate: {
+              path: 'categoryId',
+              model: 'Category',
+              select: 'name description',
+            },
           },
-        },
-      });
+        });
     } catch (error) {
       console.error(error);
       throw new InternalServerErrorException(
