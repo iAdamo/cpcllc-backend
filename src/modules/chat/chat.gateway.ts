@@ -1,3 +1,4 @@
+import { Notification } from './../notificaton/schemas/notification.schema';
 import * as jwt from 'jsonwebtoken';
 import {
   WebSocketGateway,
@@ -17,6 +18,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
+import { NotificationService } from '../notificaton/notification.service';
 import { Types } from 'mongoose';
 import { WsJwtGuard, JwtAuthGuard } from '@modules/jwt/jwt.guard';
 
@@ -39,7 +41,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(ChatGateway.name);
   private userSockets = new Map<string, Set<string>>(); // userId -> socketIds
 
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     const token =
@@ -92,7 +97,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (userSockets.size === 0) {
         this.userSockets.delete(userIdStr);
 
-        await this.chatService.updateLastSeen(userIdStr, new Date());
+        await this.notificationService.updateLastSeen(userIdStr, new Date());
         this.logger.log(`User ${userIdStr} is now offline`);
       }
     }

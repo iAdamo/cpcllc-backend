@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, ClientSession } from 'mongoose';
+import { Provider, ProviderDocument } from '@modules/schemas/provider.schema';
 import { Chat, ChatDocument } from './schemas/chat.schema';
 import { Message, MessageDocument, MessageType } from '@schemas/message.schema';
 import { User, UserDocument } from '@modules/schemas/user.schema';
@@ -40,6 +41,7 @@ export class ChatService {
     @InjectModel(Chat.name) private chatModel: Model<ChatDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
     @InjectModel(Presence.name) private presenceModel: Model<PresenceDocument>,
     @InjectModel(Proposal.name)
     private proposalModel: Model<ProposalDocument>,
@@ -51,10 +53,21 @@ export class ChatService {
     currentUserId: Types.ObjectId,
     otherUserId: Types.ObjectId,
   ) {
+    // get the other user provider id
+    const otherUser = await this.userModel
+      .findById(otherUserId)
+      .select('activeRoleId')
+      .lean();
+    if (!otherUser) {
+      throw new NotFoundException('The other user does not exist');
+    }
+    if (!otherUser.activeRoleId) {
+      throw new BadRequestException('Can only initiate chat with providers');
+    }
     // Check if current user follows the provider
     const isFollowing = await this.userModel.exists({
       _id: currentUserId,
-      followedProviders: otherUserId,
+      followedProviders: otherUser.activeRoleId,
     });
     if (isFollowing) return true;
 
@@ -108,7 +121,6 @@ export class ChatService {
 
     if (!(await this.chatEligibilyStatus(user, otherUser))) {
       throw new BadRequestException(
-        { chatCreation: false },
         'You must follow the provider to initiate chat',
       );
     }
@@ -119,19 +131,17 @@ export class ChatService {
       isActive: true,
     });
 
-    if (chat) {
-      return chat;
+    if (!chat) {
+      // Create new chat
+      chat = new this.chatModel({
+        participants: [user, otherUser],
+        isActive: true,
+      });
+      await chat.save({ session });
+      this.logger.log(
+        `Chat created between user ${user} and provider ${otherUser}`,
+      );
     }
-
-    // Create new chat
-    chat = new this.chatModel({
-      participants: [user, otherUser],
-      isActive: true,
-    });
-    await chat.save({ session });
-    this.logger.log(
-      `Chat created between user ${user} and provider ${otherUser}`,
-    );
     return chat.populate({
       path: 'participants',
       model: 'User',
@@ -428,18 +438,5 @@ export class ChatService {
     message.deleted = true;
     message.deletedAt = new Date();
     await message.save();
-  }
-
-  async updateLastSeen(userId: string, lastSeen: Date) {
-    await this.presenceModel.updateOne(
-      { userId },
-      { $set: { isOnline: false, lastSeen } },
-      { upsert: true },
-    );
-  }
-
-  async getLastSeen(userId: string): Promise<Date | null> {
-    const presence = await this.presenceModel.findOne({ userId });
-    return presence?.lastSeen || null;
   }
 }

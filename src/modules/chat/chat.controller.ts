@@ -111,10 +111,4 @@ export class ChatController {
 
     return { success: true };
   }
-
-  @Get('lastseen/:userId')
-  async getLastSeen(@Param('userId') userId: string) {
-    const lastSeen = await this.chatService.getLastSeen(userId);
-    return { lastSeen: lastSeen || null };
-  }
 }

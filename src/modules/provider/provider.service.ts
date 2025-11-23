@@ -119,7 +119,7 @@ export class ProviderService {
       // Prepare provider data
       const providerData: any = {
         ...createProviderDto,
-        providerLogo: providerLogoMedia[0] || undefined,
+        providerLogo: providerLogoMedia || undefined,
         providerImages: providerImagesMedia
           ? providerImagesMedia.map((m) => ({
               type: m.type,
@@ -240,7 +240,7 @@ export class ProviderService {
 
       // console.log('File URLs after upload:', fileUrls);
 
-      const providerLogoMedia = fileUrls.providerLogo[0] as
+      const providerLogoMedia = fileUrls.providerLogo?.[0] as
         | { type: string; url: string; thumbnail?: string | null }
         | null
         | undefined;

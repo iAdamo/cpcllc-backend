@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument, Types, SchemaTypes } from 'mongoose';
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class Notification {
@@ -28,7 +28,7 @@ export class Notification {
   @Prop({ default: null })
   actionUrl: string;
 
-  @Prop({ default: null })
+  @Prop({ type: SchemaTypes.Mixed, default: {} })
   metaData: Record<string, any>;
 
   @Prop({ default: null })

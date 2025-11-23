@@ -5,12 +5,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { User, UserSchema } from '@modules/schemas/user.schema';
 import { Chat, ChatSchema } from './schemas/chat.schema';
+import { Provider, ProviderSchema } from '@modules/schemas/provider.schema';
 import { Presence, PresenceSchema } from './schemas/presence.schema';
 import { JobPost, JobPostSchema } from '@modules/schemas/job.schema';
 import { Proposal, ProposalSchema } from '@modules/schemas/proposal.schema';
 import { CacheModule } from '@modules/cache.module';
 import { ChatController } from './chat.controller';
 import { DbStorageService } from 'src/common/utils/dbStorage';
+import { NotificationService } from '../notificaton/notification.service';
 
 @Module({
   imports: [
@@ -18,13 +20,14 @@ import { DbStorageService } from 'src/common/utils/dbStorage';
     MongooseModule.forFeature([
       { name: Message.name, schema: MessageSchema },
       { name: User.name, schema: UserSchema },
+      { name: Provider.name, schema: ProviderSchema },
       { name: Chat.name, schema: ChatSchema },
       { name: Presence.name, schema: PresenceSchema },
       { name: JobPost.name, schema: JobPostSchema },
       { name: Proposal.name, schema: ProposalSchema },
     ]),
   ],
-  providers: [ChatService, ChatGateway, DbStorageService],
+  providers: [ChatService, ChatGateway, DbStorageService, NotificationService],
   controllers: [ChatController],
   exports: [ChatService],
 })
