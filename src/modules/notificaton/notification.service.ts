@@ -24,8 +24,43 @@ export class NotificationService {
     );
   }
 
-  async getPresence(userId: string): Promise<Date | null> {
-    const presence = await this.presenceModel.findOne({ userId });
-    return presence?.lastSeen || null;
+  async getPresence(userId: string): Promise<Presence> {
+    return await this.presenceModel.findOne({ userId });
+  }
+
+  async updateAvailability(userId: string, status: string): Promise<Presence> {
+    if (!userId) {
+      throw new BadRequestException(
+        'userId is required to update availability',
+      );
+    }
+
+    const normalized = (status || '').trim().toLowerCase();
+
+    // Allowed statuses
+    const allowedStatuses = ['available', 'offline', 'busy', 'away'];
+    if (!allowedStatuses.includes(normalized)) {
+      throw new BadRequestException(`Invalid availability status: ${status}`);
+    }
+
+    // Online if NOT offline
+    const isOnline = normalized !== 'offline';
+
+    const update: any = {
+      isOnline,
+      availability: normalized, // store lowercase consistently
+    };
+
+    if (!isOnline) {
+      update.lastSeen = new Date();
+    }
+
+    const updated = await this.presenceModel.findOneAndUpdate(
+      { userId },
+      { $set: update },
+      { new: true, upsert: true, lean: true },
+    );
+
+    return updated;
   }
 }

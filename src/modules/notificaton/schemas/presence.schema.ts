@@ -11,8 +11,8 @@ export class Presence {
 
   @Prop({
     type: String,
-    enum: ['Online', 'Offline', 'Busy'],
-    default: 'Client',
+    enum: ['available', 'offline', 'busy', 'away'],
+    default: 'offline',
   })
   availability: string;
 
