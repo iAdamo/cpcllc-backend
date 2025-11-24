@@ -14,7 +14,7 @@ import { ProviderModule } from './modules/provider/provider.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CacheModule } from './modules/cache/cache.module';
 import { ChatModule } from './modules/chat/chat.module';
-import { NotificatonModule } from './modules/notificaton/notificaton.module';
+import { NotificatonModule } from './modules/notification/notification.module';
 
 @Module({
   imports: [

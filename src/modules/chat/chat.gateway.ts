@@ -1,4 +1,3 @@
-import { Notification } from './../notificaton/schemas/notification.schema';
 import * as jwt from 'jsonwebtoken';
 import {
   WebSocketGateway,
@@ -18,9 +17,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
-import { NotificationService } from '../notificaton/notification.service';
+import { NotificationService } from '../notification/notification.service';
 import { Types } from 'mongoose';
-import { WsJwtGuard, JwtAuthGuard } from '@modules/jwt/jwt.guard';
+import { WsJwtGuard } from '@modules/jwt/jwt.guard';
 
 interface AuthenticatedSocket extends Socket {
   userId: Types.ObjectId;

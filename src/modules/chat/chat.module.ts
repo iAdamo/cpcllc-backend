@@ -12,11 +12,13 @@ import { Proposal, ProposalSchema } from '@modules/schemas/proposal.schema';
 import { CacheModule } from '@modules/cache.module';
 import { ChatController } from './chat.controller';
 import { DbStorageService } from 'src/common/utils/dbStorage';
-import { NotificationService } from '../notificaton/notification.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificatonModule } from '../notification/notification.module';
 
 @Module({
   imports: [
     CacheModule,
+    NotificatonModule,
     MongooseModule.forFeature([
       { name: Message.name, schema: MessageSchema },
       { name: User.name, schema: UserSchema },
