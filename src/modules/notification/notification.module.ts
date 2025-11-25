@@ -25,8 +25,8 @@ import {
     ]),
   ],
 
-  providers: [NotificationService],
+  providers: [NotificationService, BullModule],
   controllers: [NotificationController],
-  exports: [NotificationService],
+  exports: [NotificationService, BullModule],
 })
 export class NotificatonModule {}
