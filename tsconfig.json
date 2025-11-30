@@ -23,14 +23,17 @@
         "src/modules/media/*",
         "src/modules/search/*",
         "src/modules/admin/*",
-        "src/modules/cache/*"
+        "src/modules/cache/*",
+        "src/modules/websocket/*"
+
       ],
       "@schemas/*": [
         "src/modules/users/schemas/*",
         "src/modules/services/schemas/*",
         "src/modules/review/schemas/*",
         "src/modules/provider/schemas/*",
-        "src/modules/chat/schemas/*"
+        "src/modules/chat/schemas/*",
+        "src/modules/notification/schemas/*"
       ],
       "@dto/*": [
         "src/modules/users/dto/*",
@@ -46,7 +49,9 @@
         "src/modules/services/*",
         "src/modules/search/*",
         "src/modules/review/*",
-        "src/modules/provider/*"
+        "src/modules/provider/*",
+        "src/modules/notification/*",
+        "src/modules/chat/*"
       ],
       "@services/*": [
         "src/modules/users/*",
@@ -57,7 +62,9 @@
         "src/modules/review/*",
         "src/modules/provider/*",
         "src/modules/admin/*",
-        "src/modules/cache/*"
+        "src/modules/cache/*",
+        "src/modules/notification/*",
+        "src/modules/chat/*"
       ],
       "@guards/*": ["src/modules/auth/jwt/*"]
     },

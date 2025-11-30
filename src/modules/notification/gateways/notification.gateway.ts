@@ -30,9 +30,7 @@ interface AuthenticatedSocket extends Socket {
 })
 @UseGuards(WsJwtGuard)
 @UsePipes(new ValidationPipe({ transform: true }))
-export class NotificationGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+export class NotificationGateway {
   @WebSocketServer()
   server: Server;
 
@@ -44,67 +42,6 @@ export class NotificationGateway
     private readonly notificationService: NotificationService,
     private readonly configService: ConfigService,
   ) {}
-
-  async handleConnection(client: AuthenticatedSocket) {
-    try {
-      const token =
-        client.handshake?.auth?.token ||
-        client.handshake?.headers?.authorization?.split(' ')[1];
-      if (!token) {
-        this.logger.error(`Client connection rejected: No token provided`);
-        client.disconnect();
-        return;
-      }
-
-      const payload = jwt.verify(
-        token,
-        this.configService.get('JWT_SECRET') || process.env.JWT_SECRET,
-      ) as {
-        sub: string;
-        email: string;
-      };
-      client.userId = new Types.ObjectId(payload.sub);
-      const userId = client.userId?.toString();
-      if (!userId) {
-        client.disconnect();
-        return;
-      }
-      // Join room for user-specific notifications
-      const userIdStr = userId.toString();
-      client.join(`user:${userIdStr}`);
-
-      if (!this.connectedClients.has(userIdStr))
-        this.connectedClients.set(userIdStr, new Set());
-
-      this.connectedClients.get(userIdStr).add(client);
-
-      this.logger.log(`Client connected: ${client.id} for user ${userIdStr}`);
-      this.logger.debug(
-        `Total connected clients: ${this.connectedClients.size}`,
-      );
-    } catch (error: any) {
-      this.logger.error(
-        `Authentication failed for client ${client.id}: ${error.message}`,
-      );
-      client.disconnect();
-    }
-  }
-
-  async handleDisconnect(client: AuthenticatedSocket): Promise<void> {
-    const userIdStr = client.userId?.toString();
-    if (userIdStr && this.connectedClients.has(userIdStr)) {
-      const connectedClients = this.connectedClients.get(userIdStr);
-      connectedClients.delete(client);
-      if (connectedClients.size === 0) {
-        this.connectedClients.delete(userIdStr);
-        await this.notificationService.updateLastSeen(userIdStr, new Date());
-        this.logger.log(`User ${userIdStr} is now offline`);
-      }
-    }
-    this.logger.log(`Client disconnected: ${client.id}`);
-
-    this.logger.debug(`Total connected clients: ${this.connectedClients.size}`);
-  }
 
   @SubscribeMessage('mark_as_read')
   async handleMarkAsRead(

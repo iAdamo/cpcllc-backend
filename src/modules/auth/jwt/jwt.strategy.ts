@@ -22,17 +22,24 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     email: string;
     phoneNumber?: string;
     admin: boolean;
+    roles: 'Client' | 'Provider' | 'Admin';
+    deviceId: string | unknown;
+    sessionId: string;
   }): Promise<{
     userId: string;
     email: string;
     phoneNumber?: string;
-    admin?: boolean;
+    roles: 'Client' | 'Provider' | 'Admin';
+    deviceId: string | unknown;
+    sessionId: string;
   }> {
     return {
       userId: payload.sub,
       email: payload.email,
       phoneNumber: payload.phoneNumber,
-      admin: payload.admin,
+      roles: payload.roles,
+      deviceId: payload.deviceId,
+      sessionId: payload.sessionId,
     };
   }
 }

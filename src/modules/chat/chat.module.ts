@@ -14,6 +14,13 @@ import { ChatController } from './chat.controller';
 import { DbStorageService } from 'src/common/utils/dbStorage';
 import { NotificationService } from '../notification/notification.service';
 import { NotificatonModule } from '../notification/notification.module';
+import { Notification, NotificationSchema } from '@schemas/notification.schema';
+import {
+  UserPreference,
+  UserPreferenceSchema,
+} from '@schemas/user-preference.schema';
+import { PreferencesService } from '@controllers/preferences.service';
+import { InAppAdapter, PushAdapter, EmailAdapter } from '../notification/adapters';
 
 @Module({
   imports: [
@@ -27,9 +34,20 @@ import { NotificatonModule } from '../notification/notification.module';
       { name: Presence.name, schema: PresenceSchema },
       { name: JobPost.name, schema: JobPostSchema },
       { name: Proposal.name, schema: ProposalSchema },
+      { name: Notification.name, schema: NotificationSchema },
+      { name: UserPreference.name, schema: UserPreferenceSchema },
     ]),
   ],
-  providers: [ChatService, ChatGateway, DbStorageService, NotificationService],
+  providers: [
+    ChatService,
+    ChatGateway,
+    DbStorageService,
+    NotificationService,
+    PreferencesService,
+    InAppAdapter,
+    PushAdapter,
+    EmailAdapter,
+  ],
   controllers: [ChatController],
   exports: [ChatService],
 })

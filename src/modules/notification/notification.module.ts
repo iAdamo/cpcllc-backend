@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationService } from './notification.service';
+import { PreferencesService } from './preferences.service';
 import { NotificationController } from './notification.controller';
 import {
   Notification,
@@ -12,11 +13,13 @@ import {
   UserPreference,
   UserPreferenceSchema,
 } from './schemas/user-preference.schema';
+import { NotificationProcessor } from './processors/notification.processor';
+import { InAppAdapter, PushAdapter, EmailAdapter } from './adapters';
 
 @Module({
   imports: [
     BullModule.registerQueue({
-      name: 'notificationQueue',
+      name: 'notification-delivery',
     }),
     MongooseModule.forFeature([
       { name: Notification.name, schema: NotificationSchema },
@@ -25,7 +28,14 @@ import {
     ]),
   ],
 
-  providers: [NotificationService, BullModule],
+  providers: [
+    NotificationService,
+    BullModule,
+    PreferencesService,
+    InAppAdapter,
+    PushAdapter,
+    EmailAdapter,
+  ],
   controllers: [NotificationController],
   exports: [NotificationService, BullModule],
 })

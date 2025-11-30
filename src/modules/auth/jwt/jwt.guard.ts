@@ -14,7 +14,9 @@ interface AuthUser {
   userId: string;
   sub?: string;
   email: string;
-  admin: boolean;
+  roles: 'Client' | 'Provider' | 'Admin';
+  deviceId: string | unknown;
+  sessionId: string;
 }
 interface AuthenticatedRequest extends Request {
   user: AuthUser;
@@ -29,7 +31,7 @@ export class AdminGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = request.user;
 
-    if (!user || !user.admin) {
+    if (!user || user.roles !== 'Admin') {
       throw new ForbiddenException('Access denied. Admins only.');
     }
 
@@ -79,6 +81,15 @@ export class WsJwtGuard implements CanActivate {
       // validate token using JwtService
       const payload = jwt.verify(token, process.env.JWT_SECRET) as AuthUser;
       client.user = payload;
+      (client as any).user = {
+        userId: payload.sub,
+        email: payload.email,
+        roles: payload.roles || [],
+        deviceId:
+          (client.handshake.headers['device-id'] as string) || 'unknown',
+        sessionId:
+          (client.handshake.headers['session-id'] as string) || client.id,
+      };
       return true;
     } catch (err) {
       return false;
