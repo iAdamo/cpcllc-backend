@@ -1,27 +1,26 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types, SchemaTypes } from 'mongoose';
 import {
-  NotificationCategory,
-  ActionType,
   NotificationChannel,
-  NotificationPayload,
+  NotificationCategory,
   NotificationStatus,
+  ActionType,
 } from '../interfaces/notification.interface';
 
 export type NotificationDocument = HydratedDocument<Notification>;
 
-@Schema({ timestamps: { createdAt: true, updatedAt: false } })
+@Schema({ timestamps: true })
 export class Notification {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   userId: Types.ObjectId;
 
-  @Prop({ type: String, index: true })
-  tenantId?: string;
+  @Prop({ index: true })
+  tenantId: string;
 
-  @Prop({ type: String, required: true })
+  @Prop({ required: true })
   title: string;
 
-  @Prop({ type: String, required: true })
+  @Prop({ required: true })
   body: string;
 
   @Prop({
@@ -32,47 +31,84 @@ export class Notification {
   })
   category: NotificationCategory;
 
-  @Prop({ type: String })
-  actionUrl?: string;
-
-  @Prop({ type: String, enum: Object.values(ActionType) })
-  actionType?: ActionType;
-
-  @Prop({ type: Object })
-  meta?: Record<string, any>;
-
   @Prop({
-    type: [String],
-    enum: Object.values(NotificationChannel),
-    required: true,
+    type: String,
+    enum: ['low', 'normal', 'high', 'urgent'],
+    default: 'normal',
   })
-  channels: NotificationChannel[];
+  priority: string;
 
   @Prop({
     type: String,
     enum: Object.values(NotificationStatus),
     default: NotificationStatus.PENDING,
-    index: true,
   })
   status: NotificationStatus;
 
-  @Prop({ type: Date })
-  readAt?: Date;
+  @Prop()
+  actionUrl: string;
 
-  @Prop({ type: Date })
-  deliveredAt?: Date;
+  @Prop({
+    type: String,
+    enum: Object.values(ActionType),
+  })
+  actionType: ActionType;
 
-  @Prop({ type: Date, index: { expireAfterSeconds: 0 } })
-  expiresAt?: Date;
+  @Prop({ type: Object })
+  meta: Record<string, any>;
 
-  @Prop({ type: Date })
-  createdAt: Date;
+  @Prop({
+    type: [String],
+    enum: Object.values(NotificationChannel),
+    default: [NotificationChannel.IN_APP],
+  })
+  channels: NotificationChannel[];
 
-  @Prop({ type: Date })
-  updatedAt: Date;
+  @Prop({
+    type: [
+      {
+        channel: { type: String, enum: Object.values(NotificationChannel) },
+        status: {
+          type: String,
+          enum: ['pending', 'sent', 'failed', 'delivered'],
+        },
+        messageId: String,
+        error: String,
+        sentAt: Date,
+        deliveredAt: Date,
+        retryCount: { type: Number, default: 0 },
+      },
+    ],
+    default: [],
+  })
+  deliveries: Array<{
+    channel: NotificationChannel;
+    status: string;
+    messageId?: string;
+    error?: string;
+    sentAt?: Date;
+    deliveredAt?: Date;
+    retryCount: number;
+  }>;
+
+  @Prop()
+  readAt: Date;
+
+  @Prop()
+  expiresAt: Date;
+
+  @Prop()
+  scheduledAt: Date;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);
 
+// Compound indexes for efficient querying
 NotificationSchema.index({ userId: 1, status: 1 });
-NotificationSchema.index({ userId: 1, readAt: 1 }); // For unread notifications
+NotificationSchema.index({ userId: 1, createdAt: -1 });
+NotificationSchema.index({ userId: 1, status: 1 });
+NotificationSchema.index({ userId: 1, category: 1 });
+NotificationSchema.index({ userId: 1, readAt: 1 });
+NotificationSchema.index({ tenantId: 1, createdAt: -1 });
+NotificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 2592000 }); // Auto-delete after 30 days
+NotificationSchema.index({ scheduledAt: 1 }, { expireAfterSeconds: 0 }); // TTL for scheduled

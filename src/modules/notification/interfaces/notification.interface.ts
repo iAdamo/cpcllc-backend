@@ -1,3 +1,5 @@
+import { DeliveryLog } from "./delivery-job.interface";
+
 export enum NotificationChannel {
   EMAIL = 'email',
   PUSH = 'push',

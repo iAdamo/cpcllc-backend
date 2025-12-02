@@ -34,32 +34,73 @@ export class UserPreference {
 
   @Prop({
     type: {
-      start: { type: String, default: '22:00' }, // HH:mm format
-      end: { type: String, default: '08:00' }, // HH:mm format
-      timezone: { type: String, default: 'UTC' },
+      start: String,
+      end: String,
+      timezone: String,
+      enabled: { type: Boolean, default: false },
     },
   })
-  quietHours?: {
+  quietHours: {
     start: string;
     end: string;
     timezone: string;
+    enabled: boolean;
   };
 
-  @Prop({ type: [String], default: [] })
-  pushTokens: string[];
+  @Prop({
+    type: [
+      {
+        token: { type: String, required: true },
+        platform: {
+          type: String,
+          enum: ['ios', 'android', 'web'],
+          required: true,
+        },
+        deviceId: { type: String, required: true },
+        enabled: { type: Boolean, default: true },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    default: [],
+  })
+  pushTokens: Array<{
+    token: string;
+    platform: string;
+    deviceId: string;
+    enabled: boolean;
+    createdAt: Date;
+  }>;
 
-  @Prop({ type: String })
-  email?: string;
+  @Prop()
+  email: string;
 
-  @Prop({ type: String })
-  phone?: string;
+  @Prop()
+  phone: string;
 
-  @Prop({ type: Date })
+  @Prop({ default: 'en' })
+  language: string;
+
+  @Prop({ type: Object })
+  deviceInfo: {
+    platform: string;
+    osVersion: string;
+    appVersion: string;
+    deviceModel: string;
+    locale: string;
+    timezone: string;
+  };
+
+  @Prop()
   createdAt: Date;
 
-  @Prop({ type: Date })
+  @Prop()
   updatedAt: Date;
 }
 
 export const UserPreferenceSchema =
   SchemaFactory.createForClass(UserPreference);
+
+// Indexes
+UserPreferenceSchema.index({ email: 1 }, { sparse: true });
+UserPreferenceSchema.index({ phone: 1 }, { sparse: true });
+UserPreferenceSchema.index({ 'pushTokens.token': 1 }, { sparse: true });
