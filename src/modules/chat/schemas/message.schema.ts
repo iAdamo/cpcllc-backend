@@ -1,15 +1,8 @@
 // message.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { MessageType } from '@controllers/interfaces/chat.interface';
 
-export enum MessageType {
-  TEXT = 'text',
-  IMAGE = 'image',
-  VIDEO = 'video',
-  AUDIO = 'audio',
-  FILE = 'file',
-  SYSTEM = 'system',
-}
 
 class MessageContent {
   @Prop()

@@ -24,7 +24,8 @@
         "src/modules/search/*",
         "src/modules/admin/*",
         "src/modules/cache/*",
-        "src/modules/websocket/*"
+        "src/modules/websocket/*",
+        "src/modules/chat/*"
 
       ],
       "@schemas/*": [

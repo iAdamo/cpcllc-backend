@@ -8,7 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, ClientSession } from 'mongoose';
 import { Provider, ProviderDocument } from '@modules/schemas/provider.schema';
 import { Chat, ChatDocument } from './schemas/chat.schema';
-import { Message, MessageDocument, MessageType } from '@schemas/message.schema';
+import { Message, MessageDocument } from '@schemas/message.schema';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Presence, PresenceDocument } from '@schemas/presence.schema';
 import { Proposal, ProposalDocument } from '@schemas/proposal.schema';
@@ -17,21 +17,15 @@ import { CreateChatDto } from './dto/create-chat.dto';
 import { format, isToday, isYesterday } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { DbStorageService } from 'src/common/utils/dbStorage';
-
-interface SendMessageDto {
-  chatId: Types.ObjectId;
-  senderId: Types.ObjectId;
-  type: MessageType;
-  content?: {
-    text?: string;
-    mediaUrl?: string;
-    mediaType?: string;
-    size?: number;
-    duration?: number;
-    fileName?: string;
-  };
-  replyTo?: Types.ObjectId;
-}
+import { AppGateway } from '../websocket/app.gateway';
+import { ChatEvents } from './chat.events';
+import { SocketManagerService } from '@modules/socket-manager.service';
+import {
+  TypingDto,
+  MessageType,
+  SendMessageDto,
+  JoinChatDto,
+} from './interfaces/chat.interface';
 
 @Injectable()
 export class ChatService {
@@ -47,6 +41,8 @@ export class ChatService {
     private proposalModel: Model<ProposalDocument>,
     @InjectModel(JobPost.name) private jobPostModel: Model<JobPostDocument>,
     private readonly storage: DbStorageService,
+    private readonly appGateway: AppGateway,
+    private readonly socketManager: SocketManagerService,
   ) {}
 
   private async chatEligibilyStatus(
@@ -96,7 +92,7 @@ export class ChatService {
     currentUserId: string,
     createChatDto: CreateChatDto,
     session?: ClientSession,
-  ): Promise<ChatDocument> {
+  ): Promise<void> {
     const { participants } = createChatDto;
     if (!participants) {
       throw new BadRequestException(
@@ -142,34 +138,34 @@ export class ChatService {
         `Chat created between user ${user} and provider ${otherUser}`,
       );
     }
-    return chat.populate({
-      path: 'participants',
-      model: 'User',
-      select: 'firstName lastName profilePicture',
-      match: { _id: { $ne: user } },
-      populate: [
-        {
-          path: 'followedProviders',
-          model: 'Provider',
-          select: 'providerName providerLogo',
-        },
-        {
-          path: 'activeRoleId',
-          model: 'Provider',
-          match: { _id: { $ne: user } },
-          populate: {
-            path: 'subcategories',
-            model: 'Subcategory',
-            select: 'name description',
-            populate: {
-              path: 'categoryId',
-              model: 'Category',
-              select: 'name description',
-            },
-          },
-        },
-      ],
+    this.populatedChat(user);
+  }
+
+  async joinChat(
+    userId: string,
+    chatId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    const user = new Types.ObjectId(userId);
+
+    // Check for existing chat between the two participants
+    let chat = await this.chatModel.findOne({
+      _id: new Types.ObjectId(chatId),
+      participants: new Types.ObjectId(userId),
+      isActive: true,
     });
+
+    if (!chat) {
+      throw new NotFoundException(
+        'Conversation not found or user not participant',
+      );
+    }
+
+    const sockets = await this.socketManager.getUserSockets(userId);
+    for (const socketId of sockets) {
+      this.appGateway.server.sockets.sockets.get(socketId)?.join(chatId);
+    }
+    this.logger.log(`User ${userId} joined conversation ${chatId}`);
   }
 
   async uploadFile(email: string, files: { file: Express.Multer.File[] }) {
@@ -224,20 +220,9 @@ export class ChatService {
     }
 
     const message = new this.messageModel(messageData);
-    const savedMessage = await message.save({ session });
+    await message.save({ session });
 
     // Update last message in chat
-    await this.updateChatLastMessage(chatId, savedMessage, session);
-
-    this.logger.log(`Message sent: ${savedMessage._id} in chat: ${chatId}`);
-    return savedMessage;
-  }
-
-  private async updateChatLastMessage(
-    chatId: Types.ObjectId,
-    message: MessageDocument,
-    session?: ClientSession,
-  ): Promise<void> {
     const lastMessage = {
       messageId: message._id,
       text: this.getMessagePreview(message),
@@ -249,6 +234,39 @@ export class ChatService {
       { _id: chatId },
       { lastMessage },
       { session },
+    );
+
+    this.logger.log(`Message sent: ${message._id} in chat: ${chatId}`);
+
+    await this.broadcastToChat(
+      chatId.toString(),
+      ChatEvents.MESSAGE_SENT,
+      message,
+    );
+
+    return message;
+  }
+  /**
+   * Handle typing indicators
+   */
+  async handleTyping(userId: string, dto: TypingDto): Promise<void> {
+    const event = dto.isTyping
+      ? ChatEvents.TYPING_START
+      : ChatEvents.TYPING_STOP;
+
+    await this.broadcastToChat(
+      dto.chatId,
+      event,
+      {
+        userId,
+        chatId: dto.chatId,
+        timestamp: new Date(),
+      },
+      userId, // Exclude the typing user
+    );
+
+    this.logger.debug(
+      `Typing ${dto.isTyping ? 'started' : 'stopped'} by ${userId} in ${dto.chatId}`,
     );
   }
 
@@ -275,7 +293,7 @@ export class ChatService {
     userId: Types.ObjectId,
     page: number = 1,
     limit: number = 50,
-  ): Promise<ChatDocument[]> {
+  ): Promise<void> {
     const skip = (page - 1) * limit;
 
     const user = await this.userModel.findById(userId);
@@ -298,44 +316,22 @@ export class ChatService {
       query['participants.0'] = { $ne: userId };
     }
 
-    return (
-      this.chatModel
-        .find(query)
-        .populate({
-          path: 'participants',
-          model: 'User',
-          select: 'firstName lastName profilePicture',
-          match: { _id: { $ne: userId } },
-          populate: [
-            {
-              path: 'followedProviders',
-              model: 'Provider',
-              select: 'providerName providerLogo',
-            },
-            {
-              path: 'activeRoleId',
-              model: 'Provider',
-              match: { _id: { $ne: userId } },
-              populate: {
-                path: 'subcategories',
-                model: 'Subcategory',
-                select: 'name description',
-                populate: {
-                  path: 'categoryId',
-                  model: 'Category',
-                  select: 'name description',
-                },
-              },
-            },
-          ],
-        })
-        // .populate('lastMessage.sender', 'firstName lastName')
-        // .sort({ 'lastMessage.createdAt': -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec()
-    );
+    this.populatedChat(userId, skip, limit, query);
   }
+
+  /**
+   * Leave conversation room
+   */
+  async leaveConversation(userId: string, chatId: string): Promise<void> {
+    const sockets = await this.socketManager.getUserSockets(userId);
+
+    for (const socketId of sockets) {
+      this.appGateway.server.sockets.sockets.get(socketId)?.leave(chatId);
+    }
+
+    this.logger.log(`User ${userId} left conversation ${chatId}`);
+  }
+
   async getChatMessages(
     chatId: Types.ObjectId,
     userId: Types.ObjectId,
@@ -438,5 +434,76 @@ export class ChatService {
     message.deleted = true;
     message.deletedAt = new Date();
     await message.save();
+  }
+
+  /**
+   * Get conversation participants
+   */
+  async getChatParticipants(chatId: string): Promise<Types.ObjectId[]> {
+    const chat = await this.chatModel.findById(chatId);
+    return chat?.participants || [];
+  }
+
+  /**
+   * Broadcast to all participants in a conversation
+   */
+  private async broadcastToChat(
+    chatId: string,
+    event: string,
+    data: any,
+    excludeUserId?: string,
+  ): Promise<void> {
+    const participants = await this.getChatParticipants(chatId);
+
+    for (const participantId of participants) {
+      if (participantId.toString() !== excludeUserId) {
+        await this.appGateway.sendToUser(participantId.toString(), event, data);
+      }
+    }
+  }
+
+  private populatedChat(
+    userId: Types.ObjectId,
+    skip?: number,
+    limit?: number,
+    query?: any,
+  ) {
+    return (
+      this.chatModel
+        .find(query)
+        .populate({
+          path: 'participants',
+          model: 'User',
+          select: 'firstName lastName profilePicture',
+          match: { _id: { $ne: userId } },
+          populate: [
+            {
+              path: 'followedProviders',
+              model: 'Provider',
+              select: 'providerName providerLogo',
+            },
+            {
+              path: 'activeRoleId',
+              model: 'Provider',
+              match: { _id: { $ne: userId } },
+              populate: {
+                path: 'subcategories',
+                model: 'Subcategory',
+                select: 'name description',
+                populate: {
+                  path: 'categoryId',
+                  model: 'Category',
+                  select: 'name description',
+                },
+              },
+            },
+          ],
+        })
+        // .populate('lastMessage.sender', 'firstName lastName')
+        // .sort({ 'lastMessage.createdAt': -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec()
+    );
   }
 }

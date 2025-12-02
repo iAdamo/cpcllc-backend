@@ -1,6 +1,4 @@
-import { WsJwtGuard } from '@modules/jwt/jwt.guard';
-import { Module, Global, DynamicModule } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { Module, Global, DynamicModule, forwardRef } from '@nestjs/common';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { AppGateway } from './app.gateway';
 import { EventRouterService } from './event-router.service';
@@ -18,11 +16,8 @@ export class WebSocketModule {
   static forRoot(): DynamicModule {
     return {
       module: WebSocketModule,
+
       imports: [
-        JwtModule.register({
-          secret: process.env.JWT_SECRET,
-          signOptions: { expiresIn: '24h' },
-        }),
         RedisModule.forRoot({
           type: 'single',
           url: process.env.REDIS_URL || 'redis://localhost:6379',
@@ -36,7 +31,6 @@ export class WebSocketModule {
         AppGateway,
         EventRouterService,
         SocketManagerService,
-        WsJwtGuard,
         SocketValidationPipe,
         RateLimiterService,
       ],
@@ -44,7 +38,6 @@ export class WebSocketModule {
         AppGateway,
         EventRouterService,
         SocketManagerService,
-        WsJwtGuard,
         SocketValidationPipe,
         RateLimiterService,
       ],

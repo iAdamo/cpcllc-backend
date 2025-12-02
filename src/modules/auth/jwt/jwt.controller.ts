@@ -1,6 +1,14 @@
-import { Controller, Post, Body, Res, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  Req,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtService } from './jwt.service';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { LoginDto } from '@dto/login.dto';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { ApiTags } from '@nestjs/swagger';
@@ -27,8 +35,9 @@ export class JwtController {
     @Body() loginDto: LoginDto,
     @Query('tokenType') tokenType: string,
     @Res() res: Response,
+    @Req() req: Request,
   ): Promise<any> {
-    await this.jwtService.login(loginDto, tokenType, res);
+    await this.jwtService.login(loginDto, tokenType, res, req);
   }
 
   @Post('logout')

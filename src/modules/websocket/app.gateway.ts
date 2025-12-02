@@ -1,4 +1,5 @@
 import { WsJwtGuard } from '@modules/jwt/jwt.guard';
+import * as jwt from 'jsonwebtoken';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -17,6 +18,7 @@ import { EventRouterService } from './event-router.service';
 import { SocketManagerService } from './socket-manager.service';
 import { SocketValidationPipe } from './socket-validation.pipe';
 import { RateLimiterService } from './rate-limiter.service';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * Main WebSocket Gateway - Single entry point for all WebSocket communications
@@ -28,7 +30,7 @@ import { RateLimiterService } from './rate-limiter.service';
     methods: ['GET', 'POST'],
     credentials: true,
   },
-  transports: ['websocket', 'polling'],
+  transports: ['websocket'],
   pingTimeout: 60000,
   pingInterval: 25000,
 })
@@ -46,6 +48,7 @@ export class AppGateway
     private readonly eventRouter: EventRouterService,
     private readonly socketManager: SocketManagerService,
     private readonly rateLimiter: RateLimiterService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -59,24 +62,94 @@ export class AppGateway
       this.logger.error('WebSocket server error:', error);
     });
   }
+  //  try {
+  //       const token =
+  //         client.handshake?.auth?.token ||
+  //         client.handshake?.headers?.authorization?.split(' ')[1];
+  //       if (!token) {
+  //         this.logger.error(`Client connection rejected: No token provided`);
+  //         client.disconnect();
+  //         return;
+  //       }
+
+  //       const payload = jwt.verify(
+  //         token,
+  //         this.configService.get('JWT_SECRET') || process.env.JWT_SECRET,
+  //       ) as {
+  //         sub: string;
+  //         email: string;
+  //       };
+  //       client.userId = new Types.ObjectId(payload.sub);
+  //       const userId = client.userId?.toString();
+  //       if (!userId) {
+  //         client.disconnect();
+  //         return;
+  //       }
+  //       // Join room for user-specific notifications
+  //       const userIdStr = userId.toString();
+  //       client.join(`user:${userIdStr}`);
+
+  //       if (!this.connectedClients.has(userIdStr))
+  //         this.connectedClients.set(userIdStr, new Set());
+
+  //       this.connectedClients.get(userIdStr).add(client);
+
+  //       this.logger.log(`Client connected: ${client.id} for user ${userIdStr}`);
+  //       this.logger.debug(
+  //         `Total connected clients: ${this.connectedClients.size}`,
+  //       );
+  //     } catch (error: any) {
+  //       this.logger.error(
+  //         `Authentication failed for client ${client.id}: ${error.message}`,
+  //       );
+  //       client.disconnect();
+  //     }
+  //   }
 
   /**
    * Handle new client connections
    */
   async handleConnection(@ConnectedSocket() client: AuthenticatedSocket) {
     try {
-      const { userId, deviceId, sessionId } = client.user;
+      const token =
+        client.handshake?.auth?.token ||
+        client.handshake?.headers?.authorization?.split(' ')[1];
+      if (!token) {
+        this.logger.error(`Client connection rejected: No token provided`);
+        client.disconnect();
+        return;
+      }
+      const payload = jwt.verify(
+        token,
+        this.configService.get('JWT_SECRET') || process.env.JWT_SECRET,
+      ) as {
+        sub: string;
+        email: string;
+        phoneNumber?: string;
+        roles: 'Client' | 'Provider' | 'Admin';
+        deviceId: string;
+        sessionId: string;
+      };
+      client.user = {} as any;
+      client.user.userId = payload.sub;
+      const userId = client.user.userId?.toString();
+      if (!userId) {
+        client.disconnect();
+        return;
+      }
+      // const userIdStr = userId.toString();
+      // client.join(`user:${userIdStr}`);
 
       // Register user session
       await this.socketManager.addUserSession(
         userId,
         client.id,
-        deviceId,
-        sessionId,
+        payload.deviceId,
+        payload.sessionId,
       );
 
       this.logger.log(
-        `Client connected: ${client.id}, User: ${userId}, Device: ${deviceId}`,
+        `Client connected: ${client.id}, User: ${userId}, Device: ${payload.deviceId}`,
       );
 
       // Notify presence system

@@ -6,11 +6,13 @@ import { JwtService } from '@modules/jwt/jwt.service';
 import { JwtController } from '@modules/jwt/jwt.controller';
 import { JwtStrategy } from '@modules/jwt/jwt.strategy';
 import { UsersModule } from '@modules/users.module';
+import { WebSocketModule } from '@modules/websocket.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from '@schemas/user.schema';
 
 @Module({
   imports: [
+    WebSocketModule,
     UsersModule,
     PassportModule,
     JwtModule.registerAsync({

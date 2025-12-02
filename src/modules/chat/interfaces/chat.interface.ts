@@ -1,6 +1,6 @@
 export interface Message {
   id: string;
-  conversationId: string;
+  chatId: string;
   senderId: string;
   content: string;
   type: MessageType;
@@ -14,6 +14,8 @@ export interface Message {
 export enum MessageType {
   TEXT = 'text',
   IMAGE = 'image',
+  VIDEO = 'video',
+  AUDIO = 'audio',
   FILE = 'file',
   SYSTEM = 'system',
 }
@@ -44,31 +46,47 @@ export interface ReadReceipt {
 }
 
 export interface TypingIndicator {
-  conversationId: string;
+  chatId: string;
   userId: string;
   isTyping: boolean;
   timestamp: Date;
 }
 
 // DTOs for event payloads
-export class SendMessageDto {
-  conversationId: string;
-  content: string;
+// export class SendMessageDto {
+//   chatId: string;
+//   content: string;
+//   type: MessageType;
+//   replyTo?: string;
+//   metadata?: Record<string, any>;
+// }
+
+export interface SendMessageDto {
+  chatId: string;
+  senderId: string;
   type: MessageType;
+  content?: {
+    text?: string;
+    mediaUrl?: string;
+    mediaType?: string;
+    size?: number;
+    duration?: number;
+    fileName?: string;
+  };
   replyTo?: string;
   metadata?: Record<string, any>;
 }
 
 export class MarkAsReadDto {
   messageIds: string[];
-  conversationId: string;
+  chatId: string;
 }
 
 export class TypingDto {
-  conversationId: string;
+  chatId: string;
   isTyping: boolean;
 }
 
-export class JoinConversationDto {
-  conversationId: string;
+export class JoinChatDto {
+  chatId: string;
 }

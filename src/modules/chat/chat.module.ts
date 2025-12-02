@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { WebSocketModule } from '@modules/websocket.module';
+import { forwardRef, Module } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -19,13 +20,14 @@ import {
   UserPreference,
   UserPreferenceSchema,
 } from '@schemas/user-preference.schema';
-import { PreferencesService } from '@controllers/preferences.service';
-import { InAppAdapter, PushAdapter, EmailAdapter } from '../notification/adapters';
+import { AppGateway } from '@modules/app.gateway';
+import { SocketManagerService } from '@modules/socket-manager.service';
+import { EventRouterService } from '@modules/event-router.service';
+import { SocketValidationPipe } from '@modules/socket-validation.pipe';
+import { RateLimiterService } from '@modules/rate-limiter.service';
 
 @Module({
   imports: [
-    CacheModule,
-    NotificatonModule,
     MongooseModule.forFeature([
       { name: Message.name, schema: MessageSchema },
       { name: User.name, schema: UserSchema },
@@ -37,16 +39,18 @@ import { InAppAdapter, PushAdapter, EmailAdapter } from '../notification/adapter
       { name: Notification.name, schema: NotificationSchema },
       { name: UserPreference.name, schema: UserPreferenceSchema },
     ]),
+    forwardRef(() => WebSocketModule),
+    CacheModule,
   ],
   providers: [
     ChatService,
-    ChatGateway,
     DbStorageService,
-    NotificationService,
-    PreferencesService,
-    InAppAdapter,
-    PushAdapter,
-    EmailAdapter,
+    // AppGateway,
+    // SocketManagerService,
+    // EventRouterService,
+    // SocketManagerService,
+    // SocketValidationPipe,
+    // RateLimiterService,
   ],
   controllers: [ChatController],
   exports: [ChatService],

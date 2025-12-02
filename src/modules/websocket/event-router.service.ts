@@ -4,7 +4,6 @@ import {
   AuthenticatedSocket,
   EventHandler,
 } from './interfaces/websocket.interface';
-import { ErrorHandler } from '@nestjs/common/interfaces';
 
 /**
  * Central event router that dispatches events to appropriate module handlers

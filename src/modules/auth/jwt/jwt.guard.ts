@@ -70,6 +70,8 @@ export class ProfileViewOnceGuard implements CanActivate {
 export class WsJwtGuard implements CanActivate {
   constructor() {}
   canActivate(context: ExecutionContext): boolean {
+    console.log('I am hhhhhhhhhhhhhhhhere');
+
     const client = context.switchToWs().getClient();
     const token =
       client.handshake?.auth?.token ||
@@ -85,10 +87,8 @@ export class WsJwtGuard implements CanActivate {
         userId: payload.sub,
         email: payload.email,
         roles: payload.roles || [],
-        deviceId:
-          (client.handshake.headers['device-id'] as string) || 'unknown',
-        sessionId:
-          (client.handshake.headers['session-id'] as string) || client.id,
+        deviceId: payload.deviceId,
+        sessionId: payload.sessionId,
       };
       return true;
     } catch (err) {

@@ -5,6 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Response, Request } from 'express';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { UsersService } from '@modules/users.service';
@@ -151,14 +152,21 @@ export class JwtService {
    * @param loginData Login DTO
    * @returns JWT access token
    */
-  async login(loginData: LoginDto, tokenType: string, res: any): Promise<any> {
+  async login(
+    loginData: LoginDto,
+    tokenType: string,
+    res: Response,
+    req: Request,
+  ): Promise<any> {
     const user = await this.validateUser(loginData.email, loginData.password);
     const userId = user['_id'];
     const payload = {
       sub: userId as Types.ObjectId,
       email: user.email,
       phoneNumber: user.phoneNumber,
-      admin: user.activeRole === 'Admin' || false,
+      role: user.activeRole,
+      deviceId: req.headers['x-device-id'],
+      sessionId: req.headers['x-session-id'],
     };
     const accessToken = this.jwtService.sign(payload);
 

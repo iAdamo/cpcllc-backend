@@ -39,12 +39,9 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post()
-  //   @UseInterceptors(FileFieldsInterceptor([{ name: 'media', maxCount: 10 }]))
   async createChat(
     @Body() createChatDto: CreateChatDto,
     @Req() req: RequestWithUser,
-    // @UploadedFiles()
-    // files?: { media?: Express.Multer.File[] },
   ) {
     const currentUserId = req.user.userId;
 
