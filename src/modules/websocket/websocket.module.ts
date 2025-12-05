@@ -1,10 +1,10 @@
 import { Module, Global, DynamicModule, forwardRef } from '@nestjs/common';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { AppGateway } from './app.gateway';
-import { EventRouterService } from './event-router.service';
-import { SocketManagerService } from './socket-manager.service';
+import { EventRouterService } from './services/event-router.service';
+import { SocketManagerService } from './services/socket-manager.service';
 import { SocketValidationPipe } from './socket-validation.pipe';
-import { RateLimiterService } from './rate-limiter.service';
+import { RateLimiterService } from './services/rate-limiter.service';
 
 /**
  * Core WebSocket Module - Provides foundational WebSocket services

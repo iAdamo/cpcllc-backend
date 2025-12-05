@@ -34,13 +34,14 @@ export class UserPreference {
 
   @Prop({
     type: {
-      start: String,
-      end: String,
-      timezone: String,
+      start: { type: String, default: '22:00' },
+      end: { type: String, default: '08:00' },
+      timezone: { type: String, default: 'UTC' },
       enabled: { type: Boolean, default: false },
     },
+    required: false,
   })
-  quietHours: {
+  quietHours?: {
     start: string;
     end: string;
     timezone: string;
@@ -53,7 +54,7 @@ export class UserPreference {
         token: { type: String, required: true },
         platform: {
           type: String,
-          enum: ['ios', 'android', 'web'],
+          enum: ['IOS', 'ANDROID', 'WEB'],
           required: true,
         },
         deviceId: { type: String, required: true },
@@ -72,16 +73,16 @@ export class UserPreference {
   }>;
 
   @Prop()
-  email: string;
+  email?: string;
 
   @Prop()
-  phone: string;
+  phone?: string;
 
   @Prop({ default: 'en' })
   language: string;
 
   @Prop({ type: Object })
-  deviceInfo: {
+  deviceInfo?: {
     platform: string;
     osVersion: string;
     appVersion: string;
@@ -89,12 +90,6 @@ export class UserPreference {
     locale: string;
     timezone: string;
   };
-
-  @Prop()
-  createdAt: Date;
-
-  @Prop()
-  updatedAt: Date;
 }
 
 export const UserPreferenceSchema =

@@ -13,11 +13,9 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { User } from '@schemas/user.schema';
 import { UsersService } from '@modules/users.service';
 import { AdminService } from '../admin/admin.service';
 import { ProviderService } from 'src/modules/provider/provider.service';
-import { CreateUserDto } from '@modules/dto/create-user.dto';
 // import { CreateProviderDto } from '../provider/dto/update-provider.dto';
 import { CreateAdminDto } from '@dto/create-admin.dto';
 import { UpdateUserDto } from '@modules/dto/update-user.dto';

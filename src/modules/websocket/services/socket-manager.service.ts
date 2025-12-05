@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
-import { UserSession, SocketRegistry } from './interfaces/websocket.interface';
+import { UserSession, SocketRegistry } from '../interfaces/websocket.interface';
 
 /**
  * Service for managing socket connections and user sessions

@@ -13,18 +13,18 @@ import { Proposal, ProposalSchema } from '@modules/schemas/proposal.schema';
 import { CacheModule } from '@modules/cache.module';
 import { ChatController } from './chat.controller';
 import { DbStorageService } from 'src/common/utils/dbStorage';
-import { NotificationService } from '../notification/notification.service';
-import { NotificatonModule } from '../notification/notification.module';
+import { NotificationService } from '../notification/services/notification.service';
+import { NotificationModule } from '@notification/notification.module';
 import { Notification, NotificationSchema } from '@schemas/notification.schema';
 import {
   UserPreference,
   UserPreferenceSchema,
 } from '@schemas/user-preference.schema';
 import { AppGateway } from '@modules/app.gateway';
-import { SocketManagerService } from '@modules/socket-manager.service';
-import { EventRouterService } from '@modules/event-router.service';
+import { SocketManagerService } from '@websocket/services/socket-manager.service';
+import { EventRouterService } from '@websocket/services/event-router.service';
 import { SocketValidationPipe } from '@modules/socket-validation.pipe';
-import { RateLimiterService } from '@modules/rate-limiter.service';
+import { RateLimiterService } from '@websocket/services/rate-limiter.service';
 
 @Module({
   imports: [

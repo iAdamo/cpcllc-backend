@@ -14,6 +14,7 @@
     "paths": {
       "@config/*": ["src/config/*"],
       "@types": ["src/types/index.d.ts"],
+      "@*": ["src/modules/*"],
       "@modules/*": [
         "src/modules/users/*",
         "src/modules/auth/*",

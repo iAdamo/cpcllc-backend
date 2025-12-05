@@ -3,14 +3,14 @@ import {
   NotificationCategory,
 } from './notification.interface';
 
-export interface UserPreferenceConfig {
+export interface UserPreference {
   userId: string;
   enabledChannels: NotificationChannel[];
   mutedCategories: NotificationCategory[];
   quietHours?: {
-    start: string; // HH:MM format, e.g., "22:00"
-    end: string; // HH:MM format, e.g., "08:00"
-    timezone: string; // IANA timezone, e.g., "America/New_York"
+    start: string;
+    end: string;
+    timezone: string;
     enabled: boolean;
   };
   pushTokens: PushToken[];
@@ -24,7 +24,7 @@ export interface UserPreferenceConfig {
 
 export interface PushToken {
   token: string;
-  platform: 'ios' | 'android' | 'web';
+  platform: 'IOS' | 'ANDROID' | 'WEB';
   deviceId: string;
   enabled: boolean;
   createdAt: Date;
@@ -55,14 +55,15 @@ export interface UpdatePreferenceDto {
 
 export interface UpdatePushTokenDto {
   token: string;
-  platform: 'ios' | 'android' | 'web';
+  platform: 'IOS' | 'ANDROID' | 'WEB';
   deviceId: string;
   enabled?: boolean;
 }
 
-export interface NotificationPreference {
+export interface NotificationPreferenceCheck {
   userId: string;
   canSend: boolean;
+  reason?: string;
   preferredChannels: NotificationChannel[];
   isQuietHours: boolean;
   isCategoryMuted: boolean;

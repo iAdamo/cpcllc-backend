@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types, ClientSession } from 'mongoose';
+import { Model, Types, ClientSession, FlattenMaps } from 'mongoose';
 import { Provider, ProviderDocument } from '@modules/schemas/provider.schema';
 import { Chat, ChatDocument } from './schemas/chat.schema';
 import { Message, MessageDocument } from '@schemas/message.schema';
@@ -19,13 +19,15 @@ import { toZonedTime } from 'date-fns-tz';
 import { DbStorageService } from 'src/common/utils/dbStorage';
 import { AppGateway } from '../websocket/app.gateway';
 import { ChatEvents } from './chat.events';
-import { SocketManagerService } from '@modules/socket-manager.service';
+import { SocketManagerService } from '@websocket/services/socket-manager.service';
 import {
   TypingDto,
   MessageType,
   SendMessageDto,
   JoinChatDto,
 } from './interfaces/chat.interface';
+
+type LeanMessage = FlattenMaps<MessageDocument> & { _id: Types.ObjectId };
 
 @Injectable()
 export class ChatService {
@@ -227,7 +229,7 @@ export class ChatService {
       messageId: message._id,
       text: this.getMessagePreview(message),
       sender: message.senderId,
-      createdAt: message.createdAt,
+      createdAt: message['createdAt'],
     };
 
     await this.chatModel.updateOne(
@@ -335,11 +337,10 @@ export class ChatService {
   async getChatMessages(
     chatId: Types.ObjectId,
     userId: Types.ObjectId,
-    page: number = 1,
-    limit: number = 100,
-    userTimezone: string = 'Africa/Lagos', // default fallback
-  ): Promise<{ title: string; data: MessageDocument[] }[]> {
-    // Verify user participation
+    page = 1,
+    limit = 100,
+    userTimezone = 'Africa/Lagos',
+  ): Promise<{ title: string; data: LeanMessage[] }[]> {
     const chat = await this.chatModel.findOne({
       _id: chatId,
       participants: userId,
@@ -353,33 +354,29 @@ export class ChatService {
     const skip = (page - 1) * limit;
 
     const messages = await this.messageModel
-      .find({
-        chatId,
-        deleted: false,
-      })
+      .find({ chatId, deleted: false })
       .populate('senderId', 'username profilePicture')
       .populate('replyTo')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .lean()
-      .exec();
+      .lean();
 
-    // --- Group messages by localized date ---
     const grouped = messages.reduce(
       (acc, message) => {
-        const localDate = toZonedTime(message.createdAt, userTimezone);
+        const localDate = toZonedTime(message['createdAt'], userTimezone);
 
         let title: string;
         if (isToday(localDate)) title = 'Today';
         else if (isYesterday(localDate)) title = 'Yesterday';
-        else title = format(localDate, 'MMM d, yyyy'); // e.g. "Oct 7, 2025"
+        else title = format(localDate, 'MMM d, yyyy');
 
         if (!acc[title]) acc[title] = [];
         acc[title].push(message);
+
         return acc;
       },
-      {} as Record<string, MessageDocument[]>,
+      {} as Record<string, LeanMessage[]>,
     );
 
     // --- Sort and format to SectionList structure ---

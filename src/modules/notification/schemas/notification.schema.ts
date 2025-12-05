@@ -4,6 +4,7 @@ import {
   NotificationChannel,
   NotificationCategory,
   NotificationStatus,
+  NotificationPriority,
   ActionType,
 } from '../interfaces/notification.interface';
 
@@ -33,10 +34,10 @@ export class Notification {
 
   @Prop({
     type: String,
-    enum: ['low', 'normal', 'high', 'urgent'],
-    default: 'normal',
+    enum: Object.values(NotificationPriority),
+    default: NotificationPriority.NORMAL,
   })
-  priority: string;
+  priority: NotificationPriority;
 
   @Prop({
     type: String,
@@ -55,7 +56,7 @@ export class Notification {
   actionType: ActionType;
 
   @Prop({ type: Object })
-  meta: Record<string, any>;
+  metadata: Record<string, any>;
 
   @Prop({
     type: [String],
@@ -67,10 +68,15 @@ export class Notification {
   @Prop({
     type: [
       {
-        channel: { type: String, enum: Object.values(NotificationChannel) },
+        channel: {
+          type: String,
+          enum: Object.values(NotificationChannel),
+          required: true,
+        },
         status: {
           type: String,
-          enum: ['pending', 'sent', 'failed', 'delivered'],
+          enum: ['PENDING', 'PROCESSING', 'SENT', 'DELIVERED', 'FAILED'],
+          default: 'PENDING',
         },
         messageId: String,
         error: String,
@@ -106,7 +112,6 @@ export const NotificationSchema = SchemaFactory.createForClass(Notification);
 // Compound indexes for efficient querying
 NotificationSchema.index({ userId: 1, status: 1 });
 NotificationSchema.index({ userId: 1, createdAt: -1 });
-NotificationSchema.index({ userId: 1, status: 1 });
 NotificationSchema.index({ userId: 1, category: 1 });
 NotificationSchema.index({ userId: 1, readAt: 1 });
 NotificationSchema.index({ tenantId: 1, createdAt: -1 });

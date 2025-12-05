@@ -637,14 +637,14 @@ export class ServicesService {
     return deleted;
   }
 
-  async getProposalsByJob(jobId: string): Promise<ProposalDocument[]> {
+  async getProposalsByJob(jobId: string): Promise<Proposal[]> {
     return this.proposalModel
       .find({ jobId: new Types.ObjectId(jobId) })
       .populate('providerId', 'providerName providerLogo isVerified owner')
       .lean();
   }
 
-  async getJobsByUser(userId: string): Promise<JobPostDocument[]> {
+  async getJobsByUser(userId: string): Promise<JobPost[]> {
     return this.jobPostModel
       .find({ userId: new Types.ObjectId(userId) })
       .populate({
@@ -672,7 +672,7 @@ export class ServicesService {
       })
       .lean();
   }
-  async getJobById(jobId: string): Promise<JobPostDocument> {
+  async getJobById(jobId: string): Promise<JobPost> {
     const job = await this.jobPostModel
       .findById(new Types.ObjectId(jobId))
       .populate({
@@ -703,7 +703,7 @@ export class ServicesService {
     return job;
   }
 
-  async getProposalById(proposalId: string): Promise<ProposalDocument> {
+  async getProposalById(proposalId: string): Promise<Proposal> {
     const proposal = await this.proposalModel
       .findById(new Types.ObjectId(proposalId))
       .populate('providerId', 'providerName providerLogo isVerified')

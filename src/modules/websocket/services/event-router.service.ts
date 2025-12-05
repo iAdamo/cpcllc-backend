@@ -1,9 +1,9 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { SocketEvents, EventEnvelope } from './socket.events';
+import { SocketEvents, EventEnvelope } from '../socket.events';
 import {
   AuthenticatedSocket,
   EventHandler,
-} from './interfaces/websocket.interface';
+} from '../interfaces/websocket.interface';
 
 /**
  * Central event router that dispatches events to appropriate module handlers

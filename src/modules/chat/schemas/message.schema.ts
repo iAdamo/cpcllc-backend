@@ -3,7 +3,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { MessageType } from '@controllers/interfaces/chat.interface';
 
-
 class MessageContent {
   @Prop()
   text?: string;
@@ -38,10 +37,8 @@ class MessageStatus {
   read: Types.ObjectId[];
 }
 
-@Schema({ timestamps: true, collection: 'messages' })
+@Schema({ timestamps: true })
 export class Message {
-  _id: Types.ObjectId;
-
   @Prop({ type: Types.ObjectId, ref: 'Chat', required: true, index: true })
   chatId: Types.ObjectId;
 
@@ -74,12 +71,6 @@ export class Message {
 
   @Prop()
   deletedAt?: Date;
-
-  @Prop({ default: Date.now })
-  createdAt: Date;
-
-  @Prop()
-  updatedAt: Date;
 }
 
 export type MessageDocument = HydratedDocument<Message>;

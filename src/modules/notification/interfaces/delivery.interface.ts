@@ -1,20 +1,22 @@
 import {
   NotificationChannel,
   NotificationCategory,
+  NotificationPriority,
 } from './notification.interface';
 
 export interface DeliveryJobData {
   notificationId: string;
-  channel: NotificationChannel;
   userId: string;
   tenantId?: string;
+  channel: NotificationChannel;
   title: string;
   body: string;
   category: NotificationCategory;
+  priority: NotificationPriority;
   actionUrl?: string;
   actionType?: string;
-  meta?: Record<string, any>;
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  metadata?: Record<string, any>;
+  retryCount: number;
 }
 
 export interface DeliveryResult {
@@ -26,9 +28,9 @@ export interface DeliveryResult {
   retryCount: number;
 }
 
-export interface DeliveryLog {
+export interface DeliveryStatus {
   channel: NotificationChannel;
-  status: 'pending' | 'sent' | 'failed' | 'delivered';
+  status: 'PENDING' | 'PROCESSING' | 'SENT' | 'DELIVERED' | 'FAILED';
   messageId?: string;
   error?: string;
   sentAt?: Date;
@@ -47,7 +49,7 @@ export interface ChannelConfig {
   };
 }
 
-export interface NotificationDeliveryConfig {
+export interface DeliveryConfig {
   [NotificationChannel.EMAIL]: ChannelConfig;
   [NotificationChannel.PUSH]: ChannelConfig;
   [NotificationChannel.SMS]: ChannelConfig;

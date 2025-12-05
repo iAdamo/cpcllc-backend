@@ -14,10 +14,10 @@ import { Logger, UseGuards, UsePipes } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SocketEvents, EventEnvelope } from './socket.events';
 import { AuthenticatedSocket } from './interfaces/websocket.interface';
-import { EventRouterService } from './event-router.service';
-import { SocketManagerService } from './socket-manager.service';
+import { EventRouterService } from './services/event-router.service';
+import { SocketManagerService } from './services/socket-manager.service';
 import { SocketValidationPipe } from './socket-validation.pipe';
-import { RateLimiterService } from './rate-limiter.service';
+import { RateLimiterService } from './services/rate-limiter.service';
 import { ConfigService } from '@nestjs/config';
 
 /**

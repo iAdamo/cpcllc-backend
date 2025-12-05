@@ -1,110 +1,71 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { EmailAdapter, PushAdapter, InAppAdapter } from '../adapters';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   DeliveryJobData,
-  NotificationPayload,
-} from '../interfaces/notification.interface';
+  DeliveryResult,
+} from '../interfaces/delivery.interface';
+import { NotificationService } from '../services/notification.service';
+import { DeliveryService } from '../services/delivery.service';
 
-@Injectable()
-@Processor('notification-delivery', {
-  concurrency: 5,
+@Processor('notification.delivery', {
+  concurrency: 10,
   limiter: {
     max: 100,
     duration: 1000,
   },
 })
-export class NotificationProcessor extends WorkerHost implements OnModuleInit {
+@Injectable()
+export class NotificationProcessor extends WorkerHost {
   private readonly logger = new Logger(NotificationProcessor.name);
-  private readonly channelAdapters: Map<string, any> = new Map();
 
   constructor(
-    private readonly emailAdapter: EmailAdapter,
-    private readonly pushAdapter: PushAdapter,
-    // private readonly smsAdapter: SmsAdapter,
-    private readonly inAppAdapter: InAppAdapter,
+    private readonly notificationService: NotificationService,
+    private readonly deliveryService: DeliveryService,
   ) {
     super();
   }
 
-  onModuleInit() {
-    // Register adapters
-    this.channelAdapters.set('email', this.emailAdapter);
-    this.channelAdapters.set('push', this.pushAdapter);
-    // this.channelAdapters.set('sms', this.smsAdapter);
-    this.channelAdapters.set('inapp', this.inAppAdapter);
-  }
-
-  async process(job: Job<DeliveryJobData>): Promise<any> {
-    const { channel, payload } = job.data;
-    this.logger.log(
-      `Processing ${channel} delivery for user ${payload.userId}`,
-    );
-
-    const adapter = this.channelAdapters.get(channel);
-    if (!adapter) {
-      throw new Error(`No adapter found for channel: ${channel}`);
-    }
+  async process(job: Job<DeliveryJobData>): Promise<DeliveryResult> {
+    this.logger.debug(`Processing delivery job: ${job.id}`);
 
     try {
-      // Get user-specific options for the adapter
-      const options = await this.getAdapterOptions(payload.userId, channel);
+      const result = await this.deliveryService.deliver(job.data);
 
-      await adapter.send(payload, options);
+      if (result.success) {
+        await this.notificationService.updateStatus(
+          job.data.notificationId,
+          job.data.channel,
+          'SENT',
+        );
+      } else if (result.error && result.retryCount >= 3) {
+        await this.notificationService.updateStatus(
+          job.data.notificationId,
+          job.data.channel,
+          'FAILED',
+          result.error,
+        );
+      }
 
-      this.logger.log(
-        `Successfully delivered ${channel} notification to user ${payload.userId}`,
-      );
-
-      return { success: true, channel, userId: payload.userId };
+      return result;
     } catch (error) {
-      this.logger.error(
-        `Failed to deliver ${channel} notification to user ${payload.userId}: ${error}`,
-        error,
-      );
-
-      // Rethrow to trigger retry mechanism
+      this.logger.error(`Failed to process job ${job.id}:`, error);
       throw error;
     }
   }
 
   @OnWorkerEvent('completed')
-  onCompleted(job: Job) {
-    this.logger.debug(`Job ${job.id} completed successfully`);
+  onCompleted(job: Job<DeliveryJobData>, result: DeliveryResult): void {
+    this.logger.debug(`Job ${job.id} completed via ${result.channel}`);
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
-    this.logger.error(`Job ${job.id} failed: ${error.message}`, error.stack);
+  onFailed(job: Job<DeliveryJobData>, error: Error): void {
+    this.logger.error(`Job ${job.id} failed:`, error);
   }
 
   @OnWorkerEvent('stalled')
-  onStalled(job: Job) {
-    this.logger.warn(`Job ${job.id} stalled`);
-  }
-
-  private async getAdapterOptions(
-    userId: string,
-    channel: string,
-  ): Promise<any> {
-    // In a real implementation, you would fetch user-specific configuration
-    // like email address, phone number, push tokens, etc.
-
-    const baseOptions: any = {};
-
-    switch (channel) {
-      case 'email':
-        baseOptions.email = `user-${userId}@example.com`; // Replace with actual email lookup
-        break;
-      case 'push':
-        baseOptions.pushTokens = [`token-for-${userId}`]; // Replace with actual token lookup
-        break;
-      case 'sms':
-        baseOptions.phone = '+1234567890'; // Replace with actual phone lookup
-        break;
-    }
-
-    return baseOptions;
+  onStalled(jobId: string): void {
+    this.logger.warn(`Job ${jobId} stalled`);
   }
 }

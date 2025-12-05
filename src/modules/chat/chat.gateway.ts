@@ -18,12 +18,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
-import { NotificationService } from '../notification/notification.service';
+import { NotificationService } from '../notification/services/notification.service';
 import { Types } from 'mongoose';
 import { WsJwtGuard } from '@modules/jwt/jwt.guard';
 import { EventHandler } from '@modules/interfaces/websocket.interface';
 import { ChatEvents } from './chat.events';
-import { EventRouterService } from '../websocket/event-router.service';
+import { EventRouterService } from '../websocket/services/event-router.service';
 import { AuthenticatedSocket } from '@modules/interfaces/websocket.interface';
 import {
   TypingDto,

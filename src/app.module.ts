@@ -14,7 +14,7 @@ import { ProviderModule } from './modules/provider/provider.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CacheModule } from './modules/cache/cache.module';
 import { ChatModule } from './modules/chat/chat.module';
-import { NotificatonModule } from './modules/notification/notification.module';
+import { NotificationModule } from './modules/notification/notification.module';
 import { WebSocketModule } from '@modules/websocket.module';
 
 @Module({
@@ -49,7 +49,7 @@ import { WebSocketModule } from '@modules/websocket.module';
     SearchModule,
     ProviderModule,
     CacheModule,
-    NotificatonModule,
+    NotificationModule,
   ],
   controllers: [],
   providers: [],

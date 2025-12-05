@@ -40,38 +40,46 @@ export class NotificationLog {
 
   @Prop({
     type: String,
-    enum: ['success', 'failed', 'skipped'],
+    enum: ['SENT', 'DELIVERED', 'FAILED', 'READ', 'CLICKED'],
     required: true,
   })
-  result: string;
+  action: string;
 
   @Prop()
   error: string;
 
   @Prop()
   messageId: string;
-
   @Prop({ type: Object })
-  meta: Record<string, any>;
+  metadata: Record<string, any>;
 
+  @Prop()
+  ipAddress: string;
+
+  @Prop()
+  userAgent: string;
+
+  @Prop()
+  deviceId: string;
+
+  @Prop()
+  location: string;
+
+  @Prop()
+  processingTime: number; // in milliseconds
   @Prop()
   deliveredAt: Date;
 
   @Prop({ default: 0 })
   retryCount: number;
-
-  @Prop()
-  createdAt: Date;
 }
 
 export const NotificationLogSchema =
   SchemaFactory.createForClass(NotificationLog);
 
-// Indexes for analytics and debugging
-NotificationLogSchema.index({ userId: 1, deliveredAt: -1 });
-NotificationLogSchema.index({ channel: 1, result: 1 });
-NotificationLogSchema.index({ category: 1, deliveredAt: -1 });
-NotificationLogSchema.index(
-  { deliveredAt: 1 },
-  { expireAfterSeconds: 7776000 },
-); // 90 days retention
+// Compound indexes for analytics
+NotificationLogSchema.index({ userId: 1, createdAt: -1 });
+NotificationLogSchema.index({ channel: 1, action: 1, createdAt: -1 });
+NotificationLogSchema.index({ category: 1, createdAt: -1 });
+NotificationLogSchema.index({ notificationId: 1, channel: 1 });
+NotificationLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 }); // 90 days TTL

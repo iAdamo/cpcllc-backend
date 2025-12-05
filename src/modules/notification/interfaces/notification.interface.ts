@@ -1,10 +1,10 @@
-import { DeliveryLog } from "./delivery-job.interface";
+import { DeliveryStatus } from "./delivery.interface";
 
 export enum NotificationChannel {
-  EMAIL = 'email',
-  PUSH = 'push',
-  SMS = 'sms',
-  IN_APP = 'inapp',
+  EMAIL = 'EMAIL',
+  PUSH = 'PUSH',
+  SMS = 'SMS',
+  IN_APP = 'IN_APP',
 }
 
 export enum NotificationCategory {
@@ -22,10 +22,19 @@ export enum NotificationCategory {
 
 export enum NotificationStatus {
   PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
   SENT = 'SENT',
+  DELIVERED = 'DELIVERED',
   FAILED = 'FAILED',
   READ = 'READ',
   ARCHIVED = 'ARCHIVED',
+}
+
+export enum NotificationPriority {
+  LOW = 'LOW',
+  NORMAL = 'NORMAL',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
 }
 
 export enum ActionType {
@@ -44,34 +53,13 @@ export interface NotificationPayload {
   title: string;
   body: string;
   category: NotificationCategory;
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  priority?: NotificationPriority;
   actionUrl?: string;
   actionType?: ActionType;
-  meta?: Record<string, any>;
+  metadata?: Record<string, any>;
   channels?: NotificationChannel[];
   expiresAt?: Date;
   scheduledAt?: Date;
-}
-
-export interface Notification {
-  id: string;
-  userId: string;
-  tenantId?: string;
-  title: string;
-  body: string;
-  category: NotificationCategory;
-  priority: 'low' | 'normal' | 'high' | 'urgent';
-  status: NotificationStatus;
-  actionUrl?: string;
-  actionType?: ActionType;
-  meta?: Record<string, any>;
-  channels: NotificationChannel[];
-  deliveries: DeliveryLog[];
-  readAt?: Date;
-  expiresAt?: Date;
-  scheduledAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface CreateNotificationDto {
@@ -80,10 +68,10 @@ export interface CreateNotificationDto {
   title: string;
   body: string;
   category: NotificationCategory;
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  priority?: NotificationPriority;
   actionUrl?: string;
   actionType?: ActionType;
-  meta?: Record<string, any>;
+  metadata?: Record<string, any>;
   channels?: NotificationChannel[];
   expiresAt?: Date;
   scheduledAt?: Date;
@@ -95,10 +83,10 @@ export interface CreateBulkNotificationDto {
   title: string;
   body: string;
   category: NotificationCategory;
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  priority?: NotificationPriority;
   actionUrl?: string;
   actionType?: ActionType;
-  meta?: Record<string, any>;
+  metadata?: Record<string, any>;
   channels?: NotificationChannel[];
   expiresAt?: Date;
   scheduledAt?: Date;
@@ -107,10 +95,7 @@ export interface CreateBulkNotificationDto {
 export interface UpdateNotificationDto {
   status?: NotificationStatus;
   readAt?: Date;
-}
-
-export interface MarkAsReadDto {
-  notificationIds: string[];
+  metadata?: Record<string, any>;
 }
 
 export interface FilterNotificationsDto {
@@ -119,9 +104,31 @@ export interface FilterNotificationsDto {
   categories?: NotificationCategory[];
   statuses?: NotificationStatus[];
   channels?: NotificationChannel[];
+  priority?: NotificationPriority;
   startDate?: Date;
   endDate?: Date;
   limit?: number;
   offset?: number;
   unreadOnly?: boolean;
+}
+
+export interface NotificationResponse {
+  id: string;
+  userId: string;
+  tenantId?: string;
+  title: string;
+  body: string;
+  category: NotificationCategory;
+  priority: NotificationPriority;
+  status: NotificationStatus;
+  actionUrl?: string;
+  actionType?: ActionType;
+  metadata?: Record<string, any>;
+  channels: NotificationChannel[];
+  deliveries: DeliveryStatus[];
+  readAt?: Date;
+  expiresAt?: Date;
+  scheduledAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
