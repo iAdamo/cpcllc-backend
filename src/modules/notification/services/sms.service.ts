@@ -1,13 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
-import Twilio from 'twilio';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   SNSClient,
   PublishCommand,
   PublishCommandInput,
 } from '@aws-sdk/client-sns';
+import { defaultProvider } from '@aws-sdk/credential-provider-node';
+// import { defaultProvider } from '@aws-sdk/credential-providers';
 // import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import { Vonage } from '@vonage/server-sdk';
 import { Auth } from '@vonage/auth';
+import Twilio from 'twilio';
 
 export interface SMSOptions {
   to: string;
@@ -15,74 +17,117 @@ export interface SMSOptions {
   from?: string;
   mediaUrl?: string;
   statusCallback?: string;
+  metadata?: Record<string, string>;
 }
 
 export interface SMSResult {
   success: boolean;
   messageId?: string;
   error?: string;
-  provider?: string;
+  provider: string;
+  cost?: number;
 }
 
-export interface SMSProvider {
-  name: string;
+export interface SMSProviderConfig {
+  name: 'aws' | 'twilio' | 'vonage';
   enabled: boolean;
   priority: number;
+  config: Record<string, any>;
 }
 
 @Injectable()
-export class SmsService {
+export class SmsService implements OnModuleInit {
   private readonly logger = new Logger(SmsService.name);
 
-  // Providers
+  // AWS v3 SNS Client
+  private snsClient: SNSClient | null = null;
+
+  // Other providers
   private twilioClient: any = null;
-  private awsSns: AWS.SNS | null = null;
   private vonageClient: any = null;
 
-  private readonly providers: SMSProvider[] = [
-    { name: 'twilio', enabled: false, priority: 1 },
-    { name: 'aws', enabled: false, priority: 2 },
-    { name: 'vonage', enabled: false, priority: 3 },
-  ];
+  private readonly providers: SMSProviderConfig[] = [];
 
-  constructor() {
-    this.initializeProviders();
+  async onModuleInit() {
+    await this.initializeProviders();
   }
 
-  private initializeProviders(): void {
+  private async initializeProviders(): Promise<void> {
+    // Initialize AWS SNS v3
+    if (process.env.AWS_REGION) {
+      try {
+        // Using credential chain (IAM roles, environment variables, ~/.aws/credentials)
+        // const credentials = fromNodeProviderChain({
+        //   clientConfig: { region: process.env.AWS_REGION },
+        const credentials = defaultProvider(); // Uses the default chain: env, shared config, SSO, EC2/ECS metadata, etc.
+
+        this.snsClient = new SNSClient({
+          region: process.env.AWS_REGION,
+          credentials,
+          maxAttempts: 3,
+        });
+
+        this.providers.push({
+          name: 'aws',
+          enabled: true,
+          priority: 1,
+          config: { region: process.env.AWS_REGION },
+        });
+
+        this.logger.log('AWS SNS v3 initialized successfully');
+      } catch (error) {
+        this.logger.error('Failed to initialize AWS SNS v3:', error);
+      }
+    }
+
     // Initialize Twilio
     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-      this.twilioClient = Twilio(
-        process.env.TWILIO_ACCOUNT_SID,
-        process.env.TWILIO_AUTH_TOKEN,
-      );
-      this.setProviderEnabled('twilio', true);
-      this.logger.log('Twilio SMS provider initialized');
+      try {
+        this.twilioClient = Twilio(
+          process.env.TWILIO_ACCOUNT_SID,
+          process.env.TWILIO_AUTH_TOKEN,
+        );
+
+        this.providers.push({
+          name: 'twilio',
+          enabled: true,
+          priority: 2,
+          config: {
+            accountSid: process.env.TWILIO_ACCOUNT_SID,
+            fromNumber: process.env.TWILIO_PHONE_NUMBER,
+          },
+        });
+
+        this.logger.log('Twilio SMS provider initialized');
+      } catch (error) {
+        this.logger.error('Failed to initialize Twilio:', error);
+      }
     }
 
-    // Initialize AWS SNS
-    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-      AWS.config.update({
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        region: process.env.AWS_REGION || 'us-east-1',
-      });
-
-      this.awsSns = new AWS.SNS();
-      this.setProviderEnabled('aws', true);
-      this.logger.log('AWS SNS provider initialized');
-    }
-
-    // Initialize Vonage (Nexmo)
+    // Initialize Vonage
     if (process.env.VONAGE_API_KEY && process.env.VONAGE_API_SECRET) {
-      const auth = new Auth({
-        apiKey: process.env.VONAGE_API_KEY,
-        apiSecret: process.env.VONAGE_API_SECRET,
-      });
+      try {
+        const auth = new Auth({
+          apiKey: process.env.VONAGE_API_KEY,
+          apiSecret: process.env.VONAGE_API_SECRET,
+        });
 
-      this.vonageClient = new Vonage(auth);
-      this.setProviderEnabled('vonage', true);
-      this.logger.log('Vonage SMS provider initialized');
+        this.vonageClient = new Vonage(auth);
+
+        this.providers.push({
+          name: 'vonage',
+          enabled: true,
+          priority: 3,
+          config: {
+            apiKey: process.env.VONAGE_API_KEY,
+            fromNumber: process.env.VONAGE_FROM_NUMBER,
+          },
+        });
+
+        this.logger.log('Vonage SMS provider initialized');
+      } catch (error) {
+        this.logger.error('Failed to initialize Vonage:', error);
+      }
     }
 
     this.logger.log(
@@ -94,44 +139,47 @@ export class SmsService {
 
   async send(options: SMSOptions): Promise<SMSResult> {
     // Validate phone number
-    if (!this.isValidPhoneNumber(options.to)) {
+    const validation = this.validatePhoneNumber(options.to);
+    if (!validation.valid) {
       return {
         success: false,
-        error: 'Invalid phone number format',
+        error: `Invalid phone number: ${validation.error}`,
+        provider: 'none',
       };
     }
 
     // Validate message length
     if (options.body.length > 1600) {
-      // SMS concatenation limit
       return {
         success: false,
-        error: 'Message too long (max 1600 characters)',
+        error: 'Message exceeds maximum length of 1600 characters',
+        provider: 'none',
       };
     }
 
-    // Get active providers in priority order
+    // Get active providers sorted by priority
     const activeProviders = this.getActiveProviders();
 
     if (activeProviders.length === 0) {
       return {
         success: false,
-        error: 'No SMS providers configured',
+        error: 'No SMS providers available',
+        provider: 'none',
       };
     }
 
-    // Try providers in order until one succeeds
+    // Try providers in order
     for (const provider of activeProviders) {
       try {
         let result: SMSResult;
 
         switch (provider.name) {
-          case 'twilio':
-            result = await this.sendViaTwilio(options);
-            break;
-
           case 'aws':
             result = await this.sendViaAws(options);
+            break;
+
+          case 'twilio':
+            result = await this.sendViaTwilio(options);
             break;
 
           case 'vonage':
@@ -144,16 +192,14 @@ export class SmsService {
 
         if (result.success) {
           this.logger.log(
-            `SMS sent via ${provider.name} to ${options.to}: ${result.messageId}`,
+            `SMS sent successfully via ${provider.name} to ${options.to}`,
           );
-          return { ...result, provider: provider.name };
+          return result;
         }
 
-        this.logger.warn(
-          `SMS failed via ${provider.name} to ${options.to}: ${result.error}`,
-        );
+        this.logger.warn(`SMS failed via ${provider.name}: ${result.error}`);
       } catch (error) {
-        this.logger.error(`Error sending SMS via ${provider.name}:`, error);
+        this.logger.error(`Error with ${provider.name} provider:`, error);
       }
     }
 
@@ -164,48 +210,50 @@ export class SmsService {
     };
   }
 
-  async sendBulk(
-    messages: SMSOptions[],
-    concurrency: number = 10,
-  ): Promise<{ sent: number; failed: number; errors: string[] }> {
-    const results = {
-      sent: 0,
-      failed: 0,
-      errors: [] as string[],
-    };
-
-    // Process in batches
-    for (let i = 0; i < messages.length; i += concurrency) {
-      const batch = messages.slice(i, i + concurrency);
-      const batchPromises = batch.map((message) => this.send(message));
-
-      const batchResults = await Promise.allSettled(batchPromises);
-
-      batchResults.forEach((result, index) => {
-        const message = batch[index];
-
-        if (result.status === 'fulfilled' && result.value.success) {
-          results.sent++;
-        } else {
-          results.failed++;
-          const error =
-            result.status === 'rejected'
-              ? result.reason.message
-              : result.value.error;
-          results.errors.push(`Failed to send to ${message.to}: ${error}`);
-        }
-      });
-
-      // Rate limiting delay
-      if (i + concurrency < messages.length) {
-        await this.delay(1000);
-      }
+  private async sendViaAws(options: SMSOptions): Promise<SMSResult> {
+    if (!this.snsClient) {
+      throw new Error('AWS SNS client not initialized');
     }
 
-    this.logger.log(
-      `Bulk SMS completed: ${results.sent} sent, ${results.failed} failed`,
-    );
-    return results;
+    try {
+      const params: PublishCommandInput = {
+        PhoneNumber: options.to,
+        Message: options.body,
+        MessageAttributes: {
+          'AWS.SNS.SMS.SenderID': {
+            DataType: 'String',
+            StringValue:
+              options.from || process.env.AWS_SNS_SENDER_ID || 'NOTIFY',
+          },
+          'AWS.SNS.SMS.SMSType': {
+            DataType: 'String',
+            StringValue: 'Transactional', // or 'Promotional'
+          },
+          'AWS.SNS.SMS.MaxPrice': {
+            DataType: 'Number',
+            StringValue: '0.50',
+          },
+        },
+        MessageDeduplicationId: `sms-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      };
+
+      const command = new PublishCommand(params);
+      const response = await this.snsClient.send(command);
+
+      return {
+        success: true,
+        messageId: response.MessageId,
+        provider: 'aws',
+      };
+    } catch (error: any) {
+      this.logger.error('AWS SNS send failed:', error);
+
+      return {
+        success: false,
+        error: error.message,
+        provider: 'aws',
+      };
+    }
   }
 
   private async sendViaTwilio(options: SMSOptions): Promise<SMSResult> {
@@ -225,51 +273,14 @@ export class SmsService {
       return {
         success: true,
         messageId: message.sid,
+        provider: 'twilio',
+        cost: parseFloat(message.price || '0'),
       };
     } catch (error: any) {
       return {
         success: false,
         error: error.message,
-      };
-    }
-  }
-
-  private async sendViaAws(options: SMSOptions): Promise<SMSResult> {
-    if (!this.awsSns) {
-      throw new Error('AWS SNS not initialized');
-    }
-
-    try {
-      const params: AWS.SNS.PublishInput = {
-        Message: options.body,
-        PhoneNumber: options.to,
-        MessageAttributes: {
-          'AWS.SNS.SMS.SenderID': {
-            DataType: 'String',
-            StringValue:
-              options.from || process.env.AWS_SNS_SENDER_ID || 'NOTIFY',
-          },
-          'AWS.SNS.SMS.SMSType': {
-            DataType: 'String',
-            StringValue: 'Transactional',
-          },
-          'AWS.SNS.SMS.MaxPrice': {
-            DataType: 'Number',
-            StringValue: '0.50',
-          },
-        },
-      };
-
-      const result = await this.awsSns.publish(params).promise();
-
-      return {
-        success: true,
-        messageId: result.MessageId,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message,
+        provider: 'twilio',
       };
     }
   }
@@ -286,78 +297,156 @@ export class SmsService {
         to: options.to,
         from,
         text: options.body,
-        ...(options.mediaUrl && { type: 'image', url: options.mediaUrl }),
       });
 
       if (result.messages[0].status === '0') {
         return {
           success: true,
           messageId: result.messages[0]['message-id'],
+          provider: 'vonage',
         };
       } else {
         return {
           success: false,
           error: result.messages[0]['error-text'],
+          provider: 'vonage',
         };
       }
     } catch (error: any) {
       return {
         success: false,
         error: error.message,
+        provider: 'vonage',
       };
     }
   }
 
-  private isValidPhoneNumber(phone: string): boolean {
-    // Basic phone validation - in production use libphonenumber-js
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    return phoneRegex.test(phone.replace(/\s/g, ''));
+  async sendBulk(
+    messages: SMSOptions[],
+    concurrency: number = 5,
+  ): Promise<{
+    sent: number;
+    failed: number;
+    results: SMSResult[];
+  }> {
+    const results: SMSResult[] = [];
+
+    // Process in batches to respect rate limits
+    for (let i = 0; i < messages.length; i += concurrency) {
+      const batch = messages.slice(i, i + concurrency);
+      const batchPromises = batch.map((msg) => this.send(msg));
+
+      const batchResults = await Promise.allSettled(batchPromises);
+
+      batchResults.forEach((result, index) => {
+        const smsResult =
+          result.status === 'fulfilled'
+            ? result.value
+            : {
+                success: false,
+                error: result.reason?.message || 'Unknown error',
+                provider: 'none',
+              };
+
+        results.push(smsResult);
+      });
+
+      // Respect rate limits (AWS has ~50-100 TPS)
+      if (i + concurrency < messages.length) {
+        await this.delay(200);
+      }
+    }
+
+    const sent = results.filter((r) => r.success).length;
+    const failed = results.length - sent;
+
+    this.logger.log(`Bulk SMS completed: ${sent} sent, ${failed} failed`);
+
+    return { sent, failed, results };
   }
 
-  private getActiveProviders(): SMSProvider[] {
+  private getActiveProviders(): SMSProviderConfig[] {
     return this.providers
       .filter((provider) => provider.enabled)
       .sort((a, b) => a.priority - b.priority);
   }
 
-  private setProviderEnabled(name: string, enabled: boolean): void {
-    const provider = this.providers.find((p) => p.name === name);
-    if (provider) {
-      provider.enabled = enabled;
+  private validatePhoneNumber(phone: string): {
+    valid: boolean;
+    error?: string;
+    formatted?: string;
+  } {
+    // Remove all non-digit characters except leading +
+    const cleaned = phone.replace(/[^\d+]/g, '');
+
+    // Basic validation
+    if (!cleaned.match(/^\+?[1-9]\d{1,14}$/)) {
+      return {
+        valid: false,
+        error: 'Invalid phone number format',
+      };
     }
+
+    // Ensure E.164 format
+    let formatted = cleaned;
+    if (!formatted.startsWith('+')) {
+      // Add default country code if not present
+      const defaultCountryCode = process.env.DEFAULT_SMS_COUNTRY_CODE || '1';
+      formatted = `+${defaultCountryCode}${formatted}`;
+    }
+
+    return {
+      valid: true,
+      formatted,
+    };
   }
 
-  getProviderStatus(): Record<string, boolean> {
+  getProviderStatus(): Record<string, any> {
     return this.providers.reduce((acc, provider) => {
-      acc[provider.name] = provider.enabled;
+      acc[provider.name] = {
+        enabled: provider.enabled,
+        priority: provider.priority,
+      };
       return acc;
     }, {});
   }
 
-  async validatePhoneNumber(phone: string): Promise<{
-    valid: boolean;
-    formatted?: string;
-    carrier?: string;
-    type?: string;
-  }> {
-    if (!this.isValidPhoneNumber(phone)) {
-      return { valid: false };
+  async getAwsSnsStats(): Promise<any> {
+    if (!this.snsClient) {
+      return { error: 'AWS SNS not initialized' };
     }
 
-    // In production, implement proper phone validation
-    // This is a simplified version
+    // Note: AWS SNS doesn't have a direct stats API
+    // You would need CloudWatch for metrics
     return {
-      valid: true,
-      formatted: phone,
+      provider: 'aws',
+      region: process.env.AWS_REGION,
+      timestamp: new Date().toISOString(),
     };
   }
 
-  getUsageStats(): any {
-    // In production, track SMS usage
-    return {
-      providers: this.getProviderStatus(),
-      timestamp: new Date().toISOString(),
-    };
+  enableProvider(name: string): void {
+    const provider = this.providers.find((p) => p.name === name);
+    if (provider) {
+      provider.enabled = true;
+      this.logger.log(`Enabled SMS provider: ${name}`);
+    }
+  }
+
+  disableProvider(name: string): void {
+    const provider = this.providers.find((p) => p.name === name);
+    if (provider) {
+      provider.enabled = false;
+      this.logger.log(`Disabled SMS provider: ${name}`);
+    }
+  }
+
+  setProviderPriority(name: string, priority: number): void {
+    const provider = this.providers.find((p) => p.name === name);
+    if (provider) {
+      provider.priority = priority;
+      this.logger.log(`Set ${name} provider priority to ${priority}`);
+    }
   }
 
   private delay(ms: number): Promise<void> {

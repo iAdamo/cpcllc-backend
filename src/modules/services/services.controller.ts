@@ -43,6 +43,8 @@ export interface RequestWithUser extends Request {
   };
 }
 
+type UserParam = 'me' | string;
+
 @ApiTags('Services')
 @Controller('services')
 export class ServicesController {
@@ -81,13 +83,15 @@ export class ServicesController {
     return this.servicesService.deleteJobPost(jobId, req.user);
   }
 
-  @Get('jobs/:id?') // :id is optional
+  @Get('jobs/:id')
   @UseGuards(JwtAuthGuard)
   async getJobsByUser(
     @Req() req: RequestWithUser,
-    @Param('id') userId?: string,
+    @Param('id') userId: UserParam,
   ) {
-    return this.servicesService.getJobsByUser(userId || req.user.userId);
+    return this.servicesService.getJobsByUser(
+      userId === 'me' ? req.user.userId : userId,
+    );
   }
 
   /* Proposals */

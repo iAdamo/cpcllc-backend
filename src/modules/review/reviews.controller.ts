@@ -46,11 +46,12 @@ export class ReviewsController {
     );
   }
 
-  @Get(':id?')
+
+  @Get(':id')
   @UseGuards(JwtAuthGuard)
-  async getReviews(@Req() req: RequestWithUser, @Param('id') id?: string) {
-    const user = req.user.userId;
-    return this.reviewsService.getReviews(id, user);
+  async getReviews(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const userId = id === 'me' ? req.user.userId : id;
+    return this.reviewsService.getReviews(userId, req.user.userId);
   }
 
   @Patch(':id')
