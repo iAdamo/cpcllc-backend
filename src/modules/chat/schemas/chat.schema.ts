@@ -2,6 +2,7 @@ import { Last } from './../../../../node_modules/socket.io/dist/typed-events.d';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { CreateChatDto } from '../dto/create-chat.dto';
+export type ChatDocument = HydratedDocument<Chat>;
 
 class LastMessage {
   @Prop({ type: Types.ObjectId, ref: 'Message' })
@@ -19,8 +20,6 @@ class LastMessage {
 
 @Schema({ timestamps: true, collection: 'chats' })
 export class Chat {
-  _id: Types.ObjectId;
-
   @Prop({
     type: [{ type: Types.ObjectId, ref: 'User' }],
     required: true,
@@ -40,7 +39,6 @@ export class Chat {
   updatedAt: Date;
 }
 
-export type ChatDocument = HydratedDocument<Chat>;
 export const ChatSchema = SchemaFactory.createForClass(Chat);
 
 // Compound indexes for better query performance

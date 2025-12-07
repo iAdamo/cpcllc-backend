@@ -58,8 +58,11 @@ export class AppGateway
     this.logger.log('WebSocket Gateway initialized');
 
     // Handle server-level errors
-    server.on('error', (error) => {
-      this.logger.error('WebSocket server error:', error);
+    server.on('error', (error, socket) => {
+      socket.onAny((event: any, ...args: any[]) => {
+        console.log(`[GLOBAL] Event: ${event}`, args);
+      });
+      if (error) this.logger.error('WebSocket server error:', error);
     });
   }
   //  try {
@@ -152,6 +155,16 @@ export class AppGateway
         `Client connected: ${client.id}, User: ${userId}, Device: ${payload.deviceId}`,
       );
 
+      client.onAny(async (event, ...args) => {
+        this.logger.log(
+          `WS Event Received | User: ${client.user.userId} | Event: ${event}`,
+        );
+        const payload = JSON.stringify(args);
+        const data = JSON.parse(payload);
+
+        await this.handleAllEvents(client, event, data[0]);
+      });
+
       // Notify presence system
       client.emit(SocketEvents.CONNECTION, {
         status: 'connected',
@@ -179,12 +192,13 @@ export class AppGateway
   /**
    * Global message handler - routes all events through the event router
    */
-  @SubscribeMessage('*')
   async handleAllEvents(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: EventEnvelope,
+    event: string,
+    @MessageBody() data: any,
   ) {
-    const event = data.event;
+    // const event = data.event;
+    // console.log({ data });
 
     try {
       // Rate limiting check

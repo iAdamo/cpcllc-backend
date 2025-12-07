@@ -43,9 +43,9 @@ import { RateLimiterService } from '@websocket/services/rate-limiter.service';
     CacheModule,
   ],
   providers: [
+    ChatGateway,
     ChatService,
     DbStorageService,
-    // AppGateway,
     // SocketManagerService,
     // EventRouterService,
     // SocketManagerService,

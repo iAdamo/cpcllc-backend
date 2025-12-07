@@ -1,26 +1,5 @@
-import * as jwt from 'jsonwebtoken';
-import {
-  WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  MessageBody,
-  ConnectedSocket,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
-import {
-  Injectable,
-  Logger,
-  UseFilters,
-  UsePipes,
-  ValidationPipe,
-  UseGuards,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ChatService } from './chat.service';
-import { NotificationService } from '../notification/services/notification.service';
-import { Types } from 'mongoose';
-import { WsJwtGuard } from '@modules/jwt/jwt.guard';
 import { EventHandler } from '@modules/interfaces/websocket.interface';
 import { ChatEvents } from './chat.events';
 import { EventRouterService } from '../websocket/services/event-router.service';
@@ -53,12 +32,10 @@ export class ChatGateway implements EventHandler {
   ) {}
 
   onModuleInit() {
-    if (this.eventRouter)
-      this.handledEvents.forEach((event) => {
-        console.debug({ event });
-        this.eventRouter.registerHandler(event, this);
-      });
-    // this.logger.log('Chat gateway registered with event router');
+    this.handledEvents.forEach((event) => {
+      this.eventRouter.registerHandler(event, this);
+    });
+    this.logger.log('Chat gateway registered with event router');
   }
 
   /**
@@ -116,6 +93,7 @@ export class ChatGateway implements EventHandler {
     data: SendMessageDto,
     socket: AuthenticatedSocket,
   ): Promise<void> {
+    data.senderId = socket.user.userId;
     const message = await this.chatService.sendMessage(data);
 
     // Echo the sent message back to sender

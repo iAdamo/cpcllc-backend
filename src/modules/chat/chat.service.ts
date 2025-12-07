@@ -94,7 +94,7 @@ export class ChatService {
     currentUserId: string,
     createChatDto: CreateChatDto,
     session?: ClientSession,
-  ): Promise<void> {
+  ) {
     const { participants } = createChatDto;
     if (!participants) {
       throw new BadRequestException(
@@ -140,7 +140,7 @@ export class ChatService {
         `Chat created between user ${user} and provider ${otherUser}`,
       );
     }
-    this.populatedChat(user);
+    return this.populatedChat(user);
   }
 
   async joinChat(
@@ -182,10 +182,16 @@ export class ChatService {
     session?: ClientSession,
   ): Promise<MessageDocument> {
     const { chatId, senderId, type, content, replyTo } = sendMessageDto;
-
+    //  const message = await this.chatService.sendMessage({
+    //    chatId: new Types.ObjectId(data.chatId),
+    //    senderId: client.userId,
+    //    type: data.type as any,
+    //    content: data.content,
+    //    replyTo: data.replyTo ? new Types.ObjectId(data.replyTo) : undefined,
+    //  });
     // Verify chat exists and sender is participant
     const chat = await this.chatModel.findOne({
-      _id: chatId,
+      _id: new Types.ObjectId(chatId),
       participants: senderId,
       isActive: true,
     });
@@ -197,7 +203,7 @@ export class ChatService {
     // Validate replyTo message exists if provided
     if (replyTo) {
       const repliedMessage = await this.messageModel.findOne({
-        _id: replyTo,
+        _id: new Types.ObjectId(replyTo),
         chatId,
       });
       if (!repliedMessage) {
@@ -206,8 +212,8 @@ export class ChatService {
     }
 
     const messageData: any = {
-      chatId,
-      senderId,
+      chatId: new Types.ObjectId(chatId),
+      senderId: new Types.ObjectId(senderId),
       type,
       content,
       status: {
@@ -218,7 +224,7 @@ export class ChatService {
     };
 
     if (replyTo) {
-      messageData.replyTo = replyTo;
+      messageData.replyTo = new Types.ObjectId(replyTo);
     }
 
     const message = new this.messageModel(messageData);
@@ -295,7 +301,7 @@ export class ChatService {
     userId: Types.ObjectId,
     page: number = 1,
     limit: number = 50,
-  ): Promise<void> {
+  ) {
     const skip = (page - 1) * limit;
 
     const user = await this.userModel.findById(userId);
@@ -318,7 +324,7 @@ export class ChatService {
       query['participants.0'] = { $ne: userId };
     }
 
-    this.populatedChat(userId, skip, limit, query);
+    return this.populatedChat(userId, skip, limit, query);
   }
 
   /**
@@ -437,7 +443,7 @@ export class ChatService {
    * Get conversation participants
    */
   async getChatParticipants(chatId: string): Promise<Types.ObjectId[]> {
-    const chat = await this.chatModel.findById(chatId);
+    const chat = await this.chatModel.findById(new Types.ObjectId(chatId));
     return chat?.participants || [];
   }
 
@@ -459,48 +465,46 @@ export class ChatService {
     }
   }
 
-  private populatedChat(
+  private async populatedChat(
     userId: Types.ObjectId,
     skip?: number,
     limit?: number,
     query?: any,
   ) {
-    return (
-      this.chatModel
-        .find(query)
-        .populate({
-          path: 'participants',
-          model: 'User',
-          select: 'firstName lastName profilePicture',
-          match: { _id: { $ne: userId } },
-          populate: [
-            {
-              path: 'followedProviders',
-              model: 'Provider',
-              select: 'providerName providerLogo',
-            },
-            {
-              path: 'activeRoleId',
-              model: 'Provider',
-              match: { _id: { $ne: userId } },
+    return await this.chatModel
+      .find(query)
+      .populate({
+        path: 'participants',
+        model: 'User',
+        select: 'firstName lastName profilePicture',
+        match: { _id: { $ne: userId } },
+        populate: [
+          {
+            path: 'followedProviders',
+            model: 'Provider',
+            select: 'providerName providerLogo',
+          },
+          {
+            path: 'activeRoleId',
+            model: 'Provider',
+            match: { _id: { $ne: userId } },
+            populate: {
+              path: 'subcategories',
+              model: 'Subcategory',
+              select: 'name description',
               populate: {
-                path: 'subcategories',
-                model: 'Subcategory',
+                path: 'categoryId',
+                model: 'Category',
                 select: 'name description',
-                populate: {
-                  path: 'categoryId',
-                  model: 'Category',
-                  select: 'name description',
-                },
               },
             },
-          ],
-        })
-        // .populate('lastMessage.sender', 'firstName lastName')
-        // .sort({ 'lastMessage.createdAt': -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec()
-    );
+          },
+        ],
+      })
+      // .populate('lastMessage.sender', 'firstName lastName')
+      // .sort({ 'lastMessage.createdAt': -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
   }
 }

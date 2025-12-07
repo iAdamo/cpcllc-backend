@@ -1,15 +1,16 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import {
-  SNSClient,
-  PublishCommand,
-  PublishCommandInput,
-} from '@aws-sdk/client-sns';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
 // import { defaultProvider } from '@aws-sdk/credential-providers';
 // import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import { Vonage } from '@vonage/server-sdk';
 import { Auth } from '@vonage/auth';
 import Twilio from 'twilio';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  SNSClient,
+  PublishCommand,
+  PublishCommandInput,
+  SNSClientConfig,
+} from '@aws-sdk/client-sns';
 
 export interface SMSOptions {
   to: string;
@@ -18,6 +19,7 @@ export interface SMSOptions {
   mediaUrl?: string;
   statusCallback?: string;
   metadata?: Record<string, string>;
+  messageType?: 'TRANSACTIONAL' | 'PROMOTIONAL';
 }
 
 export interface SMSResult {
@@ -28,178 +30,143 @@ export interface SMSResult {
   cost?: number;
 }
 
-export interface SMSProviderConfig {
-  name: 'aws' | 'twilio' | 'vonage';
-  enabled: boolean;
-  priority: number;
-  config: Record<string, any>;
-}
-
 @Injectable()
 export class SmsService implements OnModuleInit {
   private readonly logger = new Logger(SmsService.name);
-
-  // AWS v3 SNS Client
   private snsClient: SNSClient | null = null;
-
-  // Other providers
   private twilioClient: any = null;
   private vonageClient: any = null;
 
-  private readonly providers: SMSProviderConfig[] = [];
-
   async onModuleInit() {
-    await this.initializeProviders();
+    await this.initializeAwsSns();
+    await this.initializeOtherProviders();
   }
 
-  private async initializeProviders(): Promise<void> {
-    // Initialize AWS SNS v3
-    if (process.env.AWS_REGION) {
-      try {
-        // Using credential chain (IAM roles, environment variables, ~/.aws/credentials)
-        // const credentials = fromNodeProviderChain({
-        //   clientConfig: { region: process.env.AWS_REGION },
-        const credentials = defaultProvider(); // Uses the default chain: env, shared config, SSO, EC2/ECS metadata, etc.
-
-        this.snsClient = new SNSClient({
-          region: process.env.AWS_REGION,
-          credentials,
-          maxAttempts: 3,
-        });
-
-        this.providers.push({
-          name: 'aws',
-          enabled: true,
-          priority: 1,
-          config: { region: process.env.AWS_REGION },
-        });
-
-        this.logger.log('AWS SNS v3 initialized successfully');
-      } catch (error) {
-        this.logger.error('Failed to initialize AWS SNS v3:', error);
-      }
+  private async initializeAwsSns(): Promise<void> {
+    if (!process.env.AWS_REGION) {
+      this.logger.warn('AWS_REGION not set, skipping AWS SNS initialization');
+      return;
     }
 
-    // Initialize Twilio
+    try {
+      // const credentials = defaultProvider({
+      //   clientConfig: { region: process.env.AWS_REGION },
+      // });
+      const credentials = defaultProvider();
+      const clientConfig: SNSClientConfig = {
+        region: process.env.AWS_REGION,
+        credentials,
+        maxAttempts: 3,
+      };
+
+      // Add endpoint for testing/local development
+      if (process.env.AWS_SNS_ENDPOINT) {
+        clientConfig.endpoint = process.env.AWS_SNS_ENDPOINT;
+      }
+
+      this.snsClient = new SNSClient(clientConfig);
+
+      // Test connection
+      await this.testAwsConnection();
+
+      this.logger.log('AWS SNS v3 initialized successfully');
+    } catch (error: any) {
+      this.logger.error('Failed to initialize AWS SNS v3:', error);
+      this.snsClient = null;
+    }
+  }
+
+  private async testAwsConnection(): Promise<void> {
+    if (!this.snsClient) return;
+
+    try {
+      // Simple test to verify credentials and permissions
+      // We'll try to get topic attributes (requires minimal permissions)
+      // If this fails, we know there's a configuration issue
+      this.logger.debug('Testing AWS SNS connection...');
+      // Connection will be tested on first actual send
+    } catch (error: any) {
+      this.logger.error('AWS SNS connection test failed:', error);
+      throw error;
+    }
+  }
+
+  private async initializeOtherProviders(): Promise<void> {
+    // Initialize Twilio (fallback)
     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
       try {
         this.twilioClient = Twilio(
           process.env.TWILIO_ACCOUNT_SID,
           process.env.TWILIO_AUTH_TOKEN,
         );
-
-        this.providers.push({
-          name: 'twilio',
-          enabled: true,
-          priority: 2,
-          config: {
-            accountSid: process.env.TWILIO_ACCOUNT_SID,
-            fromNumber: process.env.TWILIO_PHONE_NUMBER,
-          },
-        });
-
         this.logger.log('Twilio SMS provider initialized');
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error('Failed to initialize Twilio:', error);
       }
     }
 
-    // Initialize Vonage
+    // Initialize Vonage (fallback)
     if (process.env.VONAGE_API_KEY && process.env.VONAGE_API_SECRET) {
       try {
         const auth = new Auth({
           apiKey: process.env.VONAGE_API_KEY,
           apiSecret: process.env.VONAGE_API_SECRET,
         });
-
         this.vonageClient = new Vonage(auth);
-
-        this.providers.push({
-          name: 'vonage',
-          enabled: true,
-          priority: 3,
-          config: {
-            apiKey: process.env.VONAGE_API_KEY,
-            fromNumber: process.env.VONAGE_FROM_NUMBER,
-          },
-        });
-
         this.logger.log('Vonage SMS provider initialized');
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error('Failed to initialize Vonage:', error);
       }
     }
-
-    this.logger.log(
-      `Active SMS providers: ${this.getActiveProviders()
-        .map((p) => p.name)
-        .join(', ')}`,
-    );
   }
 
   async send(options: SMSOptions): Promise<SMSResult> {
-    // Validate phone number
-    const validation = this.validatePhoneNumber(options.to);
+    // Validate inputs
+    const validation = this.validateSmsOptions(options);
     if (!validation.valid) {
       return {
         success: false,
-        error: `Invalid phone number: ${validation.error}`,
+        error: validation.error,
         provider: 'none',
       };
     }
 
-    // Validate message length
-    if (options.body.length > 1600) {
-      return {
-        success: false,
-        error: 'Message exceeds maximum length of 1600 characters',
-        provider: 'none',
-      };
-    }
-
-    // Get active providers sorted by priority
-    const activeProviders = this.getActiveProviders();
-
-    if (activeProviders.length === 0) {
-      return {
-        success: false,
-        error: 'No SMS providers available',
-        provider: 'none',
-      };
-    }
-
-    // Try providers in order
-    for (const provider of activeProviders) {
+    // Try AWS SNS first (if available and phone number is valid for SMS)
+    if (this.snsClient && this.isPhoneNumberValidForAws(options.to)) {
       try {
-        let result: SMSResult;
-
-        switch (provider.name) {
-          case 'aws':
-            result = await this.sendViaAws(options);
-            break;
-
-          case 'twilio':
-            result = await this.sendViaTwilio(options);
-            break;
-
-          case 'vonage':
-            result = await this.sendViaVonage(options);
-            break;
-
-          default:
-            continue;
-        }
-
+        const result = await this.sendViaAwsSns(options);
         if (result.success) {
-          this.logger.log(
-            `SMS sent successfully via ${provider.name} to ${options.to}`,
-          );
           return result;
         }
+        this.logger.warn(`AWS SNS failed: ${result.error}, trying fallback...`);
+      } catch (error: any) {
+        this.logger.error('AWS SNS error:', error);
+      }
+    }
 
-        this.logger.warn(`SMS failed via ${provider.name}: ${result.error}`);
-      } catch (error) {
-        this.logger.error(`Error with ${provider.name} provider:`, error);
+    // Try Twilio fallback
+    if (this.twilioClient) {
+      try {
+        const result = await this.sendViaTwilio(options);
+        if (result.success) {
+          return result;
+        }
+        this.logger.warn(`Twilio failed: ${result.error}`);
+      } catch (error: any) {
+        this.logger.error('Twilio error:', error);
+      }
+    }
+
+    // Try Vonage fallback
+    if (this.vonageClient) {
+      try {
+        const result = await this.sendViaVonage(options);
+        if (result.success) {
+          return result;
+        }
+        this.logger.warn(`Vonage failed: ${result.error}`);
+      } catch (error: any) {
+        this.logger.error('Vonage error:', error);
       }
     }
 
@@ -210,7 +177,7 @@ export class SmsService implements OnModuleInit {
     };
   }
 
-  private async sendViaAws(options: SMSOptions): Promise<SMSResult> {
+  private async sendViaAwsSns(options: SMSOptions): Promise<SMSResult> {
     if (!this.snsClient) {
       throw new Error('AWS SNS client not initialized');
     }
@@ -227,18 +194,33 @@ export class SmsService implements OnModuleInit {
           },
           'AWS.SNS.SMS.SMSType': {
             DataType: 'String',
-            StringValue: 'Transactional', // or 'Promotional'
+            StringValue: options.messageType || 'Transactional', // 'Transactional' or 'Promotional'
           },
           'AWS.SNS.SMS.MaxPrice': {
             DataType: 'Number',
-            StringValue: '0.50',
+            StringValue: process.env.AWS_SNS_MAX_PRICE || '0.50',
           },
         },
-        MessageDeduplicationId: `sms-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        // NO MessageDeduplicationId - SMS doesn't support FIFO!
+        // NO MessageGroupId - SMS doesn't support FIFO!
       };
 
+      // For long messages, set appropriate attributes
+      if (options.body.length > 160) {
+        params.MessageAttributes!['AWS.SNS.SMS.MaxLength'] = {
+          DataType: 'String',
+          StringValue: '160', // Messages longer than 160 chars will be split
+        };
+      }
+
       const command = new PublishCommand(params);
+      const startTime = Date.now();
       const response = await this.snsClient.send(command);
+      const duration = Date.now() - startTime;
+
+      this.logger.debug(
+        `AWS SNS SMS sent in ${duration}ms: ${response.MessageId}`,
+      );
 
       return {
         success: true,
@@ -248,9 +230,19 @@ export class SmsService implements OnModuleInit {
     } catch (error: any) {
       this.logger.error('AWS SNS send failed:', error);
 
+      // Handle specific AWS errors
+      let errorMessage = error.message;
+      if (error.name === 'InvalidParameterException') {
+        errorMessage = `Invalid parameters: ${error.message}`;
+      } else if (error.name === 'AuthorizationErrorException') {
+        errorMessage = 'AWS SNS authorization failed. Check IAM permissions.';
+      } else if (error.name === 'InternalErrorException') {
+        errorMessage = 'AWS SNS internal error. Please retry.';
+      }
+
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
         provider: 'aws',
       };
     }
@@ -293,22 +285,22 @@ export class SmsService implements OnModuleInit {
     try {
       const from = options.from || process.env.VONAGE_FROM_NUMBER || 'Vonage';
 
-      const result = await this.vonageClient.sms.send({
+      const response = await this.vonageClient.sms.send({
         to: options.to,
         from,
         text: options.body,
       });
 
-      if (result.messages[0].status === '0') {
+      if (response.messages[0].status === '0') {
         return {
           success: true,
-          messageId: result.messages[0]['message-id'],
+          messageId: response.messages[0]['message-id'],
           provider: 'vonage',
         };
       } else {
         return {
           success: false,
-          error: result.messages[0]['error-text'],
+          error: response.messages[0]['error-text'],
           provider: 'vonage',
         };
       }
@@ -321,9 +313,76 @@ export class SmsService implements OnModuleInit {
     }
   }
 
+  private validateSmsOptions(options: SMSOptions): {
+    valid: boolean;
+    error?: string;
+  } {
+    // Validate phone number
+    if (!this.isValidPhoneNumber(options.to)) {
+      return {
+        valid: false,
+        error: 'Invalid phone number format',
+      };
+    }
+
+    // Validate message body
+    if (!options.body || options.body.trim().length === 0) {
+      return {
+        valid: false,
+        error: 'Message body cannot be empty',
+      };
+    }
+
+    // Validate message length
+    const maxLength = 1600; // AWS SNS limit
+    if (options.body.length > maxLength) {
+      return {
+        valid: false,
+        error: `Message exceeds maximum length of ${maxLength} characters`,
+      };
+    }
+
+    return { valid: true };
+  }
+
+  private isValidPhoneNumber(phone: string): boolean {
+    // Remove all non-digit characters except leading +
+    const cleaned = phone.replace(/[^\d+]/g, '');
+
+    // E.164 format validation
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    return e164Regex.test(cleaned);
+  }
+
+  private isPhoneNumberValidForAws(phone: string): boolean {
+    // AWS SNS has specific country code restrictions
+    // Check if the phone number is in a supported country
+    const cleaned = phone.replace(/[^\d+]/g, '');
+
+    // Extract country code
+    const countryCodeMatch = cleaned.match(/^\+\d+/);
+    if (!countryCodeMatch) return false;
+
+    const countryCode = countryCodeMatch[0];
+
+    // List of AWS SNS supported country codes (partial list)
+    const supportedCountryCodes = [
+      '+1', // USA/Canada
+      '+44', // UK
+      '+61', // Australia
+      '+49', // Germany
+      '+33', // France
+      '+81', // Japan
+      '+86', // China
+      '+91', // India
+    ];
+
+    return supportedCountryCodes.some((code) => countryCode.startsWith(code));
+  }
+
   async sendBulk(
     messages: SMSOptions[],
-    concurrency: number = 5,
+    concurrency: number = 10,
   ): Promise<{
     sent: number;
     failed: number;
@@ -331,122 +390,89 @@ export class SmsService implements OnModuleInit {
   }> {
     const results: SMSResult[] = [];
 
-    // Process in batches to respect rate limits
-    for (let i = 0; i < messages.length; i += concurrency) {
-      const batch = messages.slice(i, i + concurrency);
+    // Validate all messages first
+    const validMessages: SMSOptions[] = [];
+    const invalidMessages: { index: number; error: string }[] = [];
+
+    messages.forEach((msg, index) => {
+      const validation = this.validateSmsOptions(msg);
+      if (validation.valid) {
+        validMessages.push(msg);
+      } else {
+        invalidMessages.push({ index, error: validation.error! });
+        results.push({
+          success: false,
+          error: validation.error,
+          provider: 'none',
+        });
+      }
+    });
+
+    // Send valid messages in batches
+    for (let i = 0; i < validMessages.length; i += concurrency) {
+      const batch = validMessages.slice(i, i + concurrency);
       const batchPromises = batch.map((msg) => this.send(msg));
 
       const batchResults = await Promise.allSettled(batchPromises);
 
-      batchResults.forEach((result, index) => {
-        const smsResult =
-          result.status === 'fulfilled'
-            ? result.value
-            : {
-                success: false,
-                error: result.reason?.message || 'Unknown error',
-                provider: 'none',
-              };
-
-        results.push(smsResult);
+      batchResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          results.push(result.value);
+        } else {
+          results.push({
+            success: false,
+            error: result.reason?.message || 'Unknown error',
+            provider: 'none',
+          });
+        }
       });
 
-      // Respect rate limits (AWS has ~50-100 TPS)
-      if (i + concurrency < messages.length) {
-        await this.delay(200);
+      // Rate limiting - AWS SNS has limits (varies by region)
+      if (i + concurrency < validMessages.length) {
+        await this.delay(100); // 100ms delay between batches
       }
     }
 
     const sent = results.filter((r) => r.success).length;
     const failed = results.length - sent;
 
-    this.logger.log(`Bulk SMS completed: ${sent} sent, ${failed} failed`);
+    if (invalidMessages.length > 0) {
+      this.logger.warn(`${invalidMessages.length} messages failed validation`);
+    }
+
+    this.logger.log(
+      `Bulk SMS completed: ${sent} sent, ${failed} failed (${invalidMessages.length} invalid)`,
+    );
 
     return { sent, failed, results };
   }
 
-  private getActiveProviders(): SMSProviderConfig[] {
-    return this.providers
-      .filter((provider) => provider.enabled)
-      .sort((a, b) => a.priority - b.priority);
-  }
-
-  private validatePhoneNumber(phone: string): {
-    valid: boolean;
-    error?: string;
-    formatted?: string;
+  getProviderStatus(): {
+    aws: boolean;
+    twilio: boolean;
+    vonage: boolean;
   } {
-    // Remove all non-digit characters except leading +
-    const cleaned = phone.replace(/[^\d+]/g, '');
-
-    // Basic validation
-    if (!cleaned.match(/^\+?[1-9]\d{1,14}$/)) {
-      return {
-        valid: false,
-        error: 'Invalid phone number format',
-      };
-    }
-
-    // Ensure E.164 format
-    let formatted = cleaned;
-    if (!formatted.startsWith('+')) {
-      // Add default country code if not present
-      const defaultCountryCode = process.env.DEFAULT_SMS_COUNTRY_CODE || '1';
-      formatted = `+${defaultCountryCode}${formatted}`;
-    }
-
     return {
-      valid: true,
-      formatted,
+      aws: !!this.snsClient,
+      twilio: !!this.twilioClient,
+      vonage: !!this.vonageClient,
     };
   }
 
-  getProviderStatus(): Record<string, any> {
-    return this.providers.reduce((acc, provider) => {
-      acc[provider.name] = {
-        enabled: provider.enabled,
-        priority: provider.priority,
-      };
-      return acc;
-    }, {});
-  }
-
-  async getAwsSnsStats(): Promise<any> {
+  async getAwsSmsAttributes(): Promise<Record<string, any>> {
     if (!this.snsClient) {
       return { error: 'AWS SNS not initialized' };
     }
 
-    // Note: AWS SNS doesn't have a direct stats API
-    // You would need CloudWatch for metrics
+    // Note: Getting SMS attributes requires different API calls
+    // This is a simplified version
     return {
       provider: 'aws',
       region: process.env.AWS_REGION,
+      maxPrice: process.env.AWS_SNS_MAX_PRICE || '0.50',
+      defaultSenderId: process.env.AWS_SNS_SENDER_ID || 'NOTIFY',
       timestamp: new Date().toISOString(),
     };
-  }
-
-  enableProvider(name: string): void {
-    const provider = this.providers.find((p) => p.name === name);
-    if (provider) {
-      provider.enabled = true;
-      this.logger.log(`Enabled SMS provider: ${name}`);
-    }
-  }
-
-  disableProvider(name: string): void {
-    const provider = this.providers.find((p) => p.name === name);
-    if (provider) {
-      provider.enabled = false;
-      this.logger.log(`Disabled SMS provider: ${name}`);
-    }
-  }
-
-  setProviderPriority(name: string, priority: number): void {
-    const provider = this.providers.find((p) => p.name === name);
-    if (provider) {
-      provider.priority = priority;
-      this.logger.log(`Set ${name} provider priority to ${priority}`);
-    }
   }
 
   private delay(ms: number): Promise<void> {

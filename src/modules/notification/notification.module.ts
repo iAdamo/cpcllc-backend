@@ -107,7 +107,7 @@ import {
     CronJob,
 
     // Core Dependencies
-    EventRouterService,
+    // EventRouterService,
   ],
 
   controllers: [NotificationController],
@@ -123,8 +123,4 @@ import {
     SmsService,
   ],
 })
-export class NotificationModule {
-  constructor() {
-    console.log('NotificationModule initialized with all dependencies');
-  }
-}
+export class NotificationModule {}
