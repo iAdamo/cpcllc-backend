@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { PresenceStatus } from '@presence/interfaces/presence.interface';
+import { PRESENCE_STATUS } from '@presence/interfaces/presence.interface';
 
 @Schema({ timestamps: true })
 export class Presence {
@@ -9,10 +9,10 @@ export class Presence {
 
   @Prop({
     type: String,
-    enum: Object.values(PresenceStatus),
-    default: PresenceStatus.ONLINE,
+    enum: Object.values(PRESENCE_STATUS),
+    default: PRESENCE_STATUS.ONLINE,
   })
-  status: PresenceStatus;
+  status: PRESENCE_STATUS;
 
   @Prop({ required: true })
   lastSeen: Date;
@@ -22,6 +22,9 @@ export class Presence {
 
   @Prop()
   sessionId: string;
+
+  @Prop({ type: Object })
+  metadata: Record<string, any>;
 
   @Prop()
   customStatus?: string;
