@@ -1,4 +1,4 @@
-import { SocketEvents } from '../websocket/socket.events';
+import { SocketEvents } from './socket.events';
 
 /**
  * Chat-specific event definitions

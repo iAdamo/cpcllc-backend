@@ -1,6 +1,6 @@
 import { Module, Global, DynamicModule, forwardRef } from '@nestjs/common';
 import { RedisModule } from '@nestjs-modules/ioredis';
-import { AppGateway } from './app.gateway';
+import { AppGateway } from './gateways/app.gateway';
 import { EventRouterService } from './services/event-router.service';
 import { SocketManagerService } from './services/socket-manager.service';
 import { SocketValidationPipe } from './socket-validation.pipe';

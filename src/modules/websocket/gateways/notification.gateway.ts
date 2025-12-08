@@ -12,18 +12,19 @@ import { WsJwtGuard } from '@auth/jwt/jwt.guard';
 import { SocketValidationPipe } from '@websocket/socket-validation.pipe';
 import { EventRouterService } from '@websocket/services/event-router.service';
 import { EventHandler } from '@websocket/interfaces/websocket.interface';
-import { NotificationService } from '../services/notification.service';
-import { PreferenceService } from '../services/preference.service';
-import { NOTIFICATION_EVENTS } from '../constants/notification.constants';
+import { NotificationService } from '../../notification/services/notification.service';
+import { PreferenceService } from '../../notification/services/preference.service';
+// import { NotificationEvents } from '../../notification/constants/notification.constants';
+import {NotificationEvents } from '../events/notification.events'
 import {
   CreateNotificationDto,
   CreateBulkNotificationDto,
   FilterNotificationsDto,
-} from '../interfaces/notification.interface';
+} from '../../notification/interfaces/notification.interface';
 import {
   UpdatePreferenceDto,
   UpdatePushTokenDto,
-} from '../interfaces/preference.interface';
+} from '../../notification/interfaces/preference.interface';
 
 @WebSocketGateway()
 @UseGuards(WsJwtGuard)
@@ -34,7 +35,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
   server: Server;
 
   private readonly logger = new Logger(NotificationGateway.name);
-  private readonly handledEvents = Object.values(NOTIFICATION_EVENTS);
+  private readonly handledEvents = Object.values(NotificationEvents);
 
   constructor(
     private readonly eventRouter: EventRouterService,
@@ -49,7 +50,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     this.logger.log('Notification gateway registered');
   }
 
-  canHandle(event: string): boolean {
+  canHandle(event: any): boolean {
     return this.handledEvents.includes(event);
   }
 
@@ -62,35 +63,35 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
 
     try {
       switch (event) {
-        case NOTIFICATION_EVENTS.SEND_NOTIFICATION:
+        case NotificationEvents.SEND_NOTIFICATION:
           await this.handleSendNotification(userId, data, socket);
           break;
 
-        case NOTIFICATION_EVENTS.SEND_BULK_NOTIFICATION:
+        case NotificationEvents.SEND_BULK_NOTIFICATION:
           await this.handleSendBulkNotification(userId, data, socket);
           break;
 
-        case NOTIFICATION_EVENTS.MARK_AS_READ:
+        case NotificationEvents.MARK_AS_READ:
           await this.handleMarkAsRead(userId, data, socket);
           break;
 
-        case NOTIFICATION_EVENTS.GET_NOTIFICATIONS:
+        case NotificationEvents.GET_NOTIFICATIONS:
           await this.handleGetNotifications(userId, data, socket);
           break;
 
-        case NOTIFICATION_EVENTS.GET_UNREAD_COUNT:
+        case NotificationEvents.GET_UNREAD_COUNT:
           await this.handleGetUnreadCount(userId, data, socket);
           break;
 
-        case NOTIFICATION_EVENTS.UPDATE_PREFERENCE:
+        case NotificationEvents.UPDATE_PREFERENCE:
           await this.handleUpdatePreference(userId, data, socket);
           break;
 
-        case NOTIFICATION_EVENTS.UPDATE_PUSH_TOKEN:
+        case NotificationEvents.UPDATE_PUSH_TOKEN:
           await this.handleUpdatePushToken(userId, data, socket);
           break;
 
-        case NOTIFICATION_EVENTS.GET_PREFERENCE:
+        case NotificationEvents.GET_PREFERENCE:
           await this.handleGetPreference(userId, socket);
           break;
       }
@@ -103,14 +104,14 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     }
   }
 
-  @SubscribeMessage(NOTIFICATION_EVENTS.NOTIFICATION_RECEIVED)
+  @SubscribeMessage(NotificationEvents.NOTIFICATION_RECEIVED)
   async handleIncomingNotification(
     @ConnectedSocket() socket: Socket,
     @MessageBody() data: any,
   ) {
     // This handles real-time in-app notifications
     const userId = (socket as any).user?.id;
-    socket.emit(NOTIFICATION_EVENTS.NOTIFICATION_RECEIVED, data);
+    socket.emit(NotificationEvents.NOTIFICATION_RECEIVED, data);
   }
 
   private async handleSendNotification(
@@ -121,7 +122,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     const notification = await this.notificationService.create(data);
 
     if (data.userId === userId) {
-      socket.emit(NOTIFICATION_EVENTS.NOTIFICATION_RECEIVED, notification);
+      socket.emit(NotificationEvents.NOTIFICATION_RECEIVED, notification);
     }
   }
 
@@ -131,7 +132,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     socket: Socket,
   ): Promise<void> {
     const result = await this.notificationService.createBulk(data);
-    socket.emit(NOTIFICATION_EVENTS.BULK_RESULT, result);
+    socket.emit(NotificationEvents.BULK_NOTIFICATION_RESULT, result);
   }
 
   private async handleMarkAsRead(
@@ -140,7 +141,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     socket: Socket,
   ): Promise<void> {
     await this.notificationService.markAsRead(userId, data.notificationIds);
-    socket.emit(NOTIFICATION_EVENTS.NOTIFICATION_READ, {
+    socket.emit(NotificationEvents.NOTIFICATION_READ, {
       notificationIds: data.notificationIds,
       readAt: new Date(),
     });
@@ -155,7 +156,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
       ...data,
       userId,
     });
-    socket.emit(NOTIFICATION_EVENTS.NOTIFICATIONS_FETCHED, notifications);
+    socket.emit(NotificationEvents.NOTIFICATIONS_FETCHED, notifications);
   }
 
   private async handleGetUnreadCount(
@@ -167,7 +168,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
       userId,
       data?.tenantId,
     );
-    socket.emit(NOTIFICATION_EVENTS.UNREAD_COUNT, { count });
+    socket.emit(NotificationEvents.UNREAD_COUNT, { count });
   }
 
   private async handleUpdatePreference(
@@ -176,7 +177,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     socket: Socket,
   ): Promise<void> {
     const preference = await this.preferenceService.update(userId, data);
-    socket.emit(NOTIFICATION_EVENTS.PREFERENCE_UPDATED, preference);
+    socket.emit(NotificationEvents.PREFERENCE_UPDATED, preference);
   }
 
   private async handleUpdatePushToken(
@@ -185,7 +186,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     socket: Socket,
   ): Promise<void> {
     await this.preferenceService.updatePushToken(userId, data);
-    socket.emit(NOTIFICATION_EVENTS.PUSH_TOKEN_UPDATED, { success: true });
+    socket.emit(NotificationEvents.PUSH_TOKEN_UPDATED, { success: true });
   }
 
   private async handleGetPreference(
@@ -193,7 +194,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     socket: Socket,
   ): Promise<void> {
     const preference = await this.preferenceService.getOrCreate(userId);
-    socket.emit(NOTIFICATION_EVENTS.PREFERENCE_FETCHED, preference);
+    socket.emit(NotificationEvents.PREFERENCE_FETCHED, preference);
   }
 
   // Helper method to send real-time notifications
@@ -203,6 +204,6 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
   ): Promise<void> {
     this.server
       .to(`user:${userId}`)
-      .emit(NOTIFICATION_EVENTS.NOTIFICATION_RECEIVED, notification);
+      .emit(NotificationEvents.NOTIFICATION_RECEIVED, notification);
   }
 }

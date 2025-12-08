@@ -7,7 +7,7 @@ import {
 import { WsException } from '@nestjs/websockets';
 import { validate } from 'class-validator';
 import { plainToClass } from 'class-transformer';
-import { EventEnvelope } from './socket.events';
+import { EventEnvelope } from './events/socket.events';
 
 /**
  * Validation pipe for WebSocket events

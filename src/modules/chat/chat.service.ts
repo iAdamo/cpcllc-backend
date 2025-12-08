@@ -10,15 +10,14 @@ import { Provider, ProviderDocument } from '@modules/schemas/provider.schema';
 import { Chat, ChatDocument } from './schemas/chat.schema';
 import { Message, MessageDocument } from '@schemas/message.schema';
 import { User, UserDocument } from '@modules/schemas/user.schema';
-import { Presence, PresenceDocument } from '@schemas/presence.schema';
 import { Proposal, ProposalDocument } from '@schemas/proposal.schema';
 import { JobPost, JobPostDocument } from '@schemas/job.schema';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { format, isToday, isYesterday } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { DbStorageService } from 'src/common/utils/dbStorage';
-import { AppGateway } from '../websocket/app.gateway';
-import { ChatEvents } from './chat.events';
+import { AppGateway } from '../websocket/gateways/app.gateway';
+import { ChatEvents } from '../websocket/events/chat.events';
 import { SocketManagerService } from '@websocket/services/socket-manager.service';
 import {
   TypingDto,
@@ -38,7 +37,6 @@ export class ChatService {
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
-    @InjectModel(Presence.name) private presenceModel: Model<PresenceDocument>,
     @InjectModel(Proposal.name)
     private proposalModel: Model<ProposalDocument>,
     @InjectModel(JobPost.name) private jobPostModel: Model<JobPostDocument>,

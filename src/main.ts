@@ -5,7 +5,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { VersioningType, ValidationPipe } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { logger } from './common/middleware/logger.middleware';
-// import { RedisSocketAdapter } from '@modules/socket.adapter';
+import { RedisSocketAdapter } from '@modules/socket.adapter';
+import { Redis } from 'ioredis';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -25,6 +26,23 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  // WebSocket adapter for Redis (scaling)
+  const redisConfig = {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: Number(process.env.REDIS_PORT || 6379),
+    username: process.env.REDIS_USERNAME,
+    password: process.env.REDIS_PASSWORD,
+    db: Number(process.env.REDIS_DB || 0),
+  };
+
+  const redisPub = new Redis(redisConfig);
+  const redisSub = new Redis(redisConfig);
+
+  // Attach the adapter
+  const redisAdapter = new RedisSocketAdapter(app, redisPub, redisSub);
+  await redisAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisAdapter);
+
   // Global validation
   app.useGlobalPipes(
     new ValidationPipe({
@@ -37,16 +55,6 @@ async function bootstrap() {
   // Use cookie-parser middleware
   app.use(cookieParser());
   app.use(logger);
-
-  // WebSocket adapter for Redis (scaling)
-  // const redisAdapter = new RedisSocketAdapter(
-  //   app,
-  //   // These would be injected Redis instances
-  //   // In a real implementation, you'd get these from a Redis service
-  // );
-
-  //   await redisAdapter.connectToRedis();
-  //   app.useWebSocketAdapter(redisAdapter);
 
   // CORS
   app.enableCors({

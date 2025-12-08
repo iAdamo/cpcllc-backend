@@ -16,6 +16,7 @@ import { CacheModule } from './modules/cache/cache.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { WebSocketModule } from '@modules/websocket.module';
+import { PresenceModule } from '@presence/presence.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { WebSocketModule } from '@modules/websocket.module';
     ProviderModule,
     CacheModule,
     NotificationModule,
+    PresenceModule,
   ],
   controllers: [],
   providers: [],

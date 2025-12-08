@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { SocketEvents, EventEnvelope } from '../socket.events';
+import { SocketEvents, EventEnvelope } from '../events/socket.events';
 import {
   AuthenticatedSocket,
   EventHandler,
@@ -21,7 +21,7 @@ export class EventRouterService {
    */
   registerHandler(pattern: string, handler: EventHandler): void {
     this.eventHandlers.set(pattern, handler);
-    this.logger.log(`Registered event handler for pattern: ${pattern}`);
+    // this.logger.log(`Registered event handler for pattern: ${pattern}`);
   }
 
   /**

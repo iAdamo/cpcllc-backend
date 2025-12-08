@@ -45,30 +45,30 @@ export const PRIORITY_MAPPING: Record<NotificationPriority, number> = {
   [NotificationPriority.LOW]: 10,
 };
 
-export const NOTIFICATION_EVENTS = {
-  // Incoming events
-  SEND_NOTIFICATION: 'notification:send',
-  SEND_BULK_NOTIFICATION: 'notification:send_bulk',
-  MARK_AS_READ: 'notification:mark_read',
-  GET_NOTIFICATIONS: 'notification:get',
-  GET_UNREAD_COUNT: 'notification:get_unread_count',
-  UPDATE_PREFERENCE: 'notification:update_preference',
-  UPDATE_PUSH_TOKEN: 'notification:update_push_token',
-  GET_PREFERENCE: 'notification:get_preference',
+// export const NOTIFICATION_EVENTS = {
+//   // Incoming events
+//   SEND_NOTIFICATION: 'notification:send',
+//   SEND_BULK_NOTIFICATION: 'notification:send_bulk',
+//   MARK_AS_READ: 'notification:mark_read',
+//   GET_NOTIFICATIONS: 'notification:get',
+//   GET_UNREAD_COUNT: 'notification:get_unread_count',
+//   UPDATE_PREFERENCE: 'notification:update_preference',
+//   UPDATE_PUSH_TOKEN: 'notification:update_push_token',
+//   GET_PREFERENCE: 'notification:get_preference',
 
-  // Outgoing events
-  NOTIFICATION_RECEIVED: 'notification:received',
-  NOTIFICATION_READ: 'notification:read',
-  NOTIFICATIONS_FETCHED: 'notification:fetched',
-  UNREAD_COUNT: 'notification:unread_count',
-  PREFERENCE_UPDATED: 'notification:preference_updated',
-  PREFERENCE_FETCHED: 'notification:preference_fetched',
-  PUSH_TOKEN_UPDATED: 'notification:push_token_updated',
-  BULK_RESULT: 'notification:bulk_result',
-};
+//   // Outgoing events
+//   NOTIFICATION_RECEIVED: 'notification:received',
+//   NOTIFICATION_READ: 'notification:read',
+//   NOTIFICATIONS_FETCHED: 'notification:fetched',
+//   UNREAD_COUNT: 'notification:unread_count',
+//   PREFERENCE_UPDATED: 'notification:preference_updated',
+//   PREFERENCE_FETCHED: 'notification:preference_fetched',
+//   PUSH_TOKEN_UPDATED: 'notification:push_token_updated',
+//   BULK_RESULT: 'notification:bulk_result',
+// };
 
-export const QUEUE_NAMES = {
-  NOTIFICATION_DELIVERY: 'notification.delivery',
-  NOTIFICATION_SCHEDULED: 'notification.scheduled',
-  NOTIFICATION_CLEANUP: 'notification.cleanup',
-} as const;
+// export const QUEUE_NAMES = {
+//   NOTIFICATION_DELIVERY: 'notification.delivery',
+//   NOTIFICATION_SCHEDULED: 'notification.scheduled',
+//   NOTIFICATION_CLEANUP: 'notification.cleanup',
+// } as const;

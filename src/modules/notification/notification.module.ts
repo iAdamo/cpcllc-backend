@@ -16,7 +16,7 @@ import { ScheduledNotificationProcessor } from './processors/scheduled.processor
 import { CleanupProcessor } from './processors/cleanup.processor';
 
 // Gateway
-import { NotificationGateway } from './gateways/notification.gateway';
+import { NotificationGateway } from '../websocket/gateways/notification.gateway';
 
 // Controller
 import { NotificationController } from '@notification/controllers/notification.controller';

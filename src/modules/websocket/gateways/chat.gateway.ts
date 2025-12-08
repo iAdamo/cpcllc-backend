@@ -1,14 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ChatService } from './chat.service';
+import { ChatService } from '../../chat/chat.service';
 import { EventHandler } from '@modules/interfaces/websocket.interface';
-import { ChatEvents } from './chat.events';
-import { EventRouterService } from '../websocket/services/event-router.service';
-import { AuthenticatedSocket } from '@modules/interfaces/websocket.interface';
+import { ChatEvents } from '../events/chat.events';
+import { EventRouterService } from '../services/event-router.service';
+import { AuthenticatedSocket } from '@websocket/interfaces/websocket.interface';
 import {
   TypingDto,
   SendMessageDto,
   JoinChatDto,
-} from './interfaces/chat.interface';
+} from '../../chat/interfaces/chat.interface';
 
 /**
  * Chat Gateway - Handles chat-specific WebSocket events
