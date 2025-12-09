@@ -5,7 +5,16 @@ import { EventRouterService } from './services/event-router.service';
 import { SocketManagerService } from './services/socket-manager.service';
 import { SocketValidationPipe } from './socket-validation.pipe';
 import { RateLimiterService } from './services/rate-limiter.service';
-
+import { PresenceModule } from '@presence/presence.module';
+import { ChatGateway } from './gateways/chat.gateway';
+import { NotificationGateway } from './gateways/notification.gateway';
+import { PresenceGateway } from './gateways/presence.gateway';
+import { ChatService } from '@chat/chat.service';
+import { NotificationService } from '@notification/services/notification.service';
+import { PreferenceService } from '@notification/services/preference.service';
+import { PresenceService } from '@presence/presence.service';
+import { ChatModule } from '@chat/chat.module';
+import { NotificationModule } from '@notification/notification.module';
 /**
  * Core WebSocket Module - Provides foundational WebSocket services
  * This module should be imported once in the root application module
@@ -18,6 +27,9 @@ export class WebSocketModule {
       module: WebSocketModule,
 
       imports: [
+        forwardRef(() => ChatModule),
+        forwardRef(() => NotificationModule),
+        forwardRef(() => PresenceModule),
         RedisModule.forRoot({
           type: 'single',
           url: process.env.REDIS_URL || 'redis://localhost:6379',
@@ -29,6 +41,9 @@ export class WebSocketModule {
       ],
       providers: [
         AppGateway,
+        ChatGateway,
+        NotificationGateway,
+        PresenceGateway,
         EventRouterService,
         SocketManagerService,
         SocketValidationPipe,
@@ -36,6 +51,7 @@ export class WebSocketModule {
       ],
       exports: [
         AppGateway,
+        PresenceGateway,
         EventRouterService,
         SocketManagerService,
         SocketValidationPipe,

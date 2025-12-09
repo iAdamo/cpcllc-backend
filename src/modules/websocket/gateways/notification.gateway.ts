@@ -26,9 +26,6 @@ import {
   UpdatePushTokenDto,
 } from '../../notification/interfaces/preference.interface';
 
-@WebSocketGateway()
-@UseGuards(WsJwtGuard)
-@UsePipes(SocketValidationPipe)
 @Injectable()
 export class NotificationGateway implements EventHandler, OnModuleInit {
   @WebSocketServer()

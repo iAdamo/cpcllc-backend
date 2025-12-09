@@ -7,7 +7,7 @@ export interface AuthenticatedSocket extends Socket {
   user: {
     userId: string;
     email: string;
-    roles: string[];
+    roles: 'Client' | 'Provider' | 'Admin';
     deviceId: string;
     sessionId: string;
   };

@@ -7,9 +7,6 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UseGuards, UsePipes } from '@nestjs/common';
-import { WsJwtGuard } from '@auth/jwt/jwt.guard';
-import { SocketValidationPipe } from '@websocket/socket-validation.pipe';
 import { EventRouterService } from '@websocket/services/event-router.service';
 import { EventHandler } from '@websocket/interfaces/websocket.interface';
 import { PresenceService } from '@presence/presence.service';
@@ -21,9 +18,6 @@ import {
   BatchPresenceResponse,
 } from '@presence/interfaces/presence.interface';
 
-@WebSocketGateway()
-@UseGuards(WsJwtGuard)
-@UsePipes(SocketValidationPipe)
 @Injectable()
 export class PresenceGateway implements EventHandler, OnModuleInit {
   @WebSocketServer()

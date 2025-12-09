@@ -18,13 +18,7 @@ import {
   PresenceStatus,
 } from './interfaces/presence.interface';
 import { PresenceEvents } from '@websocket/events/presence.events';
-// import {
-//   PresenceEvents,
-//   PRESENCE_STATUS,
-//   PRESENCE_CONFIG,
-//   PresenceStatus,
-// } from '../constants/presence.constants';
-import { SocketManagerService } from '@websocket/services/socket-manager.service';
+// import { SocketManagerService } from '@websocket/services/socket-manager.service';
 import { AppGateway } from '@websocket/gateways/app.gateway';
 
 @Injectable()
@@ -32,14 +26,13 @@ export class PresenceService implements OnModuleInit {
   private readonly logger = new Logger(PresenceService.name);
 
   constructor(
+    private readonly appGateway: AppGateway,
     @InjectModel(Presence.name)
     private readonly presenceModel: Model<Presence>,
-
     @InjectRedis()
     private readonly redis: Redis,
 
-    private readonly socketManager: SocketManagerService,
-    private readonly appGateway: AppGateway,
+    // private readonly socketManager: SocketManagerService,
   ) {}
 
   async onModuleInit() {

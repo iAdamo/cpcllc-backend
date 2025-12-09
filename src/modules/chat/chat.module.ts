@@ -1,7 +1,6 @@
 import { WebSocketModule } from '@modules/websocket.module';
 import { forwardRef, Module } from '@nestjs/common';
 import { ChatService } from './chat.service';
-import { ChatGateway } from '../websocket/gateways/chat.gateway';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { User, UserSchema } from '@modules/schemas/user.schema';
@@ -37,7 +36,7 @@ import {
     forwardRef(() => WebSocketModule),
     CacheModule,
   ],
-  providers: [ChatGateway, ChatService, DbStorageService],
+  providers: [ChatService, DbStorageService],
   controllers: [ChatController],
   exports: [ChatService],
 })

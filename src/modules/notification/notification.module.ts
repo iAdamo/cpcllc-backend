@@ -1,30 +1,18 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
-
-// Services
 import { NotificationService } from './services/notification.service';
 import { PreferenceService } from './services/preference.service';
 import { DeliveryService } from './services/delivery.service';
 import { TemplateService } from './services/template.service';
 import { QueueService } from './queues/queue.service';
-
-// Processors
 import { NotificationProcessor } from './processors/notification.processor';
 import { ScheduledNotificationProcessor } from './processors/scheduled.processor';
 import { CleanupProcessor } from './processors/cleanup.processor';
-
-// Gateway
-import { NotificationGateway } from '../websocket/gateways/notification.gateway';
-
-// Controller
 import { NotificationController } from '@notification/controllers/notification.controller';
-
-// Jobs
 import { CronJob } from './jobs/cron.job';
-
-// Schemas
+import { WebSocketModule } from '@websocket/websocket.module';
 import {
   Notification,
   NotificationSchema,
@@ -37,16 +25,9 @@ import {
   NotificationLog,
   NotificationLogSchema,
 } from './schemas/notification-log.schema';
-
-// Shared Services
 import { EmailService } from '@notification/services/email.service';
 import { PushService } from '@notification/services/push.service';
 import { SmsService } from '@notification/services/sms.service';
-
-// Core Dependencies
-import { EventRouterService } from '@websocket/services/event-router.service';
-
-// Queue Configs
 import {
   NOTIFICATION_DELIVERY_QUEUE_CONFIG,
   NOTIFICATION_SCHEDULED_QUEUE_CONFIG,
@@ -55,6 +36,7 @@ import {
 
 @Module({
   imports: [
+ forwardRef(() => WebSocketModule),
     MongooseModule.forFeature([
       { name: Notification.name, schema: NotificationSchema },
       { name: UserPreference.name, schema: UserPreferenceSchema },
@@ -83,31 +65,18 @@ import {
   ],
 
   providers: [
-    // Core Services
     NotificationService,
     PreferenceService,
     DeliveryService,
     TemplateService,
     QueueService,
-
-    // Shared Services
     EmailService,
     PushService,
     SmsService,
-
-    // BullMQ Processors
     NotificationProcessor,
     ScheduledNotificationProcessor,
     CleanupProcessor,
-
-    // Gateway
-    NotificationGateway,
-
-    // Jobs
     CronJob,
-
-    // Core Dependencies
-    // EventRouterService,
   ],
 
   controllers: [NotificationController],
