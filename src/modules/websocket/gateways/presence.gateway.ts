@@ -8,7 +8,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { EventRouterService } from '@websocket/services/event-router.service';
-import { EventHandler } from '@websocket/interfaces/websocket.interface';
+import {
+  EventHandler,
+  ResEventEnvelope,
+  AuthenticatedSocket,
+} from '@websocket/interfaces/websocket.interface';
 import { PresenceService } from '@presence/presence.service';
 import { PresenceEvents } from '../events/presence.events';
 import {
@@ -20,7 +24,6 @@ import {
 
 @Injectable()
 export class PresenceGateway implements EventHandler, OnModuleInit {
-  @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(PresenceGateway.name);
@@ -42,14 +45,18 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     return this.handledEvents.includes(event);
   }
 
-  async handle(event: string, data: any, socket: Socket): Promise<void> {
-    const user = (socket as any).user;
+  async handle(
+    event: string,
+    data: any,
+    socket: AuthenticatedSocket,
+  ): Promise<void> {
+    const user = socket.user;
     if (!user) {
       this.logger.error('No user found in socket');
       return;
     }
 
-    const userId = user.id;
+    const userId = user.userId;
     const deviceId = user.deviceId || 'unknown';
 
     try {
@@ -74,9 +81,9 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
           await this.handleHeartbeat(userId, deviceId, data, socket);
           break;
 
-        case PresenceEvents.USER_ACTIVITY:
-          await this.handleUserActivity(userId, deviceId, socket);
-          break;
+        // case PresenceEvents.USER_ACTIVITY:
+        //   await this.handleUserActivity(userId, deviceId, socket);
+        //   break;
 
         case PresenceEvents.GET_STATUS:
           await this.handleGetStatus(userId, data, socket);
@@ -84,6 +91,17 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
 
         case PresenceEvents.GET_BATCH_STATUS:
           await this.handleGetBatchStatus(userId, data, socket);
+          break;
+        case PresenceEvents.SUBSCRIBE:
+          await this.handleSubscribe(userId, data, socket);
+          break;
+
+        case PresenceEvents.UPDATE_STATUS:
+          await this.handleUpdateStatus(userId, data, socket);
+          break;
+
+        case PresenceEvents.HEARTBEAT:
+          await this.handleHeartbeat(user.userId, user.deviceId, data, socket);
           break;
 
         default:
@@ -100,46 +118,18 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     }
   }
 
-  // ============ WebSocket Direct Handlers ============
-
-  @SubscribeMessage(PresenceEvents.UPDATE_STATUS)
-  async handleUpdateStatusMessage(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() data: UpdatePresenceDto,
-  ) {
-    const user = (socket as any).user;
-    await this.handleUpdateStatus(user.id, data, socket);
-  }
-
-  @SubscribeMessage(PresenceEvents.SUBSCRIBE)
-  async handleSubscribeMessage(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() data: SubscribePresenceDto,
-  ) {
-    const user = (socket as any).user;
-    await this.handleSubscribe(user.id, data, socket);
-  }
-
-  @SubscribeMessage(PresenceEvents.HEARTBEAT)
-  async handleHeartbeatMessage(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() data: HeartbeatDto,
-  ) {
-    const user = (socket as any).user;
-    await this.handleHeartbeat(user.id, user.deviceId, data, socket);
-  }
-
   // ============ Event Handlers ============
 
   private async handleUpdateStatus(
     userId: string,
     data: UpdatePresenceDto,
-    socket: Socket,
+    socket: AuthenticatedSocket,
   ): Promise<void> {
-    const deviceId = (socket as any).user.deviceId;
+    const deviceId = socket.user.deviceId;
 
-    const presence = await this.presenceService.updatePresence(userId, {
-      ...data,
+    const presence = await this.presenceService.updatePresence({
+      dto: { ...data },
+      userId,
     });
 
     // Echo back to sender
@@ -202,10 +192,10 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
   private async handleHeartbeat(
     userId: string,
     deviceId: string,
-    data: HeartbeatDto,
+    data: UpdatePresenceDto,
     socket: Socket,
   ): Promise<void> {
-    await this.presenceService.updateLastSeen(userId, deviceId);
+    await this.presenceService.updatePresence({ dto: data, userId });
 
     // Send acknowledgment
     socket.emit(PresenceEvents.HEARTBEAT_ACK, {
@@ -216,28 +206,33 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     this.logger.debug(`Heartbeat from user ${userId}, device ${deviceId}`);
   }
 
-  private async handleUserActivity(
-    userId: string,
-    deviceId: string,
-    socket: Socket,
-  ): Promise<void> {
-    await this.presenceService.updateLastSeen(userId, deviceId);
+  // private async handleUserActivity(
+  //   userId: string,
+  //   deviceId: string,
+  //   socket: Socket,
+  // ): Promise<void> {
+  //   await this.presenceService.updatePresence(userId, deviceId);
 
-    this.logger.debug(`User activity detected: ${userId}, device ${deviceId}`);
-  }
+  //   this.logger.debug(`User activity detected: ${userId}, device ${deviceId}`);
+  // }
 
   private async handleGetStatus(
     userId: string,
     data: { targetId: string },
     socket: Socket,
   ): Promise<void> {
-    const presence = await this.presenceService.getPresence(data.targetId);
-
-    socket.emit(PresenceEvents.STATUS_RESPONSE, {
-      targetId: data.targetId,
-      presence: presence || null,
-      timestamp: new Date(),
+    const presence = await this.presenceService.getPresence({
+      userId: data.targetId,
     });
+    console.log('handleGetStatus', { presence, data });
+    const envelope: ResEventEnvelope = {
+      version: '1.0.0',
+      timestamp: new Date(),
+      targetId: data.targetId,
+      payload: presence,
+    };
+
+    socket.emit(PresenceEvents.STATUS_RESPONSE, { ...envelope });
   }
 
   private async handleGetBatchStatus(

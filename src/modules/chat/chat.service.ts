@@ -25,6 +25,7 @@ import {
   SendMessageDto,
   JoinChatDto,
 } from './interfaces/chat.interface';
+import { PRESENCE_STATUS } from '@presence/interfaces/presence.interface';
 
 type LeanMessage = FlattenMaps<MessageDocument> & { _id: Types.ObjectId };
 
@@ -161,7 +162,8 @@ export class ChatService {
       );
     }
 
-    const sockets = await this.socketManager.getUserSockets(userId);
+    const sockets = await this.socketManager.getUserSockets({ userId });
+    console.log({ sockets });
     for (const socketId of sockets) {
       this.appGateway.server.sockets.sockets.get(socketId)?.join(chatId);
     }
@@ -329,7 +331,7 @@ export class ChatService {
    * Leave conversation room
    */
   async leaveConversation(userId: string, chatId: string): Promise<void> {
-    const sockets = await this.socketManager.getUserSockets(userId);
+    const sockets = await this.socketManager.getUserSockets({ userId });
 
     for (const socketId of sockets) {
       this.appGateway.server.sockets.sockets.get(socketId)?.leave(chatId);

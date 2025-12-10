@@ -1,3 +1,4 @@
+import { PRESENCE_STATUS } from '@presence/interfaces/presence.interface';
 import { Injectable, Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
@@ -31,7 +32,7 @@ export class SocketManagerService {
       sessionId,
       connectedAt: new Date(),
       lastSeen: new Date(),
-      isOnline: true,
+      status: 'online',
     };
 
     // Store in Redis with expiration
@@ -65,30 +66,119 @@ export class SocketManagerService {
   }
 
   /**
-   * Update user's last seen timestamp
+   * Update session info for a user/device
+   * Can update lastSeen, status, and customStatus
    */
-  async updateLastSeen(userId: string, deviceId: string): Promise<void> {
+  async updateSession({
+    userId,
+    deviceId,
+    updates,
+  }: {
+    userId: string;
+    deviceId: string;
+    updates?: Partial<
+      Pick<UserSession, 'lastSeen' | 'status' | 'customStatus'>
+    >;
+  }): Promise<void> {
     const sessionKey = this.getUserSessionKey(userId);
     const sessionData = await this.redis.hget(sessionKey, deviceId);
 
     if (sessionData) {
       const session: UserSession = JSON.parse(sessionData);
-      session.lastSeen = new Date();
+      if (updates.lastSeen) session.lastSeen = updates.lastSeen;
+      if (updates.status) session.status = updates.status;
+      if (updates.customStatus !== undefined)
+        session.customStatus = updates.customStatus;
 
       await this.redis.hset(sessionKey, deviceId, JSON.stringify(session));
     }
   }
 
   /**
+   * Update user's last seen timestamp
+   */
+  // async updateLastSeen(userId: string, deviceId: string): Promise<void> {
+  //   const sessionKey = this.getUserSessionKey(userId);
+  //   const sessionData = await this.redis.hget(sessionKey, deviceId);
+
+  //   if (sessionData) {
+  //     const session: UserSession = JSON.parse(sessionData);
+  //     session.lastSeen = new Date();
+
+  //     await this.redis.hset(sessionKey, deviceId, JSON.stringify(session));
+  //   }
+  // }
+
+  /**
+   * Get all sessions for a user, or all users if userId is undefined (efficient for large Redis)
+   */
+  async getUserSessions(
+    userId?: string,
+    status?: PRESENCE_STATUS,
+  ): Promise<UserSession[]> {
+    const sessions: UserSession[] = [];
+
+    if (userId) {
+      // Get sessions for a specific user
+      const sessionKey = this.getUserSessionKey(userId);
+      const userSessions = await this.redis.hgetall(sessionKey);
+      sessions.push(
+        ...Object.values(userSessions).map((session) =>
+          JSON.parse(session as string),
+        ),
+      );
+    } else {
+      // Efficiently scan all user sessions without blocking Redis
+      let cursor = '0';
+      do {
+        const [nextCursor, keys] = await this.redis.scan(
+          cursor,
+          'MATCH',
+          'user:session:*',
+          'COUNT',
+          100,
+        );
+        cursor = nextCursor;
+
+        for (const key of keys) {
+          const userSessions = await this.redis.hgetall(key);
+          sessions.push(
+            ...Object.values(userSessions).map((session) =>
+              JSON.parse(session as string),
+            ),
+          );
+        }
+      } while (cursor !== '0');
+    }
+
+    if (status === undefined) return sessions;
+
+    return sessions.filter((session) => status.includes(session.status));
+  }
+
+  /**
    * Get all sockets for a user
    */
-  async getUserSockets(userId: string): Promise<string[]> {
+  async getUserSockets({
+    userId,
+    status,
+  }: {
+    userId: string;
+    status?: PRESENCE_STATUS[];
+  }): Promise<string[]> {
     const sessionKey = this.getUserSessionKey(userId);
     const sessions = await this.redis.hgetall(sessionKey);
 
-    return Object.values(sessions)
-      .map((session) => JSON.parse(session as string))
-      .filter((session) => session.isOnline)
+    const parsedSessions = Object.values(sessions).map((session) =>
+      JSON.parse(session as string),
+    );
+
+    if (!status || status.length === 0) {
+      return parsedSessions.map((s) => s.socketId);
+    }
+
+    return parsedSessions
+      .filter((session) => status.includes(session.status))
       .map((session) => session.socketId);
   }
 
@@ -104,7 +194,7 @@ export class SocketManagerService {
    * Check if user is online
    */
   async isUserOnline(userId: string): Promise<boolean> {
-    const sockets = await this.getUserSockets(userId);
+    const sockets = await this.getUserSockets({ userId });
     return sockets.length > 0;
   }
 

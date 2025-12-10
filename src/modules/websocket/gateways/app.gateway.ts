@@ -10,7 +10,7 @@ import {
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
-import { Logger, UseGuards, UsePipes } from '@nestjs/common';
+import { Logger, UseGuards, UsePipes, Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SocketEvents, EventEnvelope } from '../events/socket.events';
 import { AuthenticatedSocket } from '../interfaces/websocket.interface';
@@ -19,9 +19,9 @@ import { SocketManagerService } from '../services/socket-manager.service';
 import { SocketValidationPipe } from '../socket-validation.pipe';
 import { RateLimiterService } from '../services/rate-limiter.service';
 import { ConfigService } from '@nestjs/config';
-import { PresenceGateway } from '@websocket/gateways/presence.gateway';
-import { PresenceService } from '@presence/presence.service';
 import { PresenceEvents } from '@websocket/events/presence.events';
+import { PRESENCE_STATUS } from '@presence/constants/presence.constants';
+import { PresenceService } from '@presence/presence.service';
 
 /**
  * Main WebSocket Gateway - Single entry point for all WebSocket communications
@@ -48,13 +48,10 @@ export class AppGateway
   private readonly logger = new Logger(AppGateway.name);
 
   constructor(
-    // private readonly presenceGateway: PresenceGateway,
-
     private readonly eventRouter: EventRouterService,
     private readonly socketManager: SocketManagerService,
     private readonly rateLimiter: RateLimiterService,
     private readonly configService: ConfigService,
-    // private readonly presenceService: PresenceService,
   ) {}
 
   /**
@@ -114,23 +111,6 @@ export class AppGateway
         payload.deviceId,
         payload.sessionId,
       );
-      const { deviceId, sessionId } = payload;
-
-      // await this.presenceGateway.handleUserConnected(
-      //   userId,
-      //   deviceId,
-      //   sessionId,
-      //   client,
-      // );
-
-      // const presence = await this.presenceService.setOnline(
-      //   userId,
-      //   deviceId,
-      //   sessionId,
-      // );
-
-      // Notify the user they're online
-      // client.emit(PresenceEvents.USER_ONLINE, presence);
 
       this.logger.log(
         `Client connected: ${client.id}, User: ${userId}, Device: ${payload.deviceId}`,
@@ -163,6 +143,12 @@ export class AppGateway
    */
   async handleDisconnect(@ConnectedSocket() client: AuthenticatedSocket) {
     try {
+      // Update last seen
+      await this.socketManager.updateSession({
+        userId: client.user.userId,
+        deviceId: client.user.deviceId,
+        updates: { lastSeen: new Date(), status: PRESENCE_STATUS.OFFLINE },
+      });
       await this.socketManager.removeUserSession(client.id);
       const { userId, deviceId } = client.user;
       // await this.presenceGateway.handleUserDisconnected(userId, deviceId);
@@ -181,9 +167,6 @@ export class AppGateway
     event: string,
     @MessageBody() data: any,
   ) {
-    // const event = data.event;
-    // console.log({ data });
-
     try {
       // Rate limiting check
       const rateLimit = await this.rateLimiter.isAllowed(
@@ -205,10 +188,11 @@ export class AppGateway
       }
 
       // Update last seen
-      await this.socketManager.updateLastSeen(
-        client.user.userId,
-        client.user.deviceId,
-      );
+      await this.socketManager.updateSession({
+        userId: client.user.userId,
+        deviceId: client.user.deviceId,
+        updates: { lastSeen: new Date(), status: PRESENCE_STATUS.ONLINE },
+      });
 
       // Route event to appropriate module handler
       await this.eventRouter.route(event, data, client);
@@ -235,7 +219,7 @@ export class AppGateway
    * Send to specific user across all devices
    */
   async sendToUser(userId: string, event: string, data: any): Promise<void> {
-    const sockets = await this.socketManager.getUserSockets(userId);
+    const sockets = await this.socketManager.getUserSockets({ userId });
 
     sockets.forEach((socketId) => {
       this.server.to(socketId).emit(event, data);

@@ -1,5 +1,6 @@
 import { Module, Global, DynamicModule, forwardRef } from '@nestjs/common';
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AppGateway } from './gateways/app.gateway';
 import { EventRouterService } from './services/event-router.service';
 import { SocketManagerService } from './services/socket-manager.service';
@@ -15,6 +16,7 @@ import { PreferenceService } from '@notification/services/preference.service';
 import { PresenceService } from '@presence/presence.service';
 import { ChatModule } from '@chat/chat.module';
 import { NotificationModule } from '@notification/notification.module';
+import { Presence, PresenceSchema } from '@presence/schemas/presence.schema';
 /**
  * Core WebSocket Module - Provides foundational WebSocket services
  * This module should be imported once in the root application module
@@ -28,8 +30,12 @@ export class WebSocketModule {
 
       imports: [
         forwardRef(() => ChatModule),
-        forwardRef(() => NotificationModule),
+        // forwardRef(() => NotificationModule),
         forwardRef(() => PresenceModule),
+        NotificationModule,
+        MongooseModule.forFeature([
+          { name: Presence.name, schema: PresenceSchema },
+        ]),
         RedisModule.forRoot({
           type: 'single',
           url: process.env.REDIS_URL || 'redis://localhost:6379',

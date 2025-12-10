@@ -17,14 +17,20 @@ export class Presence {
   @Prop({ required: true })
   lastSeen: Date;
 
+  @Prop({ required: true })
+  connectedAt?: Date;
+
   @Prop()
   deviceId: string;
 
   @Prop()
   sessionId: string;
 
+  @Prop()
+  socketId?: string;
+
   @Prop({ type: Object })
-  metadata: Record<string, any>;
+  metadata?: Record<string, any>;
 
   @Prop()
   customStatus?: string;

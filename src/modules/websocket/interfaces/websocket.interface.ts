@@ -18,12 +18,14 @@ export interface AuthenticatedSocket extends Socket {
  */
 export interface UserSession {
   userId: string;
-  socketId: string;
+  status: string;
+  lastSeen: Date;
+  socketId?: string;
   deviceId: string;
   sessionId: string;
+  metadata?: Record<string, any>;
+  customStatus?: string;
   connectedAt: Date;
-  lastSeen: Date;
-  isOnline: boolean;
 }
 
 /**
@@ -45,4 +47,11 @@ export interface SocketRegistry {
 export interface EventHandler {
   canHandle(event: string): boolean;
   handle(event: string, data: any, socket: AuthenticatedSocket): Promise<void>;
+}
+
+export interface ResEventEnvelope<T = any> {
+  version: string;
+  timestamp: Date;
+  targetId?: string;
+  payload: T;
 }

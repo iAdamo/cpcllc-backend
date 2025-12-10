@@ -18,21 +18,24 @@ import {
   PresenceStatus,
 } from './interfaces/presence.interface';
 import { PresenceEvents } from '@websocket/events/presence.events';
-// import { SocketManagerService } from '@websocket/services/socket-manager.service';
+import { SocketManagerService } from '@websocket/services/socket-manager.service';
 import { AppGateway } from '@websocket/gateways/app.gateway';
+import {
+  AuthenticatedSocket,
+  UserSession,
+} from '@websocket/interfaces/websocket.interface';
 
 @Injectable()
 export class PresenceService implements OnModuleInit {
   private readonly logger = new Logger(PresenceService.name);
 
   constructor(
-    private readonly appGateway: AppGateway,
     @InjectModel(Presence.name)
     private readonly presenceModel: Model<Presence>,
     @InjectRedis()
     private readonly redis: Redis,
-
-    // private readonly socketManager: SocketManagerService,
+    private readonly appGateway: AppGateway,
+    private readonly socketManager: SocketManagerService,
   ) {}
 
   async onModuleInit() {
@@ -163,15 +166,22 @@ export class PresenceService implements OnModuleInit {
   /**
    * Update user presence status
    */
-  async updatePresence(
-    userId: string,
-    dto: UpdatePresenceDto,
-  ): Promise<Presence> {
+  async updatePresence({
+    dto,
+    userId,
+    session,
+    socket,
+  }: {
+    dto: UpdatePresenceDto;
+    userId?: string;
+    session?: UserSession;
+    socket?: AuthenticatedSocket;
+  }): Promise<Presence> {
     const now = new Date();
+    const id = userId || session.userId;
 
-    // Update MongoDB
     const presence = await this.presenceModel.findOneAndUpdate(
-      { userId },
+      { userId: new Types.ObjectId(id) },
       {
         status: dto.status,
         customStatus: dto.customStatus,
@@ -182,69 +192,61 @@ export class PresenceService implements OnModuleInit {
       { new: true, upsert: true },
     );
 
-    // Update Redis for all active devices
-    const deviceKeys = await this.redis.keys(this.getRedisKey(userId, '*'));
-    for (const key of deviceKeys) {
-      const presenceData = await this.redis.get(key);
-      if (presenceData) {
-        const data = JSON.parse(presenceData);
-        await this.redis.setex(
-          key,
-          PRESENCE_CONFIG.PRESENCE_TTL,
-          JSON.stringify({
-            ...data,
-            status: dto.status || data.status,
-            customStatus: dto.customStatus,
-            lastSeen: now,
-          }),
-        );
-      }
-    }
+    // Update sessions in SocketManager
+    await this.socketManager.updateSession({
+      userId: id,
+      deviceId: session.deviceId,
+      updates: {
+        status: dto.status,
+        customStatus: dto.customStatus,
+        lastSeen: now,
+      },
+    });
 
     // Notify subscribers
     if (dto.status) {
-      await this.notifyStatusChange(userId, dto.status);
+      await this.notifyStatusChange(id, dto.status);
     }
 
-    this.logger.debug(`Updated presence for user ${userId}: ${dto.status}`);
+    this.logger.debug(`Updated presence for user ${id}: ${dto.status}`);
 
     return this.toResponse(presence);
   }
 
-  /**
-   * Update last seen timestamp (heartbeat)
-   */
-  async updateLastSeen(userId: string, deviceId: string): Promise<void> {
-    const now = new Date();
-    const redisKey = this.getRedisKey(userId, deviceId);
+  // /**
+  //  * Update last seen timestamp (heartbeat)
+  //  */
+  // async updateLastSeen(userId: string, deviceId: string): Promise<void> {
+  //   const now = new Date();
+  //   const redisKey = this.getRedisKey(userId, deviceId);
 
-    // Update Redis
-    const presenceData = await this.redis.get(redisKey);
-    if (presenceData) {
-      const data = JSON.parse(presenceData);
-      await this.redis.setex(
-        redisKey,
-        PRESENCE_CONFIG.PRESENCE_TTL,
-        JSON.stringify({
-          ...data,
-          lastSeen: now,
-        }),
-      );
-    }
+  //   // Update Redis
+  //   const presenceData = await this.redis.get(redisKey);
+  //   if (presenceData) {
+  //     const data = JSON.parse(presenceData);
+  //     await this.redis.setex(
+  //       redisKey,
+  //       PRESENCE_CONFIG.PRESENCE_TTL,
+  //       JSON.stringify({
+  //         ...data,
+  //         lastSeen: now,
+  //       }),
+  //     );
+  //   }
 
-    // Update MongoDB if user is online
-    await this.presenceModel.findOneAndUpdate(
-      { userId, status: PRESENCE_STATUS.ONLINE },
-      { lastSeen: now },
-      { new: true },
-    );
+  //   // Update MongoDB if user is online
+  //   await this.presenceModel.findOneAndUpdate(
+  //     { userId, status: PRESENCE_STATUS.ONLINE },
+  //     { lastSeen: now },
+  //     { new: true },
+  //   );
 
-    // If user was away, mark as online
-    const currentStatus = await this.getUserStatus(userId);
-    if (currentStatus === PRESENCE_STATUS.AWAY) {
-      await this.updatePresence(userId, { status: PRESENCE_STATUS.ONLINE });
-    }
-  }
+  //   // If user was away, mark as online
+  //   const currentStatus = await this.getUserStatus(userId);
+  //   if (currentStatus === PRESENCE_STATUS.AWAY) {
+  //     await this.updatePresence(userId, { status: PRESENCE_STATUS.ONLINE });
+  //   }
+  // }
 
   // ==================== SUBSCRIPTION MANAGEMENT ====================
 
@@ -258,14 +260,23 @@ export class PresenceService implements OnModuleInit {
     for (const targetId of targetIds) {
       if (subscriberId === targetId) continue;
 
-      const subscriptionKey = this.getSubscriptionKey(subscriberId);
-      await this.redis.sadd(subscriptionKey, targetId);
+      if (subscriberId && targetId) {
+        const subscriptionKey = this.getSubscriptionKey(subscriberId);
+        await this.redis.sadd(subscriptionKey, targetId);
 
-      const subscriberKey = this.getSubscriberKey(targetId);
-      await this.redis.sadd(subscriberKey, subscriberId);
-
+        const subscriberKey = this.getSubscriberKey(targetId);
+        await this.redis.sadd(subscriberKey, subscriberId);
+      } else {
+        this.logger.error(
+          'Presence error: subscriberId or targetId is undefined',
+        );
+        return;
+      }
       // Send initial presence status
-      const presence = await this.getPresence(targetId);
+      const presence = await this.getPresence({
+        userId: targetId,
+        status: PRESENCE_STATUS.ONLINE,
+      });
       if (presence) {
         await this.appGateway.sendToUser(
           subscriberId,
@@ -321,27 +332,26 @@ export class PresenceService implements OnModuleInit {
   /**
    * Get user presence status
    */
-  async getPresence(userId: string): Promise<Presence | null> {
-    // Try Redis first (fast)
-    const deviceKeys = await this.redis.keys(this.getRedisKey(userId, '*'));
-
-    if (deviceKeys.length > 0) {
-      // User has active devices in Redis
-      const latestKey = deviceKeys[0];
-      const presenceData = await this.redis.get(latestKey);
-
-      if (presenceData) {
-        const data = JSON.parse(presenceData);
-        return {
-          userId: new Types.ObjectId(userId),
-          status: data.status,
-          lastSeen: new Date(data.lastSeen),
-          deviceId: data.deviceId,
-          sessionId: data.sessionId,
-          customStatus: data.customStatus,
-          metadata: data.metadata,
-        };
-      }
+  async getPresence({
+    userId,
+    status,
+  }: {
+    userId: string;
+    status?: PRESENCE_STATUS;
+  }): Promise<any> {
+    const sessions = await this.socketManager.getUserSessions(userId, status);
+    if (sessions.length > 0) {
+      const data = sessions[0];
+      return {
+        userId: userId,
+        status: data.status,
+        lastSeen: new Date(data.lastSeen),
+        deviceId: data.deviceId,
+        sessionId: data.sessionId,
+        customStatus: data.customStatus,
+        connectedAt: data.connectedAt,
+        metadata: data.metadata,
+      };
     }
 
     // Fallback to MongoDB
@@ -356,7 +366,7 @@ export class PresenceService implements OnModuleInit {
     const presences: PresenceResponse[] = [];
 
     for (const userId of userIds) {
-      const presence = await this.getPresence(userId);
+      const presence = await this.getPresence({ userId });
 
       if (presence) {
         presences.push({
@@ -377,7 +387,6 @@ export class PresenceService implements OnModuleInit {
         });
       }
     }
-
     return {
       presences,
       timestamp: new Date(),
@@ -396,7 +405,7 @@ export class PresenceService implements OnModuleInit {
    * Get user status (online/offline/away/busy)
    */
   async getUserStatus(userId: string): Promise<PresenceStatus> {
-    const presence = await this.getPresence(userId);
+    const presence = await this.getPresence({ userId });
     return presence?.status || PRESENCE_STATUS.OFFLINE;
   }
 
@@ -410,24 +419,23 @@ export class PresenceService implements OnModuleInit {
     const now = new Date();
     const inactiveThreshold = PRESENCE_CONFIG.INACTIVE_THRESHOLD;
 
-    // Get all online users from Redis
-    const onlineKeys = await this.redis.keys('presence:*:*');
+    // Get all user sessions across all users
+    const allSessions = await this.socketManager.getUserSessions();
 
-    for (const key of onlineKeys) {
-      const presenceData = await this.redis.get(key);
-      if (!presenceData) continue;
-
-      const data = JSON.parse(presenceData);
-      const lastSeen = new Date(data.lastSeen);
+    // Check for inactivity
+    for (const session of allSessions) {
+      const lastSeen = new Date(session.lastSeen);
       const timeDiff = now.getTime() - lastSeen.getTime();
 
       if (
         timeDiff > inactiveThreshold &&
-        data.status === PRESENCE_STATUS.ONLINE
+        session.status === PRESENCE_STATUS.ONLINE
       ) {
-        // Mark as away
-        const userId = key.split(':')[1];
-        await this.updatePresence(userId, { status: PRESENCE_STATUS.AWAY });
+        // Mark the user as away
+        await this.updatePresence({
+          dto: { status: PRESENCE_STATUS.AWAY },
+          session,
+        });
       }
     }
   }
@@ -504,7 +512,7 @@ export class PresenceService implements OnModuleInit {
     const subscribers = await this.getSubscribers(userId);
 
     for (const subscriberId of subscribers) {
-      const presence = await this.getPresence(userId);
+      const presence = await this.getPresence({ userId });
       if (presence) {
         await this.appGateway.sendToUser(
           subscriberId,

@@ -28,7 +28,6 @@ import {
 
 @Injectable()
 export class NotificationGateway implements EventHandler, OnModuleInit {
-  @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(NotificationGateway.name);

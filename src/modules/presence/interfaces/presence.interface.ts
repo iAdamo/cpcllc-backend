@@ -7,12 +7,16 @@ export interface UserPresence {
   customStatus?: string;
   expiresAt?: Date;
   metadata?: Record<string, any>;
+  timestamp?: number;
+  deviceInfo?: DeviceInfo;
 }
 
 export interface UpdatePresenceDto {
   status?: PresenceStatus;
   customStatus?: string;
   metadata?: Record<string, any>;
+  timestamp?: number;
+  deviceInfo?: DeviceInfo;
 }
 
 export interface SubscribePresenceDto {
