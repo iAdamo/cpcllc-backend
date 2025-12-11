@@ -1,3 +1,4 @@
+import { UserPresence } from './../../presence/interfaces/presence.interface';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   WebSocketGateway,
@@ -21,6 +22,7 @@ import {
   HeartbeatDto,
   BatchPresenceResponse,
 } from '@presence/interfaces/presence.interface';
+import { UsersService } from '@users/users.service';
 
 @Injectable()
 export class PresenceGateway implements EventHandler, OnModuleInit {
@@ -32,6 +34,7 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
   constructor(
     private readonly eventRouter: EventRouterService,
     private readonly presenceService: PresenceService,
+    private readonly userService: UsersService,
   ) {}
 
   onModuleInit() {
@@ -57,7 +60,7 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     }
 
     const userId = user.userId;
-    const deviceId = user.deviceId || 'unknown';
+    const deviceId = user.deviceId;
 
     try {
       switch (event) {
@@ -69,9 +72,9 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
           await this.handleSubscribe(userId, data, socket);
           break;
 
-        case PresenceEvents.UNSUBSCRIBE:
-          await this.handleUnsubscribe(userId, data, socket);
-          break;
+        // case PresenceEvents.UNSUBSCRIBE:
+        //   await this.handleUnsubscribe(userId, data, socket);
+        //   break;
 
         case PresenceEvents.GET_SUBSCRIPTIONS:
           await this.handleGetSubscriptions(userId, socket);
@@ -81,9 +84,9 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
           await this.handleHeartbeat(userId, deviceId, data, socket);
           break;
 
-        // case PresenceEvents.USER_ACTIVITY:
-        //   await this.handleUserActivity(userId, deviceId, socket);
-        //   break;
+        case PresenceEvents.USER_ACTIVITY:
+          await this.handleUserActivity(userId, deviceId, data, socket);
+          break;
 
         case PresenceEvents.GET_STATUS:
           await this.handleGetStatus(userId, data, socket);
@@ -92,16 +95,13 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
         case PresenceEvents.GET_BATCH_STATUS:
           await this.handleGetBatchStatus(userId, data, socket);
           break;
+
         case PresenceEvents.SUBSCRIBE:
           await this.handleSubscribe(userId, data, socket);
           break;
 
         case PresenceEvents.UPDATE_STATUS:
           await this.handleUpdateStatus(userId, data, socket);
-          break;
-
-        case PresenceEvents.HEARTBEAT:
-          await this.handleHeartbeat(user.userId, user.deviceId, data, socket);
           break;
 
         default:
@@ -143,14 +143,22 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     data: SubscribePresenceDto,
     socket: Socket,
   ): Promise<void> {
-    await this.presenceService.subscribeToPresence(userId, data.userIds);
-
+    const response = await this.userService.toggleFollowProvider(
+      userId,
+      data.userIds[0],
+    );
+    if (response.isFollowing) {
+      this.handleUnsubscribe(userId, data, socket);
+    } else {
+      await this.presenceService.subscribeToPresence(userId, data.userIds);
+    }
     // Send current status of subscribed users
     const batchResponse = await this.presenceService.getBulkPresence(
       data.userIds,
     );
 
     socket.emit(PresenceEvents.SUBSCRIBED, {
+      ...response,
       userIds: data.userIds,
       ...batchResponse,
     });
@@ -193,9 +201,9 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     userId: string,
     deviceId: string,
     data: UpdatePresenceDto,
-    socket: Socket,
+    socket: AuthenticatedSocket,
   ): Promise<void> {
-    await this.presenceService.updatePresence({ dto: data, userId });
+    await this.presenceService.updatePresence({ dto: data, userId, socket });
 
     // Send acknowledgment
     socket.emit(PresenceEvents.HEARTBEAT_ACK, {
@@ -206,15 +214,16 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     this.logger.debug(`Heartbeat from user ${userId}, device ${deviceId}`);
   }
 
-  // private async handleUserActivity(
-  //   userId: string,
-  //   deviceId: string,
-  //   socket: Socket,
-  // ): Promise<void> {
-  //   await this.presenceService.updatePresence(userId, deviceId);
+  private async handleUserActivity(
+    userId: string,
+    deviceId: string,
+    data: UpdatePresenceDto,
+    socket: AuthenticatedSocket,
+  ): Promise<void> {
+    await this.presenceService.updatePresence({ dto: data, userId, socket });
 
-  //   this.logger.debug(`User activity detected: ${userId}, device ${deviceId}`);
-  // }
+    this.logger.debug(`User activity detected: ${userId}, device ${deviceId}`);
+  }
 
   private async handleGetStatus(
     userId: string,
@@ -224,7 +233,6 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     const presence = await this.presenceService.getPresence({
       userId: data.targetId,
     });
-    console.log('handleGetStatus', { presence, data });
     const envelope: ResEventEnvelope = {
       version: '1.0.0',
       timestamp: new Date(),
@@ -252,40 +260,6 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
   }
 
   // ============ Helper Methods ============
-
-  /**
-   * Called by main gateway when user connects
-   */
-  async handleUserConnected(
-    userId: string,
-    deviceId: string,
-    sessionId: string,
-    socket: Socket,
-  ): Promise<void> {
-    const presence = await this.presenceService.setOnline(
-      userId,
-      deviceId,
-      sessionId,
-      (socket as any).user.deviceInfo,
-    );
-
-    // Notify the user they're online
-    socket.emit(PresenceEvents.USER_ONLINE, presence);
-
-    this.logger.log(`User ${userId} connected via device ${deviceId}`);
-  }
-
-  /**
-   * Called by main gateway when user disconnects
-   */
-  async handleUserDisconnected(
-    userId: string,
-    deviceId: string,
-  ): Promise<void> {
-    const presence = await this.presenceService.setOffline(userId, deviceId);
-
-    this.logger.log(`User ${userId} disconnected from device ${deviceId}`);
-  }
 
   /**
    * Broadcast presence update to all interested parties

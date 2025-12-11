@@ -24,6 +24,7 @@ import {
   AuthenticatedSocket,
   UserSession,
 } from '@websocket/interfaces/websocket.interface';
+import { PresenceGateway } from '@websocket/gateways/presence.gateway';
 
 @Injectable()
 export class PresenceService implements OnModuleInit {
@@ -36,6 +37,7 @@ export class PresenceService implements OnModuleInit {
     private readonly redis: Redis,
     private readonly appGateway: AppGateway,
     private readonly socketManager: SocketManagerService,
+    // private readonly sr: ChatGateway,
   ) {}
 
   async onModuleInit() {
@@ -46,121 +48,6 @@ export class PresenceService implements OnModuleInit {
     // Clean up any stale presence data on startup
     await this.cleanupStalePresence();
     this.logger.log('Presence system initialized');
-  }
-
-  // ==================== CORE PRESENCE METHODS ====================
-
-  /**
-   * Set user as online (called on WebSocket connection)
-   */
-  async setOnline(
-    userId: string,
-    deviceId: string,
-    sessionId: string,
-    deviceInfo?: DeviceInfo,
-  ): Promise<Presence> {
-    const now = new Date();
-
-    // Update Redis (fast cache)
-    await this.updateRedisPresence(userId, {
-      status: PRESENCE_STATUS.ONLINE,
-      lastSeen: now,
-      deviceId,
-      sessionId,
-      deviceInfo,
-    });
-
-    // Update MongoDB (persistent storage)
-    let presence = await this.presenceModel.findOne({ userId });
-
-    if (!presence) {
-      presence = new this.presenceModel({
-        userId,
-        status: PRESENCE_STATUS.ONLINE,
-        lastSeen: now,
-        deviceId,
-        sessionId,
-        metadata: { deviceInfo },
-        createdAt: now,
-        updatedAt: now,
-      });
-    } else {
-      presence.status = PRESENCE_STATUS.ONLINE;
-      presence.lastSeen = now;
-      presence.deviceId = deviceId;
-      presence.sessionId = sessionId;
-      presence['updatedAt'] = now;
-
-      if (deviceInfo) {
-        presence.metadata = {
-          ...presence.metadata,
-          deviceInfo,
-        };
-      }
-    }
-
-    await presence.save();
-
-    // Notify subscribers
-    await this.notifyStatusChange(userId, PRESENCE_STATUS.ONLINE);
-
-    this.logger.log(`User ${userId} is now online (device: ${deviceId})`);
-
-    return this.toResponse(presence);
-  }
-
-  /**
-   * Set user as offline (called on WebSocket disconnection)
-   */
-  async setOffline(userId: string, deviceId?: string): Promise<Presence> {
-    const now = new Date();
-
-    // Check if user has other active devices
-    const hasOtherDevices = await this.hasActiveDevices(userId, deviceId);
-
-    let newStatus = PRESENCE_STATUS.OFFLINE;
-
-    if (hasOtherDevices) {
-      // User still online from other devices
-      newStatus = PRESENCE_STATUS.ONLINE;
-
-      // Just remove this device from Redis
-      if (deviceId) {
-        await this.redis.del(this.getRedisKey(userId, deviceId));
-      }
-    } else {
-      // User completely offline
-      newStatus = PRESENCE_STATUS.OFFLINE;
-
-      // Update Redis for all devices
-      const deviceKeys = await this.redis.keys(this.getRedisKey(userId, '*'));
-      for (const key of deviceKeys) {
-        await this.redis.del(key);
-      }
-    }
-
-    // Update MongoDB
-    const presence = await this.presenceModel.findOneAndUpdate(
-      { userId },
-      {
-        status: newStatus,
-        lastSeen: now,
-        updatedAt: now,
-        ...(deviceId && { deviceId: null }),
-      },
-      { new: true, upsert: true },
-    );
-
-    // Notify subscribers if status changed to offline
-    if (newStatus === PRESENCE_STATUS.OFFLINE) {
-      await this.notifyStatusChange(userId, PRESENCE_STATUS.OFFLINE);
-    }
-
-    this.logger.log(
-      `User ${userId} is now ${newStatus} ${deviceId ? `(device: ${deviceId})` : ''}`,
-    );
-
-    return this.toResponse(presence);
   }
 
   /**
@@ -180,73 +67,40 @@ export class PresenceService implements OnModuleInit {
     const now = new Date();
     const id = userId || session.userId;
 
+    if (dto.state) dto.metadata = { state: dto.state };
+
     const presence = await this.presenceModel.findOneAndUpdate(
       { userId: new Types.ObjectId(id) },
       {
         status: dto.status,
         customStatus: dto.customStatus,
-        lastSeen: now,
+        lastSeen: dto.timestamp || now,
         updatedAt: now,
         metadata: dto.metadata,
       },
       { new: true, upsert: true },
     );
-
+    if (!session && !socket) {
+      console.debug('no session and socket');
+      return;
+    }
     // Update sessions in SocketManager
     await this.socketManager.updateSession({
       userId: id,
-      deviceId: session.deviceId,
+      deviceId: session?.deviceId ? session.deviceId : socket.user.deviceId,
       updates: {
         status: dto.status,
         customStatus: dto.customStatus,
         lastSeen: now,
+        metadata: dto.metadata,
       },
     });
-
-    // Notify subscribers
-    if (dto.status) {
-      await this.notifyStatusChange(id, dto.status);
-    }
+    await this.notifyStatusChange(id, {} as PresenceStatus);
 
     this.logger.debug(`Updated presence for user ${id}: ${dto.status}`);
 
     return this.toResponse(presence);
   }
-
-  // /**
-  //  * Update last seen timestamp (heartbeat)
-  //  */
-  // async updateLastSeen(userId: string, deviceId: string): Promise<void> {
-  //   const now = new Date();
-  //   const redisKey = this.getRedisKey(userId, deviceId);
-
-  //   // Update Redis
-  //   const presenceData = await this.redis.get(redisKey);
-  //   if (presenceData) {
-  //     const data = JSON.parse(presenceData);
-  //     await this.redis.setex(
-  //       redisKey,
-  //       PRESENCE_CONFIG.PRESENCE_TTL,
-  //       JSON.stringify({
-  //         ...data,
-  //         lastSeen: now,
-  //       }),
-  //     );
-  //   }
-
-  //   // Update MongoDB if user is online
-  //   await this.presenceModel.findOneAndUpdate(
-  //     { userId, status: PRESENCE_STATUS.ONLINE },
-  //     { lastSeen: now },
-  //     { new: true },
-  //   );
-
-  //   // If user was away, mark as online
-  //   const currentStatus = await this.getUserStatus(userId);
-  //   if (currentStatus === PRESENCE_STATUS.AWAY) {
-  //     await this.updatePresence(userId, { status: PRESENCE_STATUS.ONLINE });
-  //   }
-  // }
 
   // ==================== SUBSCRIPTION MANAGEMENT ====================
 
@@ -275,8 +129,9 @@ export class PresenceService implements OnModuleInit {
       // Send initial presence status
       const presence = await this.getPresence({
         userId: targetId,
-        status: PRESENCE_STATUS.ONLINE,
+        status: [PRESENCE_STATUS.ONLINE],
       });
+      // console.log('from sub', { presence });
       if (presence) {
         await this.appGateway.sendToUser(
           subscriberId,
@@ -337,9 +192,12 @@ export class PresenceService implements OnModuleInit {
     status,
   }: {
     userId: string;
-    status?: PRESENCE_STATUS;
+    status?: PRESENCE_STATUS[];
   }): Promise<any> {
-    const sessions = await this.socketManager.getUserSessions(userId, status);
+    const sessions = await this.socketManager.getUserSessions({
+      userId,
+      status,
+    });
     if (sessions.length > 0) {
       const data = sessions[0];
       return {
@@ -368,24 +226,7 @@ export class PresenceService implements OnModuleInit {
     for (const userId of userIds) {
       const presence = await this.getPresence({ userId });
 
-      if (presence) {
-        presences.push({
-          userId: presence.userId.toString(),
-          status: presence.status,
-          lastSeen: presence.lastSeen,
-          customStatus: presence.customStatus,
-          isOnline: presence.status === PRESENCE_STATUS.ONLINE,
-          deviceId: presence.deviceId,
-        });
-      } else {
-        // Default offline presence
-        presences.push({
-          userId,
-          status: PRESENCE_STATUS.OFFLINE,
-          lastSeen: new Date(0),
-          isOnline: false,
-        });
-      }
+      if (presence) presences.push(presence);
     }
     return {
       presences,
@@ -420,17 +261,16 @@ export class PresenceService implements OnModuleInit {
     const inactiveThreshold = PRESENCE_CONFIG.INACTIVE_THRESHOLD;
 
     // Get all user sessions across all users
-    const allSessions = await this.socketManager.getUserSessions();
+    const allSessions = await this.socketManager.getUserSessions({
+      status: [PRESENCE_STATUS.ONLINE],
+    });
 
     // Check for inactivity
     for (const session of allSessions) {
       const lastSeen = new Date(session.lastSeen);
       const timeDiff = now.getTime() - lastSeen.getTime();
 
-      if (
-        timeDiff > inactiveThreshold &&
-        session.status === PRESENCE_STATUS.ONLINE
-      ) {
+      if (timeDiff > inactiveThreshold) {
         // Mark the user as away
         await this.updatePresence({
           dto: { status: PRESENCE_STATUS.AWAY },
@@ -510,9 +350,9 @@ export class PresenceService implements OnModuleInit {
     status: PresenceStatus,
   ): Promise<void> {
     const subscribers = await this.getSubscribers(userId);
+    const presence = await this.getPresence({ userId });
 
     for (const subscriberId of subscribers) {
-      const presence = await this.getPresence({ userId });
       if (presence) {
         await this.appGateway.sendToUser(
           subscriberId,

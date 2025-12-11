@@ -17,6 +17,7 @@ import { PresenceService } from '@presence/presence.service';
 import { ChatModule } from '@chat/chat.module';
 import { NotificationModule } from '@notification/notification.module';
 import { Presence, PresenceSchema } from '@presence/schemas/presence.schema';
+import { UsersModule } from '@users/users.module';
 /**
  * Core WebSocket Module - Provides foundational WebSocket services
  * This module should be imported once in the root application module
@@ -32,6 +33,7 @@ export class WebSocketModule {
         forwardRef(() => ChatModule),
         // forwardRef(() => NotificationModule),
         forwardRef(() => PresenceModule),
+        forwardRef(() => UsersModule),
         NotificationModule,
         MongooseModule.forFeature([
           { name: Presence.name, schema: PresenceSchema },
@@ -57,7 +59,6 @@ export class WebSocketModule {
       ],
       exports: [
         AppGateway,
-        PresenceGateway,
         EventRouterService,
         SocketManagerService,
         SocketValidationPipe,

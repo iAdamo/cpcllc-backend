@@ -179,7 +179,12 @@ export class UsersService {
   async toggleFollowProvider(
     userId: string,
     providerId: string,
-  ): Promise<User> {
+  ): Promise<{
+    providerId: string;
+    followersCount: number;
+    isFollowing: boolean;
+    followedBy: string[];
+  }> {
     if (!userId || !providerId) {
       throw new BadRequestException('User ID and Provider ID are required');
     }
@@ -215,35 +220,27 @@ export class UsersService {
           $inc: { followersCount: 1 },
         };
 
-    await this.providerModel.findByIdAndUpdate(
+    const newProvider = await this.providerModel.findByIdAndUpdate(
       providerObjectId,
       providerUpdate,
+      { new: true },
     );
-    const updatedUser = await this.userModel
+    const newUser = await this.userModel
       .findByIdAndUpdate(userObjectId, userUpdate, { new: true })
-      .populate('hiredCompanies')
-      .populate({
-        path: 'followedProviders',
-        model: 'Provider',
-        select: 'providerName providerLogo',
-      })
-      .populate({
-        path: 'activeRoleId',
-        model: 'Provider',
-        populate: {
-          path: 'subcategories',
-          model: 'Subcategory',
-          select: 'name description',
-          populate: {
-            path: 'categoryId',
-            model: 'Category',
-            select: 'name description',
-          },
-        },
-      })
       .lean();
-
-    return sanitizeUser(updatedUser);
+    console.log({
+      providerId: newProvider['_id'].toString(),
+      followersCount: newProvider.followersCount,
+      isFollowing: newProvider.followedBy.some((p) => p.toString() === userId),
+      followedBy: newProvider.followedBy.map((id) => id.toString()),
+    });
+    return {
+      providerId: newProvider['_id'].toString(),
+      followersCount: newProvider.followersCount,
+      isFollowing: newProvider.followedBy.some((p) => p.toString() === userId),
+      followedBy: newProvider.followedBy.map((id) => id.toString()),
+    };
+    // return sanitizeUser(updatedUser);
   }
 
   async removeMediaFiles(userId: string, fileUrl: string[]): Promise<User> {

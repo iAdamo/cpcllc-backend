@@ -17,6 +17,7 @@ export interface UpdatePresenceDto {
   metadata?: Record<string, any>;
   timestamp?: number;
   deviceInfo?: DeviceInfo;
+  state?: string;
 }
 
 export interface SubscribePresenceDto {

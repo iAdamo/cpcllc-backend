@@ -77,7 +77,7 @@ export class SocketManagerService {
     userId: string;
     deviceId: string;
     updates?: Partial<
-      Pick<UserSession, 'lastSeen' | 'status' | 'customStatus'>
+      Pick<UserSession, 'lastSeen' | 'status' | 'customStatus' | 'metadata'>
     >;
   }): Promise<void> {
     const sessionKey = this.getUserSessionKey(userId);
@@ -89,6 +89,7 @@ export class SocketManagerService {
       if (updates.status) session.status = updates.status;
       if (updates.customStatus !== undefined)
         session.customStatus = updates.customStatus;
+      session.metadata = updates.metadata || {};
 
       await this.redis.hset(sessionKey, deviceId, JSON.stringify(session));
     }
@@ -112,48 +113,62 @@ export class SocketManagerService {
   /**
    * Get all sessions for a user, or all users if userId is undefined (efficient for large Redis)
    */
-  async getUserSessions(
-    userId?: string,
-    status?: PRESENCE_STATUS,
-  ): Promise<UserSession[]> {
+  async getUserSessions({
+    userId,
+    status,
+  }: {
+    userId?: string;
+    status?: PRESENCE_STATUS[];
+  }): Promise<UserSession[]> {
     const sessions: UserSession[] = [];
 
+    // --- A) Fetch sessions for a specific user ---
     if (userId) {
-      // Get sessions for a specific user
       const sessionKey = this.getUserSessionKey(userId);
       const userSessions = await this.redis.hgetall(sessionKey);
-      sessions.push(
-        ...Object.values(userSessions).map((session) =>
-          JSON.parse(session as string),
-        ),
-      );
-    } else {
-      // Efficiently scan all user sessions without blocking Redis
-      let cursor = '0';
-      do {
-        const [nextCursor, keys] = await this.redis.scan(
-          cursor,
-          'MATCH',
-          'user:session:*',
-          'COUNT',
-          100,
-        );
-        cursor = nextCursor;
 
-        for (const key of keys) {
-          const userSessions = await this.redis.hgetall(key);
-          sessions.push(
-            ...Object.values(userSessions).map((session) =>
-              JSON.parse(session as string),
-            ),
-          );
+      for (const raw of Object.values(userSessions)) {
+        try {
+          sessions.push(JSON.parse(raw) as UserSession);
+        } catch (_) {
+          // ignore corrupted entries
         }
-      } while (cursor !== '0');
+      }
+
+      return status
+        ? sessions.filter((s: any) => status.includes(s.status))
+        : sessions;
     }
 
-    if (status === undefined) return sessions;
+    // --- B) Fetch ALL sessions for all users ---
+    let cursor = '0';
 
-    return sessions.filter((session) => status.includes(session.status));
+    do {
+      const [nextCursor, keys] = await this.redis.scan(
+        cursor,
+        'MATCH',
+        'user:session:*',
+        'COUNT',
+        100,
+      );
+      cursor = nextCursor;
+
+      for (const key of keys) {
+        const userSessions = await this.redis.hgetall(key);
+
+        for (const raw of Object.values(userSessions)) {
+          try {
+            sessions.push(JSON.parse(raw) as UserSession);
+          } catch (_) {
+            // ignore corrupted entries
+          }
+        }
+      }
+    } while (cursor !== '0');
+
+    return status
+      ? sessions.filter((s: any) => status.includes(s.status))
+      : sessions;
   }
 
   /**

@@ -22,6 +22,7 @@ import { ConfigService } from '@nestjs/config';
 import { PresenceEvents } from '@websocket/events/presence.events';
 import { PRESENCE_STATUS } from '@presence/constants/presence.constants';
 import { PresenceService } from '@presence/presence.service';
+import { ResEventEnvelope } from '../interfaces/websocket.interface';
 
 /**
  * Main WebSocket Gateway - Single entry point for all WebSocket communications
@@ -33,9 +34,9 @@ import { PresenceService } from '@presence/presence.service';
     methods: ['GET', 'POST'],
     credentials: true,
   },
-  transports: ['websocket'],
-  pingTimeout: 60000,
-  pingInterval: 25000,
+  transports: ['websocket', 'polling'],
+  pingTimeout: 120000,
+  pingInterval: 60000,
 })
 @UseGuards(WsJwtGuard)
 @UsePipes(new SocketValidationPipe())
@@ -98,7 +99,7 @@ export class AppGateway
       client.user = { ...rest, userId: sub };
       const userId = client.user.userId?.toString();
       if (!userId) {
-        client.disconnect();
+        client.disconnect(true);
         return;
       }
       // const userIdStr = userId.toString();
@@ -112,9 +113,19 @@ export class AppGateway
         payload.sessionId,
       );
 
-      this.logger.log(
-        `Client connected: ${client.id}, User: ${userId}, Device: ${payload.deviceId}`,
-      );
+      // Update last seen
+      await this.socketManager.updateSession({
+        userId: client.user.userId,
+        deviceId: client.user.deviceId,
+        updates: { lastSeen: new Date(), status: PRESENCE_STATUS.ONLINE },
+      });
+
+      // Notify presence system
+      client.emit(SocketEvents.CONNECTION, {
+        status: client.connected && 'connected',
+        socketId: client.id,
+        timestamp: Date.now(),
+      });
 
       client.onAny(async (event, ...args) => {
         this.logger.log(
@@ -124,13 +135,6 @@ export class AppGateway
         const data = JSON.parse(payload);
 
         await this.handleAllEvents(client, event, data[0]);
-      });
-
-      // Notify presence system
-      client.emit(SocketEvents.CONNECTION, {
-        status: 'connected',
-        socketId: client.id,
-        timestamp: Date.now(),
       });
     } catch (error) {
       this.logger.error('Connection handling failed:', error);
@@ -150,10 +154,6 @@ export class AppGateway
         updates: { lastSeen: new Date(), status: PRESENCE_STATUS.OFFLINE },
       });
       await this.socketManager.removeUserSession(client.id);
-      const { userId, deviceId } = client.user;
-      // await this.presenceGateway.handleUserDisconnected(userId, deviceId);
-
-      this.logger.log(`Client disconnected: ${client.id}`);
     } catch (error) {
       this.logger.error('Disconnection handling failed:', error);
     }
@@ -186,14 +186,6 @@ export class AppGateway
         );
         return;
       }
-
-      // Update last seen
-      await this.socketManager.updateSession({
-        userId: client.user.userId,
-        deviceId: client.user.deviceId,
-        updates: { lastSeen: new Date(), status: PRESENCE_STATUS.ONLINE },
-      });
-
       // Route event to appropriate module handler
       await this.eventRouter.route(event, data, client);
     } catch (error: any) {
@@ -221,8 +213,15 @@ export class AppGateway
   async sendToUser(userId: string, event: string, data: any): Promise<void> {
     const sockets = await this.socketManager.getUserSockets({ userId });
 
+    const envelope: ResEventEnvelope = {
+      version: '1.0.0',
+      timestamp: new Date(),
+      targetId: data.targetId,
+      payload: data,
+    };
+
     sockets.forEach((socketId) => {
-      this.server.to(socketId).emit(event, data);
+      this.server.to(socketId).emit(event, { ...envelope });
     });
   }
 
