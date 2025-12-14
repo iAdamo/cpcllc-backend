@@ -41,7 +41,7 @@ import { ResEventEnvelope } from '../interfaces/websocket.interface';
 @UseGuards(WsJwtGuard)
 @UsePipes(new SocketValidationPipe())
 export class AppGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayInit, OnGatewayConnection
 {
   @WebSocketServer()
   server: Server;
@@ -142,22 +142,17 @@ export class AppGateway
     }
   }
 
-  /**
-   * Handle client disconnections
-   */
-  async handleDisconnect(@ConnectedSocket() client: AuthenticatedSocket) {
-    try {
-      // Update last seen
-      await this.socketManager.updateSession({
-        userId: client.user.userId,
-        deviceId: client.user.deviceId,
-        updates: { lastSeen: new Date(), status: PRESENCE_STATUS.OFFLINE },
-      });
-      await this.socketManager.removeUserSession(client.id);
-    } catch (error) {
-      this.logger.error('Disconnection handling failed:', error);
-    }
-  }
+  // /**
+  //  * Handle client disconnections
+  //  */
+  // async handleDisconnect(@ConnectedSocket() client: AuthenticatedSocket) {
+  //   try {
+  //     console.log('somehow i ran too');
+  //     await this.socketManager.removeUserSession(client.id);
+  //   } catch (error) {
+  //     this.logger.error('Disconnection handling failed:', error);
+  //   }
+  // }
 
   /**
    * Global message handler - routes all events through the event router

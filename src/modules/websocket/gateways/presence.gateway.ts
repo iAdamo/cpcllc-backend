@@ -23,8 +23,10 @@ import {
   BatchPresenceResponse,
 } from '@presence/interfaces/presence.interface';
 import { UsersService } from '@users/users.service';
+import { User } from '@users/schemas/user.schema';
+import { AppGateway } from './app.gateway';
 
-@Injectable()
+@WebSocketGateway()
 export class PresenceGateway implements EventHandler, OnModuleInit {
   server: Server;
 
@@ -35,6 +37,7 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     private readonly eventRouter: EventRouterService,
     private readonly presenceService: PresenceService,
     private readonly userService: UsersService,
+    private readonly appGateway: AppGateway,
   ) {}
 
   onModuleInit() {
@@ -46,6 +49,11 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
 
   canHandle(event: any): boolean {
     return this.handledEvents.includes(event);
+  }
+
+  async handleDisconnect(client: AuthenticatedSocket) {
+    console.log('client id: ', client.id);
+    await this.presenceService.handleDisconnect(client);
   }
 
   async handle(
@@ -77,7 +85,7 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
         //   break;
 
         case PresenceEvents.GET_SUBSCRIPTIONS:
-          await this.handleGetSubscriptions(userId, socket);
+          await this.handleGetSubscriptions(userId, data, socket);
           break;
 
         case PresenceEvents.HEARTBEAT:
@@ -126,14 +134,15 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     socket: AuthenticatedSocket,
   ): Promise<void> {
     const deviceId = socket.user.deviceId;
-
     const presence = await this.presenceService.updatePresence({
       dto: { ...data },
       userId,
+      socket,
     });
 
     // Echo back to sender
-    socket.emit(PresenceEvents.STATUS_UPDATED, presence);
+    this.appGateway.sendToUser(userId, PresenceEvents.STATUS_UPDATED, presence);
+    // socket.emit(PresenceEvents.STATUS_UPDATED, presence);
 
     this.logger.debug(`User ${userId} updated status to ${data.status}`);
   }
@@ -147,7 +156,8 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
       userId,
       data.userIds[0],
     );
-    if (response.isFollowing) {
+    // console.log({ userId, data });
+    if (!response.isFollowing) {
       this.handleUnsubscribe(userId, data, socket);
     } else {
       await this.presenceService.subscribeToPresence(userId, data.userIds);
@@ -187,14 +197,30 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
 
   private async handleGetSubscriptions(
     userId: string,
+    data: any,
     socket: Socket,
   ): Promise<void> {
-    const subscriptions = await this.presenceService.getSubscriptions(userId);
+    let subscriptions = [] as string[];
+    let subscribers = [] as string[];
+    let payload = [] as string[];
 
-    socket.emit(PresenceEvents.SUBSCRIPTIONS_LIST, {
-      subscriptions,
-      timestamp: new Date(),
-    });
+    const user = await this.userService.userProfile(data.userIds[0]);
+
+    // for (const subscriber of subscribers) {
+    //   users.push(subscriber);
+    // }
+    const hhh = {
+      providerId: user.activeRoleId.toString(),
+      // followersCount: number;
+      // isFollowing: boolean;
+      // followedBy: string[];
+    };
+
+    this.appGateway.sendToUser(userId, PresenceEvents.SUBSCRIBED, payload);
+    // socket.emit(PresenceEvents.SUBSCRIPTIONS_LIST, {
+    //   subscriptions,
+    //   timestamp: new Date(),
+    // });
   }
 
   private async handleHeartbeat(
@@ -233,13 +259,13 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     const presence = await this.presenceService.getPresence({
       userId: data.targetId,
     });
+    // console.log({ presence });
     const envelope: ResEventEnvelope = {
       version: '1.0.0',
       timestamp: new Date(),
       targetId: data.targetId,
-      payload: presence,
+      payload: { ...presence },
     };
-
     socket.emit(PresenceEvents.STATUS_RESPONSE, { ...envelope });
   }
 

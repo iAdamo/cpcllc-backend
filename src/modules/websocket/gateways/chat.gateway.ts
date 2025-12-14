@@ -97,11 +97,11 @@ export class ChatGateway implements EventHandler {
     const message = await this.chatService.sendMessage(data);
 
     // Echo the sent message back to sender
-    socket.emit(ChatEvents.MESSAGE_SENT, message);
+    // socket.emit(ChatEvents.MESSAGE_SENT, message);
 
-    this.logger.debug(
-      `Message sent by ${data.senderId} to conversation ${data.chatId}`,
-    );
+    // this.logger.debug(
+    //   `Message sent by ${data.senderId} to conversation ${data.chatId}`,
+    // );
   }
 
   /**

@@ -82,6 +82,7 @@ export class SocketManagerService {
   }): Promise<void> {
     const sessionKey = this.getUserSessionKey(userId);
     const sessionData = await this.redis.hget(sessionKey, deviceId);
+    // console.log('line 85 socket manager', { updates });
 
     if (sessionData) {
       const session: UserSession = JSON.parse(sessionData);

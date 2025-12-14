@@ -189,25 +189,25 @@ export class UsersService {
       throw new BadRequestException('User ID and Provider ID are required');
     }
     const userObjectId = new Types.ObjectId(userId);
-    const providerObjectId = new Types.ObjectId(providerId);
+    const ownerId = new Types.ObjectId(providerId);
 
     const user = await this.userModel.findById(userObjectId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const provider = await this.providerModel.findById(providerObjectId);
+    const provider = await this.providerModel.findOne({ owner: ownerId });
     if (!provider) {
       throw new NotFoundException('Provider not found');
     }
-    const isFollowing = user.followedProviders.includes(providerObjectId);
+    const isFollowing = user.followedProviders.includes(provider._id);
 
     const userUpdate = isFollowing
       ? {
-          $pull: { followedProviders: providerObjectId },
+          $pull: { followedProviders: provider._id },
           $inc: { followingCount: -1 },
         }
       : {
-          $addToSet: { followedProviders: providerObjectId },
+          $addToSet: { followedProviders: provider._id },
           $inc: { followingCount: 1 },
         };
     const providerUpdate = isFollowing
@@ -221,19 +221,13 @@ export class UsersService {
         };
 
     const newProvider = await this.providerModel.findByIdAndUpdate(
-      providerObjectId,
+      provider._id,
       providerUpdate,
       { new: true },
     );
     const newUser = await this.userModel
       .findByIdAndUpdate(userObjectId, userUpdate, { new: true })
       .lean();
-    console.log({
-      providerId: newProvider['_id'].toString(),
-      followersCount: newProvider.followersCount,
-      isFollowing: newProvider.followedBy.some((p) => p.toString() === userId),
-      followedBy: newProvider.followedBy.map((id) => id.toString()),
-    });
     return {
       providerId: newProvider['_id'].toString(),
       followersCount: newProvider.followersCount,

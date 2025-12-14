@@ -139,7 +139,37 @@ export class ChatService {
         `Chat created between user ${user} and provider ${otherUser}`,
       );
     }
-    return this.populatedChat(user);
+
+    return chat.populate({
+      path: 'participants',
+      model: 'User',
+      select: 'firstName lastName profilePicture',
+      match: { _id: { $ne: user._id } },
+      populate: [
+        {
+          path: 'followedProviders',
+          model: 'Provider',
+          select: 'providerName providerLogo',
+        },
+        {
+          path: 'activeRoleId',
+          model: 'Provider',
+          match: { _id: { $ne: user._id } },
+          populate: {
+            path: 'subcategories',
+            model: 'Subcategory',
+            select: 'name description',
+            populate: {
+              path: 'categoryId',
+              model: 'Category',
+              select: 'name description',
+            },
+          },
+        },
+      ],
+    });
+
+    // return this.populatedChat(chat);
   }
 
   async joinChat(
@@ -361,12 +391,14 @@ export class ChatService {
 
     const messages = await this.messageModel
       .find({ chatId, deleted: false })
-      .populate('senderId', 'username profilePicture')
+      // .populate('senderId', 'firstName lastName profilePicture')
       .populate('replyTo')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
+
+    console.log({ messages });
 
     const grouped = messages.reduce(
       (acc, message) => {

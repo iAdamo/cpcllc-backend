@@ -15,7 +15,7 @@ export interface UpdatePresenceDto {
   status?: PresenceStatus;
   customStatus?: string;
   metadata?: Record<string, any>;
-  timestamp?: number;
+  lastSeen?: number;
   deviceInfo?: DeviceInfo;
   state?: string;
 }

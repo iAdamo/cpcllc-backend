@@ -63,18 +63,20 @@ export class PresenceService implements OnModuleInit {
     userId?: string;
     session?: UserSession;
     socket?: AuthenticatedSocket;
-  }): Promise<Presence> {
+  }): Promise<PresenceResponse> {
     const now = new Date();
     const id = userId || session.userId;
 
     if (dto.state) dto.metadata = { state: dto.state };
-
+    // console.log({ dto });
     const presence = await this.presenceModel.findOneAndUpdate(
       { userId: new Types.ObjectId(id) },
       {
         status: dto.status,
         customStatus: dto.customStatus,
-        lastSeen: dto.timestamp || now,
+        lastSeen: dto.lastSeen,
+        deviceId: session?.deviceId || socket.user.deviceId || '',
+        sessionId: session?.sessionId || socket.user.sessionId || '',
         updatedAt: now,
         metadata: dto.metadata,
       },
@@ -91,7 +93,7 @@ export class PresenceService implements OnModuleInit {
       updates: {
         status: dto.status,
         customStatus: dto.customStatus,
-        lastSeen: now,
+        lastSeen: new Date(dto.lastSeen),
         metadata: dto.metadata,
       },
     });
@@ -120,6 +122,11 @@ export class PresenceService implements OnModuleInit {
 
         const subscriberKey = this.getSubscriberKey(targetId);
         await this.redis.sadd(subscriberKey, subscriberId);
+
+        // const afterSubscriptions = await this.redis.smembers(subscriptionKey);
+        // const afterSubscribers = await this.redis.smembers(subscriberKey);
+
+        // console.log({ afterSubscriptions, afterSubscribers });
       } else {
         this.logger.error(
           'Presence error: subscriberId or targetId is undefined',
@@ -198,11 +205,13 @@ export class PresenceService implements OnModuleInit {
       userId,
       status,
     });
-    if (sessions.length > 0) {
+    // console.log(`sessions for target ${userId}`, { sessions });
+    if (sessions.length > 0 && sessions[0].customStatus) {
       const data = sessions[0];
       return {
         userId: userId,
         status: data.status,
+        isOnline: (data.status && data.customStatus) === 'online',
         lastSeen: new Date(data.lastSeen),
         deviceId: data.deviceId,
         sessionId: data.sessionId,
@@ -213,7 +222,11 @@ export class PresenceService implements OnModuleInit {
     }
 
     // Fallback to MongoDB
-    const presence = await this.presenceModel.findOne({ userId });
+    const presence = await this.presenceModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+    // console.log(`presence for target ${userId}`, { presence });
+
     return presence ? this.toResponse(presence) : null;
   }
 
@@ -265,6 +278,8 @@ export class PresenceService implements OnModuleInit {
       status: [PRESENCE_STATUS.ONLINE],
     });
 
+    // console.log({ allSessions });
+
     // Check for inactivity
     for (const session of allSessions) {
       const lastSeen = new Date(session.lastSeen);
@@ -273,7 +288,7 @@ export class PresenceService implements OnModuleInit {
       if (timeDiff > inactiveThreshold) {
         // Mark the user as away
         await this.updatePresence({
-          dto: { status: PRESENCE_STATUS.AWAY },
+          dto: { status: PRESENCE_STATUS.AWAY, lastSeen: Date.now() },
           session,
         });
       }
@@ -313,16 +328,24 @@ export class PresenceService implements OnModuleInit {
     };
   }
 
-  // ==================== PRIVATE HELPERS ====================
+  async handleDisconnect(client: AuthenticatedSocket) {
+    try {
+      await this.updatePresence({
+        dto: {
+          status: PRESENCE_STATUS.OFFLINE,
+          lastSeen: Date.now(),
+        },
+        userId: client.user.userId,
+        socket: client,
+      });
 
-  private async updateRedisPresence(userId: string, data: any): Promise<void> {
-    const key = this.getRedisKey(userId, data.deviceId);
-    await this.redis.setex(
-      key,
-      PRESENCE_CONFIG.PRESENCE_TTL,
-      JSON.stringify(data),
-    );
+      await this.socketManager.removeUserSession(client.id);
+    } catch (e) {
+      this.logger.error('Disconnect handling failed', e);
+    }
   }
+  
+  // ==================== PRIVATE HELPERS ====================
 
   private async hasActiveDevices(
     userId: string,
@@ -351,6 +374,8 @@ export class PresenceService implements OnModuleInit {
   ): Promise<void> {
     const subscribers = await this.getSubscribers(userId);
     const presence = await this.getPresence({ userId });
+
+    // console.log({ subscribers });
 
     for (const subscriberId of subscribers) {
       if (presence) {
@@ -414,17 +439,27 @@ export class PresenceService implements OnModuleInit {
   private getSubscriberKey(userId: string): string {
     return `presence:subscribers:${userId}`;
   }
-
-  private toResponse(presence: Presence): Presence {
+  //  presence: {
+  //     _id: new ObjectId('6922b0b15107d07ee7e58a4b'),
+  //     userId: '69223f4bd76b5cfba0a7cbc8',
+  //     __v: 0,
+  //     isOnline: false,
+  //     lastSeen: 2025-12-10T05:24:00.088Z,
+  //     availability: 'available',
+  //     status: 'offline',
+  //     updatedAt: 2025-12-10T11:28:28.824Z
+  //   }
+  private toResponse(presence: Presence): PresenceResponse {
     return {
-      userId: presence.userId,
+      userId: presence.userId.toString(),
       status: presence.status as PresenceStatus,
+      isOnline: presence.status === PRESENCE_STATUS.ONLINE,
       lastSeen: presence.lastSeen,
       deviceId: presence.deviceId,
-      sessionId: presence.sessionId,
+      // sessionId: presence.sessionId,
       customStatus: presence.customStatus,
-      expiresAt: presence.expiresAt,
-      metadata: presence.metadata,
+      // expiresAt: presence.expiresAt,
+      // metadata: presence.metadata,
     };
   }
 }
