@@ -114,6 +114,9 @@ export class PresenceService implements OnModuleInit {
     subscriberId: string,
     targetIds: string[],
   ): Promise<void> {
+    const presence = await this.getPresence({
+      userId: subscriberId,
+    });
     for (const targetId of targetIds) {
       if (subscriberId === targetId) continue;
 
@@ -134,18 +137,13 @@ export class PresenceService implements OnModuleInit {
         );
         return;
       }
-      // Send initial presence status
-      const presence = await this.getPresence({
-        userId: targetId,
-        status: [PRESENCE_STATUS.ONLINE],
-      });
       // console.log('from sub', { presence });
       if (presence) {
         await this.socketManager.sendToUser({
           server,
-          userId: subscriberId,
-          event: PresenceEvents.STATUS_CHANGE,
-          data: this.toResponse(presence),
+          userId: targetId,
+          event: PresenceEvents.SUBSCRIBE,
+          data: this.toResponse({ ...presence, message: 'subscribed' }),
         });
       }
     }
@@ -159,15 +157,28 @@ export class PresenceService implements OnModuleInit {
    * Unsubscribe from presence updates
    */
   async unsubscribeFromPresence(
+    server: EventHandlerContext['server'],
     subscriberId: string,
     targetIds: string[],
   ): Promise<void> {
+    const presence = await this.getPresence({
+      userId: subscriberId,
+    });
     for (const targetId of targetIds) {
       const subscriptionKey = this.getSubscriptionKey(subscriberId);
       await this.redis.srem(subscriptionKey, targetId);
 
       const subscriberKey = this.getSubscriberKey(targetId);
       await this.redis.srem(subscriberKey, subscriberId);
+
+      if (presence) {
+        await this.socketManager.sendToUser({
+          server,
+          userId: targetId,
+          event: PresenceEvents.SUBSCRIBE,
+          data: this.toResponse({ ...presence, message: 'unsubscribed' }),
+        });
+      }
     }
 
     this.logger.debug(

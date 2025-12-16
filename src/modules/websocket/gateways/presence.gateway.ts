@@ -1,8 +1,5 @@
-import { Logger, OnModuleInit } from '@nestjs/common';
-import {
-  WebSocketGateway,
-  WebSocketServer,
-} from '@nestjs/websockets';
+import { Logger, Injectable } from '@nestjs/common';
+import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { EventRouterService } from '@websocket/services/event-router.service';
 import {
@@ -20,11 +17,8 @@ import {
 import { UsersService } from '@users/users.service';
 import { SocketManagerService } from '@websocket/services/socket-manager.service';
 
-@WebSocketGateway()
+@Injectable()
 export class PresenceGateway implements EventHandler {
-  @WebSocketServer()
-  server: Server;
-
   private readonly logger = new Logger(PresenceGateway.name);
   private readonly handledEvents = Object.values(PresenceEvents);
 
@@ -157,7 +151,11 @@ export class PresenceGateway implements EventHandler {
     );
     // console.log({ userId, data });
     if (!response.isFollowing) {
-      this.handleUnsubscribe(userId, data, socket);
+      await this.presenceService.unsubscribeFromPresence(
+        server,
+        userId,
+        data.userIds,
+      );
     } else {
       await this.presenceService.subscribeToPresence(
         server,
@@ -166,32 +164,19 @@ export class PresenceGateway implements EventHandler {
       );
     }
     // Send current status of subscribed users
-    const batchResponse = await this.presenceService.getBulkPresence(
-      data.userIds,
-    );
+    // const batchResponse = await this.presenceService.getBulkPresence(
+    //   data.userIds,
+    // );
 
     socket.emit(PresenceEvents.SUBSCRIBED, {
       ...response,
       userIds: data.userIds,
-      ...batchResponse,
+      // ...batchResponse,
     });
 
     this.logger.debug(
       `User ${userId} subscribed to ${data.userIds.length} users`,
     );
-  }
-
-  private async handleUnsubscribe(
-    userId: string,
-    data: SubscribePresenceDto,
-    socket: Socket,
-  ): Promise<void> {
-    await this.presenceService.unsubscribeFromPresence(userId, data.userIds);
-
-    socket.emit(PresenceEvents.UNSUBSCRIBED, {
-      userIds: data.userIds,
-      timestamp: new Date(),
-    });
   }
 
   private async handleGetSubscriptions(
@@ -308,11 +293,12 @@ export class PresenceGateway implements EventHandler {
    * Broadcast presence update to all interested parties
    */
   async broadcastPresenceUpdate(
+    server: EventHandlerContext['server'],
     userId: string,
     status: string,
     data?: any,
   ): Promise<void> {
-    this.server.emit(PresenceEvents.STATUS_CHANGE, {
+    server.emit(PresenceEvents.STATUS_CHANGE, {
       userId,
       status,
       ...data,

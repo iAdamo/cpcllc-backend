@@ -8,6 +8,7 @@ import {
   EventHandlerContext,
 } from '../interfaces/websocket.interface';
 import { ResEventEnvelope } from '../interfaces/websocket.interface';
+import { PresenceEvents } from '@websocket/events/presence.events';
 
 /**
  * Service for managing socket connections and user sessions
@@ -255,9 +256,10 @@ export class SocketManagerService {
     event: string;
     data: any;
   }): Promise<void> {
-    const sockets = await this.getUserSockets({ userId });
-
-    console.log({ sockets });
+    const sockets = await this.getUserSockets({
+      userId,
+      status: [PRESENCE_STATUS.ONLINE],
+    });
 
     if (sockets.length === 0) {
       this.logger.debug(`User ${userId} has no active sockets`);
