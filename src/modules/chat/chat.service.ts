@@ -42,7 +42,6 @@ export class ChatService {
     private proposalModel: Model<ProposalDocument>,
     @InjectModel(JobPost.name) private jobPostModel: Model<JobPostDocument>,
     private readonly storage: DbStorageService,
-    private readonly appGateway: AppGateway,
     private readonly socketManager: SocketManagerService,
   ) {}
 
@@ -195,7 +194,7 @@ export class ChatService {
     const sockets = await this.socketManager.getUserSockets({ userId });
     console.log({ sockets });
     for (const socketId of sockets) {
-      this.appGateway.server.sockets.sockets.get(socketId)?.join(chatId);
+      this.socketManager.server.sockets.sockets.get(socketId)?.join(chatId);
     }
     this.logger.log(`User ${userId} joined conversation ${chatId}`);
   }
@@ -364,7 +363,7 @@ export class ChatService {
     const sockets = await this.socketManager.getUserSockets({ userId });
 
     for (const socketId of sockets) {
-      this.appGateway.server.sockets.sockets.get(socketId)?.leave(chatId);
+      this.socketManager.server.sockets.sockets.get(socketId)?.leave(chatId);
     }
 
     this.logger.log(`User ${userId} left conversation ${chatId}`);
@@ -551,7 +550,7 @@ export class ChatService {
 
     for (const participantId of participants) {
       if (participantId.toString() !== excludeUserId) {
-        await this.appGateway.sendToUser(participantId.toString(), event, data);
+        await this.socketManager.sendToUser(participantId.toString(), event, data);
       }
     }
   }

@@ -31,18 +31,16 @@ import { ResEventEnvelope } from '../interfaces/websocket.interface';
 @WebSocketGateway({
   cors: {
     origin: process.env.CORS_ORIGIN || '*',
-    methods: ['GET', 'POST'],
-    credentials: true,
   },
-  transports: ['websocket', 'polling'],
+  // namespace: 'chat',
+  path: '/sanuxsocket/socket.io',
+  transports: ['websocket'],
   pingTimeout: 120000,
   pingInterval: 60000,
 })
 @UseGuards(WsJwtGuard)
 @UsePipes(new SocketValidationPipe())
-export class AppGateway
-  implements OnGatewayInit, OnGatewayConnection
-{
+export class AppGateway implements OnGatewayInit, OnGatewayConnection {
   @WebSocketServer()
   server: Server;
 
@@ -53,6 +51,7 @@ export class AppGateway
     private readonly socketManager: SocketManagerService,
     private readonly rateLimiter: RateLimiterService,
     private readonly configService: ConfigService,
+    private readonly presenceService: PresenceService,
   ) {}
 
   /**
@@ -142,17 +141,16 @@ export class AppGateway
     }
   }
 
-  // /**
-  //  * Handle client disconnections
-  //  */
-  // async handleDisconnect(@ConnectedSocket() client: AuthenticatedSocket) {
-  //   try {
-  //     console.log('somehow i ran too');
-  //     await this.socketManager.removeUserSession(client.id);
-  //   } catch (error) {
-  //     this.logger.error('Disconnection handling failed:', error);
-  //   }
-  // }
+  /**
+   * Handle client disconnections
+   */
+  async handleDisconnect(@ConnectedSocket() client: AuthenticatedSocket) {
+    try {
+      await this.presenceService.handleDisconnect(client);
+    } catch (error) {
+      this.logger.error('Disconnection handling failed:', error);
+    }
+  }
 
   /**
    * Global message handler - routes all events through the event router
@@ -205,20 +203,20 @@ export class AppGateway
   /**
    * Send to specific user across all devices
    */
-  async sendToUser(userId: string, event: string, data: any): Promise<void> {
-    const sockets = await this.socketManager.getUserSockets({ userId });
+  // async sendToUser(userId: string, event: string, data: any): Promise<void> {
+  //   const sockets = await this.socketManager.getUserSockets({ userId });
 
-    const envelope: ResEventEnvelope = {
-      version: '1.0.0',
-      timestamp: new Date(),
-      targetId: data.targetId,
-      payload: data,
-    };
+  //   const envelope: ResEventEnvelope = {
+  //     version: '1.0.0',
+  //     timestamp: new Date(),
+  //     targetId: data.targetId,
+  //     payload: data,
+  //   };
 
-    sockets.forEach((socketId) => {
-      this.server.to(socketId).emit(event, { ...envelope });
-    });
-  }
+  //   sockets.forEach((socketId) => {
+  //     this.server.to(socketId).emit(event, { ...envelope });
+  //   });
+  // }
 
   /**
    * Send to specific room

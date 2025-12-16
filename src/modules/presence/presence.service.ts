@@ -19,12 +19,10 @@ import {
 } from './interfaces/presence.interface';
 import { PresenceEvents } from '@websocket/events/presence.events';
 import { SocketManagerService } from '@websocket/services/socket-manager.service';
-import { AppGateway } from '@websocket/gateways/app.gateway';
 import {
   AuthenticatedSocket,
   UserSession,
 } from '@websocket/interfaces/websocket.interface';
-import { PresenceGateway } from '@websocket/gateways/presence.gateway';
 
 @Injectable()
 export class PresenceService implements OnModuleInit {
@@ -35,9 +33,7 @@ export class PresenceService implements OnModuleInit {
     private readonly presenceModel: Model<Presence>,
     @InjectRedis()
     private readonly redis: Redis,
-    private readonly appGateway: AppGateway,
     private readonly socketManager: SocketManagerService,
-    // private readonly sr: ChatGateway,
   ) {}
 
   async onModuleInit() {
@@ -68,15 +64,15 @@ export class PresenceService implements OnModuleInit {
     const id = userId || session.userId;
 
     if (dto.state) dto.metadata = { state: dto.state };
-    // console.log({ dto });
+    // console.log({ dto, userId, session, socket });
     const presence = await this.presenceModel.findOneAndUpdate(
       { userId: new Types.ObjectId(id) },
       {
         status: dto.status,
         customStatus: dto.customStatus,
         lastSeen: dto.lastSeen,
-        deviceId: session?.deviceId || socket.user.deviceId || '',
-        sessionId: session?.sessionId || socket.user.sessionId || '',
+        deviceId: session?.deviceId || socket?.user?.deviceId || '',
+        sessionId: session?.sessionId || socket?.user?.sessionId || '',
         updatedAt: now,
         metadata: dto.metadata,
       },
@@ -89,7 +85,7 @@ export class PresenceService implements OnModuleInit {
     // Update sessions in SocketManager
     await this.socketManager.updateSession({
       userId: id,
-      deviceId: session?.deviceId ? session.deviceId : socket.user.deviceId,
+      deviceId: session?.deviceId ? session.deviceId : socket?.user?.deviceId,
       updates: {
         status: dto.status,
         customStatus: dto.customStatus,
@@ -140,7 +136,7 @@ export class PresenceService implements OnModuleInit {
       });
       // console.log('from sub', { presence });
       if (presence) {
-        await this.appGateway.sendToUser(
+        await this.socketManager.sendToUser(
           subscriberId,
           PresenceEvents.STATUS_CHANGE,
           this.toResponse(presence),
@@ -344,7 +340,7 @@ export class PresenceService implements OnModuleInit {
       this.logger.error('Disconnect handling failed', e);
     }
   }
-  
+
   // ==================== PRIVATE HELPERS ====================
 
   private async hasActiveDevices(
@@ -379,7 +375,7 @@ export class PresenceService implements OnModuleInit {
 
     for (const subscriberId of subscribers) {
       if (presence) {
-        await this.appGateway.sendToUser(
+        await this.socketManager.sendToUser(
           subscriberId,
           this.getStatusEvent(status),
           this.toResponse(presence),

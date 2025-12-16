@@ -1,11 +1,10 @@
-import { UserPresence } from './../../presence/interfaces/presence.interface';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Logger, OnModuleInit } from '@nestjs/common';
 import {
   WebSocketGateway,
-  SubscribeMessage,
   ConnectedSocket,
-  MessageBody,
   WebSocketServer,
+  OnGatewayInit,
+  OnGatewayConnection,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { EventRouterService } from '@websocket/services/event-router.service';
@@ -19,15 +18,15 @@ import { PresenceEvents } from '../events/presence.events';
 import {
   UpdatePresenceDto,
   SubscribePresenceDto,
-  HeartbeatDto,
-  BatchPresenceResponse,
 } from '@presence/interfaces/presence.interface';
 import { UsersService } from '@users/users.service';
-import { User } from '@users/schemas/user.schema';
-import { AppGateway } from './app.gateway';
+import { SocketManagerService } from '@websocket/services/socket-manager.service';
 
 @WebSocketGateway()
-export class PresenceGateway implements EventHandler, OnModuleInit {
+export class PresenceGateway
+  implements EventHandler, OnModuleInit, OnGatewayConnection
+{
+  @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(PresenceGateway.name);
@@ -37,7 +36,7 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     private readonly eventRouter: EventRouterService,
     private readonly presenceService: PresenceService,
     private readonly userService: UsersService,
-    private readonly appGateway: AppGateway,
+    private readonly socketManager: SocketManagerService,
   ) {}
 
   onModuleInit() {
@@ -51,7 +50,9 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     return this.handledEvents.includes(event);
   }
 
-  async handleDisconnect(client: AuthenticatedSocket) {
+  async handleConnection(client: any, ...args: any[]) {}
+
+  async handleDisconnect(@ConnectedSocket() client: AuthenticatedSocket) {
     console.log('client id: ', client.id);
     await this.presenceService.handleDisconnect(client);
   }
@@ -141,8 +142,8 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
     });
 
     // Echo back to sender
-    this.appGateway.sendToUser(userId, PresenceEvents.STATUS_UPDATED, presence);
-    // socket.emit(PresenceEvents.STATUS_UPDATED, presence);
+    this.socketManager.sendToUser(userId, PresenceEvents.STATUS_UPDATED, presence);
+    socket.emit(PresenceEvents.STATUS_UPDATED, presence);
 
     this.logger.debug(`User ${userId} updated status to ${data.status}`);
   }
@@ -216,11 +217,11 @@ export class PresenceGateway implements EventHandler, OnModuleInit {
       // followedBy: string[];
     };
 
-    this.appGateway.sendToUser(userId, PresenceEvents.SUBSCRIBED, payload);
-    // socket.emit(PresenceEvents.SUBSCRIPTIONS_LIST, {
-    //   subscriptions,
-    //   timestamp: new Date(),
-    // });
+    this.socketManager.sendToUser(userId, PresenceEvents.SUBSCRIBED, payload);
+    socket.emit(PresenceEvents.SUBSCRIPTIONS_LIST, {
+      subscriptions,
+      timestamp: new Date(),
+    });
   }
 
   private async handleHeartbeat(
