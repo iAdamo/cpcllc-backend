@@ -68,18 +68,17 @@ export class ChatController {
   async getChatMessages(
     @Param('chatId') chatId: string,
     @Req() req: RequestWithUser,
-    @Query('page') page: number = 1,
+    @Query('cursor') cursor: string,
     @Query('limit') limit: number = 100,
-    @Query('userTimezone') userTimezone: string,
+    // @Query('userTimezone') userTimezone: string,
   ) {
     const userId = new Types.ObjectId(req.user.userId);
 
     return this.chatService.getChatMessages(
       new Types.ObjectId(chatId),
       userId,
-      page,
       limit,
-      userTimezone,
+      cursor ? new Date(cursor) : null,
     );
   }
 

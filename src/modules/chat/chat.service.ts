@@ -370,13 +370,81 @@ export class ChatService {
     this.logger.log(`User ${userId} left conversation ${chatId}`);
   }
 
+  // async getChatMessages(
+  //   chatId: Types.ObjectId,
+  //   userId: Types.ObjectId,
+  //   page = 1,
+  //   limit = 100,
+  //   userTimezone = 'Africa/Lagos',
+  // ): Promise<{ title: string; data: LeanMessage[] }[]> {
+  //   const chat = await this.chatModel.findOne({
+  //     _id: chatId,
+  //     participants: userId,
+  //     isActive: true,
+  //   });
+
+  //   if (!chat) {
+  //     throw new NotFoundException('Chat not found');
+  //   }
+
+  //   const skip = (page - 1) * limit;
+
+  //   const messages = await this.messageModel
+  //     .find({ chatId, deleted: false })
+  //     // .populate('senderId', 'firstName lastName profilePicture')
+  //     .populate('replyTo')
+  //     .sort({ createdAt: -1 })
+  //     .skip(skip)
+  //     .limit(limit)
+  //     .lean();
+
+  //   console.log({ messages });
+
+  //   const grouped = messages.reduce(
+  //     (acc, message) => {
+  //       const localDate = toZonedTime(message['createdAt'], userTimezone);
+
+  //       let title: string;
+  //       if (isToday(localDate)) title = 'Today';
+  //       else if (isYesterday(localDate)) title = 'Yesterday';
+  //       else title = format(localDate, 'MMM d, yyyy');
+
+  //       if (!acc[title]) acc[title] = [];
+  //       acc[title].push(message);
+
+  //       return acc;
+  //     },
+  //     {} as Record<string, LeanMessage[]>,
+  //   );
+
+  //   // --- Sort and format to SectionList structure ---
+  //   const sections = Object.keys(grouped)
+  //     .sort((a, b) => {
+  //       const parse = (label: string) => {
+  //         if (label === 'Today') return new Date();
+  //         if (label === 'Yesterday')
+  //           return new Date(Date.now() - 24 * 60 * 60 * 1000);
+  //         return new Date(label);
+  //       };
+  //       return parse(b).getTime() - parse(a).getTime();
+  //     })
+  //     .map((title) => ({
+  //       title,
+  //       data: grouped[title],
+  //     }));
+
+  //   return sections;
+  // }
   async getChatMessages(
     chatId: Types.ObjectId,
     userId: Types.ObjectId,
-    page = 1,
-    limit = 100,
-    userTimezone = 'Africa/Lagos',
-  ): Promise<{ title: string; data: LeanMessage[] }[]> {
+    limit = 50,
+    cursor?: Date,
+  ): Promise<{
+    messages: Message[];
+    hasMore: boolean;
+    nextCursor: Date | null;
+  }> {
     const chat = await this.chatModel.findOne({
       _id: chatId,
       participants: userId,
@@ -387,53 +455,44 @@ export class ChatService {
       throw new NotFoundException('Chat not found');
     }
 
-    const skip = (page - 1) * limit;
+    const query: any = {
+      chatId,
+      deleted: false,
+    };
+
+    if (cursor) {
+      query.createdAt = { $lt: cursor };
+    }
 
     const messages = await this.messageModel
-      .find({ chatId, deleted: false })
-      // .populate('senderId', 'firstName lastName profilePicture')
+      .find(query)
       .populate('replyTo')
+      // .populate('senderId')
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
+      .limit(limit + 1)
       .lean();
 
-    console.log({ messages });
+    // Check if there are more messages
+    let hasMore = false;
+    let nextCursor: Date | null = null;
 
-    const grouped = messages.reduce(
-      (acc, message) => {
-        const localDate = toZonedTime(message['createdAt'], userTimezone);
+    if (messages.length > limit) {
+      hasMore = true;
+      messages.pop(); // Remove the extra message
+    }
 
-        let title: string;
-        if (isToday(localDate)) title = 'Today';
-        else if (isYesterday(localDate)) title = 'Yesterday';
-        else title = format(localDate, 'MMM d, yyyy');
+    if (messages.length > 0) {
+      const oldestMessage = messages[messages.length - 1];
+      nextCursor = oldestMessage['createdAt'];
+    }
 
-        if (!acc[title]) acc[title] = [];
-        acc[title].push(message);
+    const chronologicalMessages = messages.reverse();
 
-        return acc;
-      },
-      {} as Record<string, LeanMessage[]>,
-    );
-
-    // --- Sort and format to SectionList structure ---
-    const sections = Object.keys(grouped)
-      .sort((a, b) => {
-        const parse = (label: string) => {
-          if (label === 'Today') return new Date();
-          if (label === 'Yesterday')
-            return new Date(Date.now() - 24 * 60 * 60 * 1000);
-          return new Date(label);
-        };
-        return parse(b).getTime() - parse(a).getTime();
-      })
-      .map((title) => ({
-        title,
-        data: grouped[title],
-      }));
-
-    return sections;
+    return {
+      messages: chronologicalMessages,
+      hasMore,
+      nextCursor,
+    };
   }
 
   async markMessagesAsDelivered(
