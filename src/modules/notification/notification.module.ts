@@ -25,7 +25,7 @@ import {
   NotificationLog,
   NotificationLogSchema,
 } from './schemas/notification-log.schema';
-import { EmailService } from '@notification/services/email.service';
+// import { EmailService } from '@notification/services/email.service';
 import { PushService } from '@notification/services/push.service';
 import { SmsService } from '@notification/services/sms.service';
 import {
@@ -70,7 +70,7 @@ import {
     DeliveryService,
     TemplateService,
     QueueService,
-    EmailService,
+    // EmailService,
     PushService,
     SmsService,
     NotificationProcessor,
@@ -87,7 +87,7 @@ import {
     DeliveryService,
     TemplateService,
     QueueService,
-    EmailService,
+    // EmailService,
     PushService,
     SmsService,
   ],

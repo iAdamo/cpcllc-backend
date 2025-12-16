@@ -15,7 +15,7 @@ import {
   DEFAULT_CHANNEL_CONFIG,
   PRIORITY_MAPPING,
 } from '../constants/notification.constants';
-import { EmailService } from '@notification/services/email.service';
+// import { EmailService } from '@notification/services/email.service';
 import { PushService } from '@notification/services/push.service';
 import { SmsService } from '@notification/services/sms.service';
 
@@ -27,7 +27,7 @@ export class DeliveryService {
   constructor(
     @InjectQueue('notification.delivery')
     private readonly deliveryQueue: Queue,
-    private readonly emailService: EmailService,
+    // private readonly emailService: EmailService,
     private readonly pushService: PushService,
     private readonly smsService: SmsService,
   ) {}
@@ -94,9 +94,9 @@ export class DeliveryService {
       let result: DeliveryResult;
 
       switch (channel) {
-        case NotificationChannel.EMAIL:
-          result = await this.deliverEmail(jobData);
-          break;
+        // case NotificationChannel.EMAIL:
+        //   result = await this.deliverEmail(jobData);
+        //   break;
         case NotificationChannel.PUSH:
           result = await this.deliverPush(jobData);
           break;
@@ -134,25 +134,25 @@ export class DeliveryService {
     }
   }
 
-  private async deliverEmail(
-    jobData: DeliveryJobData,
-  ): Promise<DeliveryResult> {
-    const { userId, title, body, metadata } = jobData;
+  // private async deliverEmail(
+  //   jobData: DeliveryJobData,
+  // ): Promise<DeliveryResult> {
+  //   const { userId, title, body, metadata } = jobData;
 
-    const result = await this.emailService.send({
-      to: metadata?.email || `${userId}@example.com`,
-      subject: title,
-      html: this.generateEmailTemplate(title, body, metadata),
-    });
+  //   const result = await this.emailService.send({
+  //     to: metadata?.email || `${userId}@example.com`,
+  //     subject: title,
+  //     html: this.generateEmailTemplate(title, body, metadata),
+  //   });
 
-    return {
-      success: result.success,
-      channel: NotificationChannel.EMAIL,
-      messageId: result.messageId,
-      deliveredAt: new Date(),
-      retryCount: jobData.retryCount,
-    };
-  }
+  //   return {
+  //     success: result.success,
+  //     channel: NotificationChannel.EMAIL,
+  //     messageId: result.messageId,
+  //     deliveredAt: new Date(),
+  //     retryCount: jobData.retryCount,
+  //   };
+  // }
 
   private async deliverPush(jobData: DeliveryJobData): Promise<DeliveryResult> {
     const { userId, title, body, metadata } = jobData;
