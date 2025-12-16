@@ -1,5 +1,5 @@
 import { Socket } from 'socket.io';
-
+import { Server, DefaultEventsMap } from 'socket.io';
 /**
  * Extended Socket interface with user context
  */
@@ -41,13 +41,31 @@ export interface SocketRegistry {
   };
 }
 
+export interface EventHandlerContext {
+  server: Server<DefaultEventsMap, any>;
+  event: string;
+  data: any;
+  socket: AuthenticatedSocket;
+}
+
+export interface EventHandler {
+  canHandle(event: string): boolean;
+  handle(context: EventHandlerContext): Promise<void>;
+}
+
+
 /**
  * Event handler interface for module gateways
  */
-export interface EventHandler {
-  canHandle(event: string): boolean;
-  handle(event: string, data: any, socket: AuthenticatedSocket): Promise<void>;
-}
+// export interface EventHandler {
+//   canHandle(event: string): boolean;
+//   handle(
+//     server: Server<DefaultEventsMap, any>,
+//     event: string,
+//     data: any,
+//     socket: AuthenticatedSocket,
+//   ): Promise<void>;
+// }
 
 export interface ResEventEnvelope<T = any> {
   version: string;

@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ChatService } from '../../chat/chat.service';
-import { EventHandler } from '@modules/interfaces/websocket.interface';
 import { ChatEvents } from '../events/chat.events';
 import { EventRouterService } from '../services/event-router.service';
-import { AuthenticatedSocket } from '@websocket/interfaces/websocket.interface';
+import {
+  AuthenticatedSocket,
+  EventHandler,
+  EventHandlerContext,
+} from '@websocket/interfaces/websocket.interface';
 import {
   TypingDto,
   SendMessageDto,
@@ -48,11 +51,12 @@ export class ChatGateway implements EventHandler {
   /**
    * Handle incoming chat events
    */
-  async handle(
-    event: string,
-    data: any,
-    socket: AuthenticatedSocket,
-  ): Promise<void> {
+  async handle({
+    server,
+    event,
+    data,
+    socket,
+  }: EventHandlerContext): Promise<void> {
     const userId = socket.user.userId;
 
     try {

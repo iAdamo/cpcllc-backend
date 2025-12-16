@@ -28,6 +28,7 @@ export class EventRouterService {
    * Route incoming event to appropriate handler
    */
   async route(
+    server: any,
     event: string,
     data: EventEnvelope,
     socket: AuthenticatedSocket,
@@ -50,7 +51,7 @@ export class EventRouterService {
       }
 
       // Execute handler
-      await handler.handle(event, data.payload, socket);
+      await handler.handle({ server, event, data: data.payload, socket });
 
       this.logger.debug(
         `Successfully routed event: ${event} for user ${socket.user.userId}`,

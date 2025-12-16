@@ -21,8 +21,10 @@ import { PresenceEvents } from '@websocket/events/presence.events';
 import { SocketManagerService } from '@websocket/services/socket-manager.service';
 import {
   AuthenticatedSocket,
+  EventHandlerContext,
   UserSession,
 } from '@websocket/interfaces/websocket.interface';
+import { AppGateway } from '@websocket/gateways/app.gateway';
 
 @Injectable()
 export class PresenceService implements OnModuleInit {
@@ -54,11 +56,13 @@ export class PresenceService implements OnModuleInit {
     userId,
     session,
     socket,
+    server,
   }: {
     dto: UpdatePresenceDto;
     userId?: string;
     session?: UserSession;
     socket?: AuthenticatedSocket;
+    server?: EventHandlerContext['server'];
   }): Promise<PresenceResponse> {
     const now = new Date();
     const id = userId || session.userId;
@@ -93,7 +97,7 @@ export class PresenceService implements OnModuleInit {
         metadata: dto.metadata,
       },
     });
-    await this.notifyStatusChange(id, {} as PresenceStatus);
+    if (server) await this.notifyStatusChange(server, id, {} as PresenceStatus);
 
     this.logger.debug(`Updated presence for user ${id}: ${dto.status}`);
 
@@ -106,6 +110,7 @@ export class PresenceService implements OnModuleInit {
    * Subscribe to presence updates of other users
    */
   async subscribeToPresence(
+    server: EventHandlerContext['server'],
     subscriberId: string,
     targetIds: string[],
   ): Promise<void> {
@@ -136,11 +141,12 @@ export class PresenceService implements OnModuleInit {
       });
       // console.log('from sub', { presence });
       if (presence) {
-        await this.socketManager.sendToUser(
-          subscriberId,
-          PresenceEvents.STATUS_CHANGE,
-          this.toResponse(presence),
-        );
+        await this.socketManager.sendToUser({
+          server,
+          userId: subscriberId,
+          event: PresenceEvents.STATUS_CHANGE,
+          data: this.toResponse(presence),
+        });
       }
     }
 
@@ -324,7 +330,10 @@ export class PresenceService implements OnModuleInit {
     };
   }
 
-  async handleDisconnect(client: AuthenticatedSocket) {
+  async handleDisconnect(
+    server: EventHandlerContext['server'],
+    client: AuthenticatedSocket,
+  ) {
     try {
       await this.updatePresence({
         dto: {
@@ -333,6 +342,7 @@ export class PresenceService implements OnModuleInit {
         },
         userId: client.user.userId,
         socket: client,
+        server,
       });
 
       await this.socketManager.removeUserSession(client.id);
@@ -365,6 +375,7 @@ export class PresenceService implements OnModuleInit {
   }
 
   private async notifyStatusChange(
+    server: EventHandlerContext['server'],
     userId: string,
     status: PresenceStatus,
   ): Promise<void> {
@@ -375,11 +386,12 @@ export class PresenceService implements OnModuleInit {
 
     for (const subscriberId of subscribers) {
       if (presence) {
-        await this.socketManager.sendToUser(
-          subscriberId,
-          this.getStatusEvent(status),
-          this.toResponse(presence),
-        );
+        await this.socketManager.sendToUser({
+          server,
+          userId: subscriberId,
+          event: this.getStatusEvent(status),
+          data: this.toResponse(presence),
+        });
       }
     }
   }

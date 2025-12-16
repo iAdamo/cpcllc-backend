@@ -11,7 +11,7 @@ import { UseGuards, UsePipes } from '@nestjs/common';
 import { WsJwtGuard } from '@auth/jwt/jwt.guard';
 import { SocketValidationPipe } from '@websocket/socket-validation.pipe';
 import { EventRouterService } from '@websocket/services/event-router.service';
-import { EventHandler } from '@websocket/interfaces/websocket.interface';
+import { EventHandler, EventHandlerContext } from '@websocket/interfaces/websocket.interface';
 import { NotificationService } from '../../notification/services/notification.service';
 import { PreferenceService } from '../../notification/services/preference.service';
 // import { NotificationEvents } from '../../notification/constants/notification.constants';
@@ -50,8 +50,13 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     return this.handledEvents.includes(event);
   }
 
-  async handle(event: string, data: any, socket: Socket): Promise<void> {
-    const userId = (socket as any).user?.id;
+ async handle({
+    server,
+    event,
+    data,
+    socket,
+  }: EventHandlerContext): Promise<void> {
+        const userId = (socket as any).user?.id;
 
     if (!userId) {
       throw new Error('User not authenticated');

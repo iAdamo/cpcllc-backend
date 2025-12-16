@@ -146,7 +146,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
    */
   async handleDisconnect(@ConnectedSocket() client: AuthenticatedSocket) {
     try {
-      await this.presenceService.handleDisconnect(client);
+      await this.presenceService.handleDisconnect(this.server, client);
     } catch (error) {
       this.logger.error('Disconnection handling failed:', error);
     }
@@ -180,7 +180,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
         return;
       }
       // Route event to appropriate module handler
-      await this.eventRouter.route(event, data, client);
+      await this.eventRouter.route(this.server, event, data, client);
     } catch (error: any) {
       this.logger.error(`Error handling event ${event}:`, error);
 
@@ -203,20 +203,20 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
   /**
    * Send to specific user across all devices
    */
-  // async sendToUser(userId: string, event: string, data: any): Promise<void> {
-  //   const sockets = await this.socketManager.getUserSockets({ userId });
+  async sendToUser(userId: string, event: string, data: any): Promise<void> {
+    const sockets = await this.socketManager.getUserSockets({ userId });
 
-  //   const envelope: ResEventEnvelope = {
-  //     version: '1.0.0',
-  //     timestamp: new Date(),
-  //     targetId: data.targetId,
-  //     payload: data,
-  //   };
+    const envelope: ResEventEnvelope = {
+      version: '1.0.0',
+      timestamp: new Date(),
+      targetId: data.targetId,
+      payload: data,
+    };
 
-  //   sockets.forEach((socketId) => {
-  //     this.server.to(socketId).emit(event, { ...envelope });
-  //   });
-  // }
+    sockets.forEach((socketId) => {
+      this.server.to(socketId).emit(event, { ...envelope });
+    });
+  }
 
   /**
    * Send to specific room

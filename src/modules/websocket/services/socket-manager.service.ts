@@ -2,8 +2,11 @@ import { PRESENCE_STATUS } from '@presence/interfaces/presence.interface';
 import { Injectable, Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
-import { UserSession, SocketRegistry } from '../interfaces/websocket.interface';
-import { Server } from 'socket.io';
+import {
+  UserSession,
+  SocketRegistry,
+  EventHandlerContext,
+} from '../interfaces/websocket.interface';
 import { ResEventEnvelope } from '../interfaces/websocket.interface';
 
 /**
@@ -12,33 +15,10 @@ import { ResEventEnvelope } from '../interfaces/websocket.interface';
  */
 @Injectable()
 export class SocketManagerService {
-  server: Server;
   private readonly logger = new Logger(SocketManagerService.name);
   private readonly SESSION_TTL = 24 * 60 * 60; // 24 hours in seconds
-  private isServerInitialized = false;
-
-  // Queue for messages before server is ready
-  private pendingMessages: Array<{
-    userId: string;
-    event: string;
-    data: any;
-    resolve: () => void;
-    reject: (error: Error) => void;
-  }> = [];
 
   constructor(@InjectRedis() private readonly redis: Redis) {}
-
-  setServer(server: Server): void {
-    if (this.server) {
-      this.logger.warn('Server instance is being overwritten');
-    }
-
-    this.server = server;
-    this.isServerInitialized = true;
-
-    // Process any pending messages
-    this.processPendingMessages();
-  }
 
   /**
    * Add user session to registry
@@ -264,21 +244,20 @@ export class SocketManagerService {
     return `socket:user:${socketId}`;
   }
 
-  async sendToUser(userId: string, event: string, data: any): Promise<void> {
-    // If server not ready, queue the message
-    if (!this.isServerInitialized) {
-      return new Promise((resolve, reject) => {
-        this.pendingMessages.push({
-          userId,
-          event,
-          data,
-          resolve,
-          reject,
-        });
-      });
-    }
-
+  async sendToUser({
+    userId,
+    event,
+    data,
+    server,
+  }: {
+    server: EventHandlerContext['server'];
+    userId: string;
+    event: string;
+    data: any;
+  }): Promise<void> {
     const sockets = await this.getUserSockets({ userId });
+
+    console.log({ sockets });
 
     if (sockets.length === 0) {
       this.logger.debug(`User ${userId} has no active sockets`);
@@ -293,22 +272,11 @@ export class SocketManagerService {
     };
 
     sockets.forEach((socketId) => {
-      this.server.to(socketId).emit(event, { ...envelope });
+      server.to(socketId).emit(event, { ...envelope });
     });
 
     this.logger.debug(
       `Sent event "${event}" to user ${userId} on ${sockets.length} socket(s)`,
     );
-  }
-
-  private processPendingMessages(): void {
-    while (this.pendingMessages.length > 0) {
-      const message = this.pendingMessages.shift();
-      if (message) {
-        this.sendToUser(message.userId, message.event, message.data)
-          .then(message.resolve)
-          .catch(message.reject);
-      }
-    }
   }
 }
