@@ -55,9 +55,9 @@ export class ReviewsService {
     // Create the review document
     const review = new this.reviewsModel({
       ...reviewData,
-      user: creator._id,
+      creator: creator._id,
       recipient: recipient._id,
-      images: imageLinks,
+      ...imageLinks,
     });
 
     try {
@@ -88,7 +88,12 @@ export class ReviewsService {
           { new: true },
         );
       }
-      return savedReview;
+      return (
+        await savedReview.populate(
+          'creator',
+          'firstName lastName profilePicture',
+        )
+      ).populate('recipient', 'providerName');
     } catch (error) {
       throw new InternalServerErrorException('Error creating review' + error);
     }
@@ -178,15 +183,17 @@ export class ReviewsService {
    * @returns Array of reviews for the specified recipient
    */
   async getReviews(id?: string, user?: string): Promise<Reviews[]> {
-    const objId = id ? id : user;
+    const isNotMe = id && id !== 'me';
+    const objId = isNotMe ? user : id;
+
     if (!Types.ObjectId.isValid(objId)) {
       throw new BadRequestException('Invalid ID');
     }
     let query = {};
-    if (id) {
+    if (isNotMe) {
       query = { recipient: new Types.ObjectId(id) };
     } else if (user) {
-      query = { user: new Types.ObjectId(user) };
+      query = { creator: new Types.ObjectId(user) };
     } else {
       throw new BadRequestException('No recipient or user ID provided');
     }
@@ -194,8 +201,22 @@ export class ReviewsService {
     const reviews = await this.reviewsModel
       .find(query)
       .sort({ createdAt: -1 })
-      .populate('creator', 'firstName lastName email profilePicture')
-      .populate('recipient', 'providerName');
+      .populate(
+        isNotMe
+          ? {
+              path: 'creator',
+              select: 'firstName lastName profilePicture',
+            }
+          : {
+              path: 'recipient',
+              select: 'activeRoleId',
+              populate: {
+                path: 'activeRoleId',
+                select: 'providerName',
+              },
+            },
+      )
+      .lean();
 
     if (!reviews || reviews.length === 0) {
       return [];

@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { User } from '@schemas/user.schema';
-import { Provider } from 'src/modules/provider/schemas/provider.schema';
+import { ProfilePicture } from '@schemas/user.schema';
 
 export type ReviewsDocument = HydratedDocument<Reviews>;
 
@@ -14,7 +14,7 @@ export class Reviews {
   rating: number;
 
   @Prop([String])
-  images: string[];
+  images: ProfilePicture[];
 
   @Prop({ default: 'pending', enum: ['pending', 'approved', 'rejected'] })
   status: string;
@@ -36,9 +36,6 @@ export class Reviews {
 
   @Prop({ type: Types.ObjectId, ref: 'User', index: true })
   recipient: User;
-
-  @Prop({ type: Date, index: -1 })
-  createdAt: Date;
 }
 
 export const ReviewsSchema = SchemaFactory.createForClass(Reviews);
