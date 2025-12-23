@@ -13,7 +13,7 @@ export class Reviews {
   @Prop({ required: false, min: 1, max: 5 })
   rating: number;
 
-  @Prop([String])
+  @Prop({ default: [] })
   images: ProfilePicture[];
 
   @Prop({ default: 'pending', enum: ['pending', 'approved', 'rejected'] })

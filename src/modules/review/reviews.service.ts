@@ -183,46 +183,38 @@ export class ReviewsService {
    * @returns Array of reviews for the specified recipient
    */
   async getReviews(id?: string, user?: string): Promise<Reviews[]> {
-    const isNotMe = id && id !== 'me';
-    const objId = isNotMe ? user : id;
+    const isMe = id === 'me';
+    const targetId = isMe ? user : id;
 
-    if (!Types.ObjectId.isValid(objId)) {
+    if (!targetId || !Types.ObjectId.isValid(targetId)) {
       throw new BadRequestException('Invalid ID');
     }
-    let query = {};
-    if (isNotMe) {
-      query = { recipient: new Types.ObjectId(id) };
-    } else if (user) {
-      query = { creator: new Types.ObjectId(user) };
-    } else {
-      throw new BadRequestException('No recipient or user ID provided');
-    }
+
+    const query = isMe
+      ? { creator: new Types.ObjectId(targetId) }
+      : { recipient: new Types.ObjectId(targetId) };
 
     const reviews = await this.reviewsModel
       .find(query)
       .sort({ createdAt: -1 })
       .populate(
-        isNotMe
+        isMe
           ? {
-              path: 'creator',
-              select: 'firstName lastName profilePicture',
-            }
-          : {
               path: 'recipient',
-              select: 'activeRoleId',
               populate: {
                 path: 'activeRoleId',
-                select: 'providerName',
+                model: 'Provider',
+                select: 'providerName providerLogo',
               },
+            }
+          : {
+              path: 'creator',
+              select: 'firstName lastName profilePicture',
             },
       )
       .lean();
 
-    if (!reviews || reviews.length === 0) {
-      return [];
-    }
-
-    return reviews;
+    return reviews ?? [];
   }
 
   async deleteReview(reviewId: string, userId: string): Promise<void> {

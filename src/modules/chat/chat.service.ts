@@ -24,6 +24,7 @@ import {
   MessageType,
   SendMessageDto,
   JoinChatDto,
+  MarkAsReadDto,
 } from './interfaces/chat.interface';
 import { PRESENCE_STATUS } from '@presence/interfaces/presence.interface';
 
@@ -268,11 +269,21 @@ export class ChatService {
       createdAt: message['createdAt'],
     };
 
-    await this.chatModel.updateOne(
-      { _id: chatId },
-      { lastMessage },
-      { session },
+    // update chat with unread counts
+    const unreadCounts = new Map<string, number>(
+      Array.from(chat.unreadCounts?.entries() || []),
     );
+    for (const participantId of chat.participants) {
+      const pidStr = participantId.toString();
+      if (pidStr !== senderId) {
+        const currentCount = unreadCounts.get(pidStr) || 0;
+        unreadCounts.set(pidStr, currentCount + 1);
+      }
+    }
+
+    chat.lastMessage = lastMessage;
+    chat.unreadCounts = unreadCounts;
+    await chat.save({ session });
 
     this.logger.log(`Message sent: ${message._id} in chat: ${chatId}`);
 
@@ -370,71 +381,6 @@ export class ChatService {
     this.logger.log(`User ${userId} left conversation ${chatId}`);
   }
 
-  // async getChatMessages(
-  //   chatId: Types.ObjectId,
-  //   userId: Types.ObjectId,
-  //   page = 1,
-  //   limit = 100,
-  //   userTimezone = 'Africa/Lagos',
-  // ): Promise<{ title: string; data: LeanMessage[] }[]> {
-  //   const chat = await this.chatModel.findOne({
-  //     _id: chatId,
-  //     participants: userId,
-  //     isActive: true,
-  //   });
-
-  //   if (!chat) {
-  //     throw new NotFoundException('Chat not found');
-  //   }
-
-  //   const skip = (page - 1) * limit;
-
-  //   const messages = await this.messageModel
-  //     .find({ chatId, deleted: false })
-  //     // .populate('senderId', 'firstName lastName profilePicture')
-  //     .populate('replyTo')
-  //     .sort({ createdAt: -1 })
-  //     .skip(skip)
-  //     .limit(limit)
-  //     .lean();
-
-  //   console.log({ messages });
-
-  //   const grouped = messages.reduce(
-  //     (acc, message) => {
-  //       const localDate = toZonedTime(message['createdAt'], userTimezone);
-
-  //       let title: string;
-  //       if (isToday(localDate)) title = 'Today';
-  //       else if (isYesterday(localDate)) title = 'Yesterday';
-  //       else title = format(localDate, 'MMM d, yyyy');
-
-  //       if (!acc[title]) acc[title] = [];
-  //       acc[title].push(message);
-
-  //       return acc;
-  //     },
-  //     {} as Record<string, LeanMessage[]>,
-  //   );
-
-  //   // --- Sort and format to SectionList structure ---
-  //   const sections = Object.keys(grouped)
-  //     .sort((a, b) => {
-  //       const parse = (label: string) => {
-  //         if (label === 'Today') return new Date();
-  //         if (label === 'Yesterday')
-  //           return new Date(Date.now() - 24 * 60 * 60 * 1000);
-  //         return new Date(label);
-  //       };
-  //       return parse(b).getTime() - parse(a).getTime();
-  //     })
-  //     .map((title) => ({
-  //       title,
-  //       data: grouped[title],
-  //     }));
-
-  //   return sections;
-  // }
   async getChatMessages(
     chatId: Types.ObjectId,
     userId: Types.ObjectId,
@@ -508,6 +454,50 @@ export class ChatService {
       {
         $addToSet: { 'status.delivered': userId },
       },
+    );
+  }
+
+  /**
+   * Mark messages as read by user
+   */
+  async markAsRead(userId: string, dto: MarkAsReadDto): Promise<void> {
+    const now = new Date();
+    const objIds = dto.messageIds.map(
+      (messageId) => new Types.ObjectId(messageId),
+    );
+    const updatedMessages = await this.messageModel.updateMany(
+      {
+        _id: { $in: objIds },
+        'status.read': { $ne: userId }, // only unread
+      },
+      {
+        $addToSet: {
+          'status.read': userId,
+        },
+      },
+    );
+
+    if (updatedMessages.modifiedCount === 0) {
+      return;
+    }
+
+    await this.chatModel.updateOne(
+      { _id: new Types.ObjectId(dto.chatId) },
+      {
+        $set: {
+          [`unreadCounts.${userId}`]: 0,
+        },
+      },
+    );
+
+    await this.broadcastToChat(dto.chatId, ChatEvents.MESSAGE_READ, {
+      messageIds: dto.messageIds,
+      userId,
+      readAt: now,
+    });
+
+    this.logger.log(
+      `User ${userId} marked ${updatedMessages.modifiedCount} messages as read`,
     );
   }
 

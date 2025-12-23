@@ -11,6 +11,7 @@ import {
   TypingDto,
   SendMessageDto,
   JoinChatDto,
+  MarkAsReadDto,
 } from '../../chat/interfaces/chat.interface';
 
 /**
@@ -65,9 +66,9 @@ export class ChatGateway implements EventHandler {
           await this.handleSendMessage(data, socket);
           break;
 
-        // case ChatEvents.MARK_AS_READ:
-        //   await this.handleMarkAsRead(userId, data, socket);
-        //   break;
+        case ChatEvents.MARK_AS_READ:
+          await this.handleMarkAsRead(userId, data, socket);
+          break;
 
         case ChatEvents.TYPING_INDICATOR:
           await this.handleTypingIndicator(userId, data, socket);
@@ -111,13 +112,13 @@ export class ChatGateway implements EventHandler {
   /**
    * Handle marking messages as read
    */
-  // private async handleMarkAsRead(
-  //   userId: string,
-  //   data: MarkAsReadDto,
-  //   socket: AuthenticatedSocket,
-  // ): Promise<void> {
-  //   await this.chatService.markAsRead(userId, data);
-  // }
+  private async handleMarkAsRead(
+    userId: string,
+    data: MarkAsReadDto,
+    socket: AuthenticatedSocket,
+  ): Promise<void> {
+    await this.chatService.markAsRead(userId, data);
+  }
 
   /**
    * Handle typing indicators

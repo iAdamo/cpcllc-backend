@@ -1,7 +1,7 @@
-import { Last } from './../../../../node_modules/socket.io/dist/typed-events.d';
+import { plainToClass } from 'class-transformer';
+import { compile } from 'handlebars';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { CreateChatDto } from '../dto/create-chat.dto';
 export type ChatDocument = HydratedDocument<Chat>;
 
 class LastMessage {
@@ -18,7 +18,7 @@ class LastMessage {
   createdAt: Date;
 }
 
-@Schema({ timestamps: true, collection: 'chats' })
+@Schema({ timestamps: true })
 export class Chat {
   @Prop({
     type: [{ type: Types.ObjectId, ref: 'User' }],
@@ -28,6 +28,10 @@ export class Chat {
 
   @Prop({ type: LastMessage })
   lastMessage?: LastMessage;
+
+  // unread count for each participant
+  @Prop({ type: Map, of: Number, default: new Map() })
+  unreadCounts: Map<string, number>;
 
   @Prop({ default: true })
   isActive: boolean;
