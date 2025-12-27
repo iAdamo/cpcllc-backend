@@ -34,4 +34,14 @@ export class AdminController {
     const userId = req.user.userId;
     return this.adminService.getAdminById(userId);
   }
+
+  // @Patch('profile')
+  // @UseGuards(AdminGuard)
+  // async updateAdminProfile(
+  //   @Req() req: RequestWithUser,
+  //   @Body() updateData: any,
+  // ) {
+  //   const userId = req.user.userId;
+  //   return this.adminService.updateAdminProfile(userId, updateData);
+  // }
 }

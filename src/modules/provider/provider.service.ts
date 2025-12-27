@@ -384,26 +384,83 @@ export class ProviderService {
    * @param userId
    * @returns
    */
-  async toggleFavorite(providerId: string, userId: string): Promise<Provider> {
-    const provider = await this.providerModel.findById(providerId);
-    if (!provider) throw new NotFoundException('User not found');
+  async toggleFavorite(
+    providerId: string,
+    userId: string,
+  ): Promise<{
+    provider: Provider;
+    isFavorited: boolean;
+    favoriteCount: number;
+  }> {
+    const userObjectId = new Types.ObjectId(userId);
 
-    const hasFavorited = provider.favoritedBy.includes(
-      new Types.ObjectId(userId),
+    const provider = await this.providerModel.findOneAndUpdate(
+      { _id: providerId },
+      [
+        {
+          $set: {
+            favoritedBy: {
+              $cond: [
+                { $in: [userObjectId, '$favoritedBy'] },
+                { $setDifference: ['$favoritedBy', [userObjectId]] }, // unfavorite
+                { $concatArrays: ['$favoritedBy', [userObjectId]] }, // favorite
+              ],
+            },
+          },
+        },
+      ],
+      { new: true },
     );
 
-    const update = hasFavorited
-      ? {
-          $pull: { favoritedBy: userId },
-          $inc: { favoriteCount: -1 },
-        }
-      : {
-          $addToSet: { favoritedBy: userId },
-          $inc: { favoriteCount: 1 },
-        };
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
 
-    return await this.providerModel.findByIdAndUpdate(providerId, update, {
-      new: true,
+    const isFavorited = provider.favoritedBy.some((id) =>
+      id.equals(userObjectId),
+    );
+
+    return {
+      provider,
+      isFavorited,
+      favoriteCount: provider.favoritedBy.length,
+    };
+  }
+
+  async addFeaturedProvider(providerId: string): Promise<Provider> {
+    const provider = await this.providerModel.findByIdAndUpdate(
+      providerId,
+      { isFeatured: true },
+      { new: true },
+    );
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
+    return provider;
+  }
+
+  async removeFeaturedProvider(providerId: string): Promise<Provider> {
+    const provider = await this.providerModel.findByIdAndUpdate(
+      providerId,
+      { isFeatured: false },
+      { new: true },
+    );
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
+    return provider;
+  }
+
+  async getFeaturedProviders(): Promise<Provider[]> {
+    return this.providerModel.find({ isFeatured: true }).populate({
+      path: 'subcategories',
+      model: 'Subcategory',
+      select: 'name description',
+      populate: {
+        path: 'categoryId',
+        model: 'Category',
+        select: 'name description',
+      },
     });
   }
 }

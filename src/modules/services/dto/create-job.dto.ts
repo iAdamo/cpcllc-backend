@@ -11,12 +11,13 @@ import {
   IsDateString,
   IsIn,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateJobDto {
-  // provider id
   @ApiProperty({ description: 'Provider ID for the job', required: false })
   @IsMongoId()
-  providerId: string;
+  @IsOptional()
+  providerId?: string;
 
   @ApiProperty({ description: 'Subcategory ID for the job', required: true })
   @IsMongoId()
@@ -31,11 +32,13 @@ export class CreateJobDto {
   description: string;
 
   @ApiProperty({ description: 'Budget for the job', required: true })
+  @Type(() => Number)
   @IsNumber()
   budget: number;
 
   @ApiProperty({ description: 'Is budget negotiable', required: false })
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   negotiable?: boolean;
 
@@ -57,6 +60,7 @@ export class CreateJobDto {
   @IsArray()
   @ArrayMinSize(2)
   @ArrayMaxSize(2)
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   coordinates?: number[];
 
@@ -65,7 +69,7 @@ export class CreateJobDto {
     required: false,
   })
   @IsOptional()
-  @IsIn(['normal', 'urgent', 'immediate'])
+  @IsIn(['Normal', 'Urgent', 'Immediate'])
   urgency?: string;
 
   @ApiProperty({
@@ -73,7 +77,7 @@ export class CreateJobDto {
     required: false,
   })
   @IsOptional()
-  @IsIn(['public', 'verified_only'])
+  @IsIn(['Public', 'Verified_Only'])
   visibility?: string;
 
   @ApiProperty({

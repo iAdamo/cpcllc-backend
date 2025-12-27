@@ -45,59 +45,7 @@ import { numberToDate } from 'src/common/utils/numberToDate';
 @Injectable()
 export class ServicesService {
   private readonly logger = new Logger(ServicesService.name);
-  // helper: normalize different coordinate shapes into [long, lat] numeric array or null
-  private normalizeToLonLat(raw: any): number[] | null {
-    if (raw === undefined || raw === null) return null;
-    // If already [long, lat]
-    if (Array.isArray(raw)) {
-      if (
-        raw.length === 2 &&
-        typeof raw[0] === 'number' &&
-        typeof raw[1] === 'number'
-      )
-        return [raw[0], raw[1]];
-      // sometimes FE might send [{lat,long}]
-      if (
-        raw.length === 1 &&
-        raw[0] &&
-        typeof raw[0] === 'object' &&
-        ('lat' in raw[0] || 'long' in raw[0])
-      ) {
-        const lat = Number(raw[0].lat);
-        const lon = Number(raw[0].long || raw[0].lng || raw[0].lon);
-        if (!Number.isNaN(lon) && !Number.isNaN(lat)) return [lon, lat];
-      }
-      return null;
-    }
 
-    // If object like { lat, long }
-    if (typeof raw === 'object') {
-      const lat = Number((raw as any).lat);
-      const lon = Number(
-        (raw as any).long || (raw as any).lng || (raw as any).lon,
-      );
-      if (!Number.isNaN(lon) && !Number.isNaN(lat)) return [lon, lat];
-      return null;
-    }
-
-    // If string: JSON or comma separated
-    if (typeof raw === 'string') {
-      // try JSON
-      try {
-        const parsed = JSON.parse(raw);
-        return this.normalizeToLonLat(parsed);
-      } catch (e) {
-        const parts = raw.split(',').map((s) => s.trim());
-        if (parts.length === 2) {
-          const lon = Number(parts[0]);
-          const lat = Number(parts[1]);
-          if (!Number.isNaN(lon) && !Number.isNaN(lat)) return [lon, lat];
-        }
-      }
-    }
-
-    return null;
-  }
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
@@ -337,11 +285,7 @@ export class ServicesService {
       userId: new Types.ObjectId(user.userId),
       subcategoryId: new Types.ObjectId(jobData.subcategoryId),
       media: (fileUrls.media as any) || [],
-      // If coordinates provided (expected [long, lat] or {lat,long}), normalize and set for 2dsphere index
-      ...(() => {
-        const coords = this.normalizeToLonLat((jobData as any).coordinates);
-        return coords ? { type: 'Point', coordinates: coords } : {};
-      })(),
+
     });
 
     const saved = await job.save();
@@ -387,18 +331,7 @@ export class ServicesService {
       job.deadline = parsedDate;
     }
     console.log({ updateData });
-    // If coordinates are provided in updateData, normalize and set them (expected [long, lat])
-    if ((updateData as any).coordinates !== undefined) {
-      const coords = this.normalizeToLonLat((updateData as any).coordinates);
-      if (coords) {
-        job.type = 'Point';
-        job.coordinates = coords;
-      } else {
-        // invalid coordinates: remove client-supplied coordinates to avoid saving malformed values
-        delete (updateData as any).coordinates;
-      }
-    }
-
+   
     // If providerId is provided in the update, limit job.proposals to only proposals from that provider
     if (updateData.providerId) {
       const providerObjectId = new Types.ObjectId(updateData.providerId);

@@ -96,7 +96,7 @@ export class JobPost {
   /** Visibility: public or only verified providers */
   @Prop({
     type: String,
-    enum: ['Public', 'Verified', 'Private'],
+    enum: ['Public', 'Verified_Only'],
     default: 'Public',
   })
   visibility?: string;
@@ -120,8 +120,8 @@ export class JobPost {
   /** Active / status states */
   @Prop({
     type: String,
-    enum: ['active', 'in_progress', 'completed', 'cancelled', 'expired'],
-    default: 'active',
+    enum: ['Active', 'In_progress', 'Completed', 'Cancelled', 'Expired'],
+    default: 'Active',
     index: true,
   })
   status: string;

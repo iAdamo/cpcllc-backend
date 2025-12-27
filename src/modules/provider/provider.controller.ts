@@ -56,7 +56,11 @@ export class ProviderController {
   async toggleFavorite(
     @Param('id') providerId: string,
     @Req() req: RequestWithUser,
-  ): Promise<Provider> {
+  ): Promise<{
+    provider: Provider;
+    isFavorited: boolean;
+    favoriteCount: number;
+  }> {
     return this.providerService.toggleFavorite(providerId, req.user.userId);
   }
 
@@ -103,5 +107,10 @@ export class ProviderController {
   ) {
     const user = req.user;
     return this.providerService.updateProvider(providerDto, user, files);
+  }
+
+  @Get('featured')
+  async getFeaturedProviders(): Promise<Provider[]> {
+    return this.providerService.getFeaturedProviders();
   }
 }

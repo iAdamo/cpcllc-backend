@@ -1,5 +1,4 @@
 import {
-  isNotEmpty,
   IsEmail,
   IsNotEmpty,
   IsArray,
@@ -11,7 +10,6 @@ import {
   ValidateNested,
   ArrayMinSize,
   ArrayMaxSize,
-  IsInt,
   IsUrl,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -53,6 +51,7 @@ export class LocationDto {
   @IsArray()
   @ArrayMinSize(2)
   @ArrayMaxSize(2)
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   coordinates: number[];
 
@@ -61,6 +60,24 @@ export class LocationDto {
   @Type(() => AddressDto)
   address?: AddressDto;
 }
+
+class LocationContainerDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  primary?: LocationDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  secondary?: LocationDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  tertiary?: LocationDto;
+}
+
 
 export class CreateProviderDto {
   @ApiProperty({ example: 'Kajola Industries' })
@@ -95,19 +112,12 @@ export class CreateProviderDto {
 
   @IsOptional()
   @IsObject()
-  @IsUrl()
   providerSocialMedia?: Record<string, string>;
 
-  @ApiProperty()
-  @IsObject()
   @IsOptional()
   @ValidateNested()
-  @Type(() => LocationDto)
-  location?: {
-    primary?: LocationDto;
-    secondary?: LocationDto;
-    tertiary?: LocationDto;
-  };
+  @Type(() => LocationContainerDto)
+  location?: LocationContainerDto;
 
   @ApiProperty({ example: 'Provider' })
   @IsString()
