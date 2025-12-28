@@ -99,4 +99,10 @@ export class CreateJobDto {
   @IsOptional()
   @IsBoolean()
   anonymous?: boolean;
+
+  @ApiProperty({ description: 'Is the job active?', required: false })
+  @IsOptional()
+  // @IsBoolean()
+  // @Type(() => Boolean)
+  isActive?: string;
 }

@@ -7,11 +7,13 @@ import { ProviderController } from './provider.controller';
 import { UsersModule } from '../users/users.module';
 import { AdminModule } from '../admin/admin.module';
 import { DbStorageService } from 'src/common/utils/dbStorage';
+import { CacheModule } from '@cache/cache.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
     forwardRef(() => AdminModule),
+    forwardRef(() => CacheModule),
     MongooseModule.forFeature([
       { name: Provider.name, schema: ProviderSchema },
       { name: User.name, schema: UserSchema },

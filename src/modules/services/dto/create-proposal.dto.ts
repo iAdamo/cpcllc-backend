@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNumber, IsOptional, IsMongoId } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateProposalDto {
   @ApiProperty({ description: 'Proposal message/cover letter', required: true })
@@ -8,6 +9,7 @@ export class CreateProposalDto {
 
   @ApiProperty({ description: 'Proposed price', required: true })
   @IsNumber()
+  @Type(() => Number)
   proposedPrice: number;
 
   @ApiProperty({ description: 'Estimated duration', required: true })

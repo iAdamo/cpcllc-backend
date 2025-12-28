@@ -20,6 +20,7 @@ import { UpdateProviderDto } from '@dto/update-provider.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@guards/jwt.guard';
 import { Provider } from 'src/modules/provider/schemas/provider.schema';
+import { CacheService } from '@cache/cache.service';
 
 export interface RequestWithUser extends Request {
   user: {
@@ -33,6 +34,7 @@ export interface RequestWithUser extends Request {
 @Controller('provider')
 export class ProviderController {
   constructor(
+    private readonly cacheService: CacheService,
     private readonly providerService: ProviderService,
     private readonly adminService: AdminService,
   ) {}
@@ -111,6 +113,14 @@ export class ProviderController {
 
   @Get('featured')
   async getFeaturedProviders(): Promise<Provider[]> {
-    return this.providerService.getFeaturedProviders();
+    // return this.providerService.getFeaturedProviders();
+    const cacheKey = 'featured_providers';
+    const cached = await this.cacheService.get<Provider[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    const featuredProviders = await this.providerService.getFeaturedProviders();
+    await this.cacheService.set(cacheKey, featuredProviders, 120);
+    return featuredProviders;
   }
 }

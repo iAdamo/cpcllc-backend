@@ -285,7 +285,6 @@ export class ServicesService {
       userId: new Types.ObjectId(user.userId),
       subcategoryId: new Types.ObjectId(jobData.subcategoryId),
       media: (fileUrls.media as any) || [],
-
     });
 
     const saved = await job.save();
@@ -326,12 +325,17 @@ export class ServicesService {
     )
       job.media = (job.media || []).concat(fileUrls.media as any);
 
-    if (updateData.deadline) {
-      const parsedDate = numberToDate(updateData.deadline);
-      job.deadline = parsedDate;
+    const { deadline, ...rest } = updateData;
+
+    if (typeof updateData.isActive === 'string') {
+      job.isActive = updateData.isActive === 'true';
     }
+    if (deadline) {
+      job.deadline = numberToDate(deadline);
+    }
+
     console.log({ updateData });
-   
+
     // If providerId is provided in the update, limit job.proposals to only proposals from that provider
     if (updateData.providerId) {
       const providerObjectId = new Types.ObjectId(updateData.providerId);
@@ -385,7 +389,7 @@ export class ServicesService {
     }
 
     // apply other updates
-    Object.assign(job, { ...updateData, media: job.media });
+    Object.assign(job, { ...rest, media: job.media });
     const saved = await job.save();
     return await saved.populate({
       path: 'subcategoryId',
@@ -462,7 +466,7 @@ export class ServicesService {
       ...proposalData,
       jobId: job._id,
       providerId: provider._id,
-      attachments: (fileUrls.attachments as any) || [],
+      ...fileUrls,
     });
 
     // update job to add proposals
