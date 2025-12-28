@@ -21,9 +21,4 @@ export class UpdateJobDto extends PartialType(CreateJobDto) {
   @IsOptional()
   @IsEnum(JobStatus)
   status?: JobStatus;
-
-  @IsOptional()
-  @IsArray()
-  @Type(() => Types.ObjectId)
-  proposals?: Types.ObjectId[];
 }

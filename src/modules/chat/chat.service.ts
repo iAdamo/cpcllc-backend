@@ -89,116 +89,115 @@ export class ChatService {
 
     return false;
   }
-
   async createChat(
     currentUserId: string,
-    createChatDto: CreateChatDto,
+    dto: CreateChatDto,
     session?: ClientSession,
   ) {
-    const { participants } = createChatDto;
-    if (!participants) {
-      throw new BadRequestException(
-        'Direct chat must have exactly 1 other participant',
-      );
-    }
+    const initiatorUserId = new Types.ObjectId(currentUserId);
+    const providerUserId = new Types.ObjectId(dto.participants);
 
-    const user = new Types.ObjectId(currentUserId);
-    const otherUser = new Types.ObjectId(participants);
-
-    if (user.equals(otherUser)) {
+    if (initiatorUserId.equals(providerUserId)) {
       throw new BadRequestException('Cannot create chat with yourself');
     }
 
-    // Ensure both users exist
-    const usersExists = await this.userModel
-      .find({ _id: { $in: [user, otherUser] } })
-      .countDocuments();
-    if (usersExists !== 2) {
-      throw new NotFoundException('One or more participants not found');
+    const initiator = await this.userModel.findById(initiatorUserId);
+    const providerUser = await this.userModel.findById(providerUserId);
+
+    if (!initiator || !providerUser) {
+      throw new NotFoundException('User not found');
     }
 
-    if (!(await this.chatEligibilyStatus(user, otherUser))) {
+    // 🔒 RULE: only clients can initiate chats
+    if (initiator.activeRole !== 'Client') {
+      throw new BadRequestException('Only clients can initiate conversations');
+    }
+
+    if (!providerUser.activeRoleId) {
+      throw new BadRequestException('Target user is not a provider');
+    }
+
+    const providerId = providerUser.activeRoleId;
+
+    // Eligibility check
+    const eligible = await this.chatEligibilyStatus(
+      initiatorUserId,
+      providerUserId,
+    );
+
+    if (!eligible) {
       throw new BadRequestException(
         'You must follow the provider to initiate chat',
       );
     }
 
-    // Check for existing chat between the two participants
+    // 🔎 Unique lookup by (client + providerId)
     let chat = await this.chatModel.findOne({
-      participants: { $all: [user, otherUser], $size: 2 },
+      clientUserId: initiatorUserId,
+      providerId,
       isActive: true,
     });
 
     if (!chat) {
-      // Create new chat
       chat = new this.chatModel({
-        participants: [user, otherUser],
+        initiatorUserId,
+        clientUserId: initiatorUserId,
+        providerUserId,
+        providerId,
+        type: 'direct',
         isActive: true,
       });
+
       await chat.save({ session });
+
       this.logger.log(
-        `Chat created between user ${user} and provider ${otherUser}`,
+        `Chat created: client=${initiatorUserId} provider=${providerId}`,
       );
     }
 
-    return chat.populate({
-      path: 'participants',
-      model: 'User',
-      select: 'firstName lastName profilePicture',
-      match: { _id: { $ne: user._id } },
-      populate: [
-        {
-          path: 'followedProviders',
+    // return this.populatedChat(initiatorUserId, undefined, undefined, {
+    //   _id: chat._id,
+    // });
+
+    return chat.populate([
+      {
+        path: 'clientUserId',
+        select: 'firstName lastName profilePicture',
+      },
+      {
+        path: 'providerUserId',
+        select: 'firstName lastName profilePicture activeRoleId',
+        populate: {
+          path: 'activeRoleId',
           model: 'Provider',
           select: 'providerName providerLogo',
         },
-        {
-          path: 'activeRoleId',
-          model: 'Provider',
-          match: { _id: { $ne: user._id } },
-          populate: {
-            path: 'subcategories',
-            model: 'Subcategory',
-            select: 'name description',
-            populate: {
-              path: 'categoryId',
-              model: 'Category',
-              select: 'name description',
-            },
-          },
-        },
+      },
+    ]);
+  }
+
+  async joinChat(userId: string, chatId: string): Promise<void> {
+    const uid = new Types.ObjectId(userId);
+
+    const chat = await this.chatModel.findOne({
+      _id: new Types.ObjectId(chatId),
+      isActive: true,
+      $or: [
+        { clientUserId: uid },
+        { providerUserId: uid },
+        { participantUserIds: uid },
       ],
     });
 
-    // return this.populatedChat(chat);
-  }
-
-  async joinChat(
-    userId: string,
-    chatId: string,
-    session?: ClientSession,
-  ): Promise<void> {
-    const user = new Types.ObjectId(userId);
-
-    // Check for existing chat between the two participants
-    let chat = await this.chatModel.findOne({
-      _id: new Types.ObjectId(chatId),
-      participants: new Types.ObjectId(userId),
-      isActive: true,
-    });
-
     if (!chat) {
-      throw new NotFoundException(
-        'Conversation not found or user not participant',
-      );
+      throw new NotFoundException('Conversation not found or access denied');
     }
 
     const sockets = await this.socketManager.getUserSockets({ userId });
-    console.log({ sockets });
+
     for (const socketId of sockets) {
       this.appGateway.server.sockets.sockets.get(socketId)?.join(chatId);
     }
-    this.logger.log(`User ${userId} joined conversation ${chatId}`);
   }
 
   async uploadFile(email: string, files: { file: Express.Multer.File[] }) {
@@ -209,92 +208,71 @@ export class ChatService {
   }
 
   async sendMessage(
-    sendMessageDto: SendMessageDto,
+    dto: SendMessageDto,
     session?: ClientSession,
   ): Promise<MessageDocument> {
-    const { chatId, senderId, type, content, replyTo } = sendMessageDto;
-    //  const message = await this.chatService.sendMessage({
-    //    chatId: new Types.ObjectId(data.chatId),
-    //    senderId: client.userId,
-    //    type: data.type as any,
-    //    content: data.content,
-    //    replyTo: data.replyTo ? new Types.ObjectId(data.replyTo) : undefined,
-    //  });
-    // Verify chat exists and sender is participant
+    const { chatId, senderId, type, content, replyTo } = dto;
+
+    const sender = new Types.ObjectId(senderId);
+
     const chat = await this.chatModel.findOne({
       _id: new Types.ObjectId(chatId),
-      participants: senderId,
       isActive: true,
+      $or: [
+        { clientUserId: sender },
+        { providerUserId: sender },
+        { participantUserIds: sender },
+      ],
     });
 
     if (!chat) {
-      throw new NotFoundException('Chat not found or user not participant');
+      throw new NotFoundException('Chat not found or access denied');
     }
 
-    // Validate replyTo message exists if provided
-    if (replyTo) {
-      const repliedMessage = await this.messageModel.findOne({
-        _id: new Types.ObjectId(replyTo),
-        chatId,
-      });
-      if (!repliedMessage) {
-        throw new NotFoundException('Replied message not found');
-      }
-    }
-
-    const messageData: any = {
-      chatId: new Types.ObjectId(chatId),
-      senderId: new Types.ObjectId(senderId),
+    const message = new this.messageModel({
+      chatId,
+      senderId: sender,
       type,
       content,
-      status: {
-        sent: true,
-        delivered: [],
-        read: [],
-      },
-    };
+      replyTo,
+      status: { sent: true, delivered: [], read: [] },
+    });
 
-    if (replyTo) {
-      messageData.replyTo = new Types.ObjectId(replyTo);
-    }
-
-    const message = new this.messageModel(messageData);
     await message.save({ session });
 
-    // Update last message in chat
-    const lastMessage = {
+    // Update last message
+    chat.lastMessage = {
       messageId: message._id,
       text: this.getMessagePreview(message),
-      sender: message.senderId,
+      sender,
       createdAt: message['createdAt'],
     };
 
-    // update chat with unread counts
-    const unreadCounts = new Map<string, number>(
-      Array.from(chat.unreadCounts?.entries() || []),
-    );
-    for (const participantId of chat.participants) {
-      const pidStr = participantId.toString();
-      if (pidStr !== senderId) {
-        const currentCount = unreadCounts.get(pidStr) || 0;
-        unreadCounts.set(pidStr, currentCount + 1);
+    // Update unread counts
+    const receivers = [
+      chat.clientUserId,
+      chat.providerUserId,
+      ...(chat.participantUserIds || []),
+    ];
+
+    for (const uid of receivers) {
+      const id = uid.toString();
+      if (id !== senderId) {
+        chat.unreadCounts.set(id, (chat.unreadCounts.get(id) || 0) + 1);
       }
     }
 
-    chat.lastMessage = lastMessage;
-    chat.unreadCounts = unreadCounts;
     await chat.save({ session });
 
-    this.logger.log(`Message sent: ${message._id} in chat: ${chatId}`);
-
     await this.broadcastToChat(
-      chatId.toString(),
+      chat._id.toString(),
       ChatEvents.MESSAGE_SENT,
       message,
     );
 
     return message;
   }
+
   /**
    * Handle typing indicators
    */
@@ -338,34 +316,39 @@ export class ChatService {
     }
   }
 
-  async getUserChats(
-    userId: Types.ObjectId,
-    page: number = 1,
-    limit: number = 50,
-  ) {
+  async getUserChats(userId: Types.ObjectId, page = 1, limit = 50) {
     const skip = (page - 1) * limit;
 
     const user = await this.userModel.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
+    if (!user || !user.isActive) {
+      throw new BadRequestException('Invalid user');
     }
 
-    if (!user.isActive) {
-      throw new BadRequestException('Inactive users cannot access chats');
-    }
-
-    let query: any = {
-      participants: userId,
-      isActive: true,
-    };
+    let query: any;
 
     if (user.activeRole === 'Client') {
-      query['participants.0'] = userId;
-    } else if (user.activeRole === 'Provider') {
-      query['participants.0'] = { $ne: userId };
+      query = {
+        clientUserId: userId,
+        isActive: true,
+      };
+    } else {
+      query = {
+        providerUserId: userId,
+        isActive: true,
+      };
     }
 
-    return this.populatedChat(userId, skip, limit, query);
+    return this.chatModel
+      .find(query)
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate([
+        { path: 'clientUserId', select: 'firstName lastName profilePicture' },
+        { path: 'providerUserId', select: 'firstName lastName profilePicture' },
+        { path: 'providerId', select: 'providerName providerLogo' },
+      ])
+      .lean();
   }
 
   /**
@@ -524,8 +507,14 @@ export class ChatService {
    * Get conversation participants
    */
   async getChatParticipants(chatId: string): Promise<Types.ObjectId[]> {
-    const chat = await this.chatModel.findById(new Types.ObjectId(chatId));
-    return chat?.participants || [];
+    const chat = await this.chatModel.findById(chatId);
+    if (!chat) return [];
+
+    return [
+      chat.clientUserId,
+      chat.providerUserId,
+      ...(chat.participantUserIds || []),
+    ];
   }
 
   /**
