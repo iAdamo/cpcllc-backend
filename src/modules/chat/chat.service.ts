@@ -230,7 +230,7 @@ export class ChatService {
     }
 
     const message = new this.messageModel({
-      chatId,
+      chatId: new Types.ObjectId(chatId),
       senderId: sender,
       type,
       content,
@@ -345,8 +345,15 @@ export class ChatService {
       .limit(limit)
       .populate([
         { path: 'clientUserId', select: 'firstName lastName profilePicture' },
-        { path: 'providerUserId', select: 'firstName lastName profilePicture' },
-        { path: 'providerId', select: 'providerName providerLogo' },
+        {
+          path: 'providerUserId',
+          select: 'firstName lastName profilePicture activeRoleId',
+          populate: {
+            path: 'activeRoleId',
+            model: 'Provider',
+            select: 'providerName providerLogo',
+          },
+        },
       ])
       .lean();
   }
@@ -376,12 +383,12 @@ export class ChatService {
   }> {
     const chat = await this.chatModel.findOne({
       _id: chatId,
-      participants: userId,
       isActive: true,
+      $or: [{ clientUserId: userId }, { providerUserId: userId }],
     });
 
     if (!chat) {
-      throw new NotFoundException('Chat not found');
+      throw new NotFoundException('Chat not found or access denied');
     }
 
     const query: any = {
@@ -396,29 +403,24 @@ export class ChatService {
     const messages = await this.messageModel
       .find(query)
       .populate('replyTo')
-      // .populate('senderId')
       .sort({ createdAt: -1 })
       .limit(limit + 1)
       .lean();
 
-    // Check if there are more messages
     let hasMore = false;
     let nextCursor: Date | null = null;
 
     if (messages.length > limit) {
       hasMore = true;
-      messages.pop(); // Remove the extra message
+      messages.pop();
     }
 
     if (messages.length > 0) {
-      const oldestMessage = messages[messages.length - 1];
-      nextCursor = oldestMessage['createdAt'];
+      nextCursor = messages[messages.length - 1]['createdAt'];
     }
 
-    const chronologicalMessages = messages.reverse();
-
     return {
-      messages: chronologicalMessages,
+      messages: messages.reverse(), // chronological
       hasMore,
       nextCursor,
     };

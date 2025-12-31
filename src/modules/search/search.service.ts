@@ -435,7 +435,7 @@ export class SearchService {
     const { skip, limit } = pagination;
 
     // Only return jobs that are marked active in both flags: isActive and status === 'active'
-    const conditions: any[] = [{ isActive: true }, { status: 'active' }];
+    const conditions: any[] = [{ isActive: true }, { status: 'Active' }];
 
     if (useEngine && searchInput) {
       const searchRegex = this.createTextSearchRegex(searchInput);
