@@ -394,23 +394,34 @@ export class ProviderService {
   }> {
     const userObjectId = new Types.ObjectId(userId);
 
-    const provider = await this.providerModel.findOneAndUpdate(
-      { _id: providerId },
-      [
-        {
-          $set: {
-            favoritedBy: {
-              $cond: [
-                { $in: [userObjectId, '$favoritedBy'] },
-                { $setDifference: ['$favoritedBy', [userObjectId]] }, // unfavorite
-                { $concatArrays: ['$favoritedBy', [userObjectId]] }, // favorite
-              ],
+    const provider = await this.providerModel
+      .findOneAndUpdate(
+        { _id: providerId },
+        [
+          {
+            $set: {
+              favoritedBy: {
+                $cond: [
+                  { $in: [userObjectId, '$favoritedBy'] },
+                  { $setDifference: ['$favoritedBy', [userObjectId]] }, // unfavorite
+                  { $concatArrays: ['$favoritedBy', [userObjectId]] }, // favorite
+                ],
+              },
             },
           },
+        ],
+        { new: true },
+      )
+      .populate({
+        path: 'subcategories',
+        model: 'Subcategory',
+        select: 'name description',
+        populate: {
+          path: 'categoryId',
+          model: 'Category',
+          select: 'name description',
         },
-      ],
-      { new: true },
-    );
+      });
 
     if (!provider) {
       throw new NotFoundException('Provider not found');
