@@ -31,7 +31,7 @@ export class Location {
   })
   type: string;
 
-  @Prop({ index: '2dsphere', type: [Number], required: true })
+  @Prop({ type: [Number], required: true })
   coordinates: number[];
 
   @Prop({ type: AddressSchema, required: false })

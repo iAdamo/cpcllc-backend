@@ -32,7 +32,7 @@ export class Provider {
   @Prop({ required: false })
   providerDescription: string;
 
-  @Prop({ required: false })
+  @Prop({ required: false, unique: true })
   providerEmail: string;
 
   @Prop({
@@ -112,6 +112,10 @@ export class Provider {
 }
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);
+
+ProviderSchema.index({
+  'location.primary.coordinates': '2dsphere',
+});
 
 ProviderSchema.set('toJSON', {
   transform: (_doc, ret) => {

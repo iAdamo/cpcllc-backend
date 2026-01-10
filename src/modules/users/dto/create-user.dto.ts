@@ -36,6 +36,11 @@ export class CreateUserDto {
   @IsNotEmpty()
   password: string;
 
+  @ApiProperty({ example: 'StrongP@ssw0rd' })
+  @IsString()
+  @IsNotEmpty()
+  confirmPassword: string;
+
   @ApiProperty({ example: 'en', required: false })
   @IsOptional()
   @IsString()
@@ -43,9 +48,11 @@ export class CreateUserDto {
 
   @ApiProperty({ example: false, default: false })
   @IsBoolean()
+  @IsOptional()
   isEmailVerified: boolean;
 
   @ApiProperty({ example: false, default: false })
+  @IsOptional()
   @IsBoolean()
   isPhoneVerified: boolean;
 
@@ -58,6 +65,7 @@ export class CreateUserDto {
   phoneEditCount?: number;
 
   @ApiProperty({ example: true, default: true })
+  @IsOptional()
   @IsBoolean()
   isActive: boolean;
 
@@ -71,10 +79,12 @@ export class CreateUserDto {
   codeAt?: Date;
 
   @ApiProperty({ default: false })
+  @IsOptional()
   @IsBoolean()
   isVerified: boolean;
 
   @ApiProperty({ default: false })
+  @IsOptional()
   @IsBoolean()
   forgetPassword: boolean;
 
@@ -85,6 +95,7 @@ export class CreateUserDto {
   admins?: string[];
 
   @ApiProperty({ enum: ['Client', 'Provider', 'Admin'], default: 'Client' })
+  @IsOptional()
   @IsEnum(['Client', 'Provider', 'Admin'])
   activeRole: string;
 
