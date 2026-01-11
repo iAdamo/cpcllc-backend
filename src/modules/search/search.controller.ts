@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@guards/jwt.guard';
 import { SearchService } from '@services/search.service';
@@ -15,25 +15,8 @@ export class SearchController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Global search across providers, services, and jobs',
-  })
-  @ApiQuery({ name: 'page', required: false, example: '1' })
-  @ApiQuery({ name: 'limit', required: false, example: '10' })
-  @ApiQuery({ name: 'engine', required: false })
-  @ApiQuery({ name: 'searchInput', required: false })
-  @ApiQuery({ name: 'lat', required: false })
-  @ApiQuery({ name: 'long', required: false })
-  @ApiQuery({ name: 'address', required: false })
-  @ApiQuery({ name: 'radius', required: false })
-  @ApiQuery({ name: 'sortBy', required: false })
-  @ApiQuery({ name: 'categories', required: false, isArray: true })
-  @ApiQuery({ name: 'featured', required: false })
-  @ApiQuery({ name: 'city', required: false })
-  @ApiQuery({ name: 'state', required: false })
-  @ApiQuery({ name: 'country', required: false })
-  @ApiResponse({ status: 200, description: 'Search results' })
   async search(@Query() query: GlobalSearchDto) {
+    console.log(query);
     const cacheKey = this.buildCacheKey(query);
 
     const cached = await this.cacheService.get<any>(cacheKey);
@@ -58,7 +41,7 @@ export class SearchController {
       address,
       radius,
       sortBy,
-      categories,
+      subcategories,
       featured,
       city,
       state,
@@ -77,7 +60,7 @@ export class SearchController {
       address ?? '',
       radius ?? '',
       sortBy ?? '',
-      (categories ?? []).join(','),
+      (subcategories ?? []).join(','),
       featured ?? '',
       city ?? '',
       state ?? '',

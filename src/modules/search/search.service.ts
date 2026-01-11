@@ -24,7 +24,7 @@ export class SearchService {
       city,
       state,
       country,
-      categories,
+      subcategories,
       featured,
       sortBy = 'Relevance',
       searchInput,
@@ -56,11 +56,12 @@ export class SearchService {
       city,
       state,
       country,
-      categories,
+      subcategories,
       featured,
       sortBy,
       skip,
       pageSize,
+      pageNumber,
     });
   }
 
@@ -144,16 +145,17 @@ export class SearchService {
   }
 
   private async discoverySearch(params: {
-    lat?: string;
-    long?: string;
+    lat?: number;
+    long?: number;
     city?: string;
     state?: string;
     country?: string;
-    categories?: string[];
+    subcategories?: string[];
     featured?: boolean;
     sortBy: string;
     skip: number;
     pageSize: number;
+    pageNumber: number;
   }) {
     const {
       lat,
@@ -161,17 +163,21 @@ export class SearchService {
       city,
       state,
       country,
-      categories,
+      subcategories,
       featured,
       sortBy,
       skip,
+      pageNumber,
       pageSize,
     } = params;
 
     if (!lat || !long || !country) {
       throw new BadRequestException('Location fields are required');
     }
-    console.log({ long, lat });
+
+    // 🔁 changes every 30 minutes
+    const rotationSeed = Math.floor(Date.now() / (1000 * 60 * 30));
+
     const pipeline: any[] = [
       {
         $geoNear: {
@@ -188,21 +194,23 @@ export class SearchService {
           'location.primary.address.country': country,
         },
       },
+
+      // 📍 Location priority
       {
         $addFields: {
           locationPriority: {
             $cond: [
               { $lte: ['$distance', 1000] },
-              1, // near me
+              1,
               {
                 $cond: [
                   { $eq: ['$location.primary.address.city', city] },
-                  2, // same city
+                  2,
                   {
                     $cond: [
                       { $eq: ['$location.primary.address.state', state] },
-                      3, // same state
-                      4, // same country
+                      3,
+                      4,
                     ],
                   },
                 ],
@@ -211,27 +219,87 @@ export class SearchService {
           },
         },
       },
+
+      // 🎯 Base relevance score
+      {
+        $addFields: {
+          relevanceScore: {
+            $add: [
+              { $multiply: [{ $subtract: [5, '$averageRating'] }, -2] },
+              { $multiply: ['$reviewCount', 0.1] },
+              { $multiply: [{ $subtract: [5, '$locationPriority'] }, 2] },
+            ],
+          },
+        },
+      },
+
+      // ⭐ Featured boost (≈60% dominance)
+      {
+        $addFields: {
+          featuredBoost: {
+            $cond: [
+              '$isFeatured',
+              featured ? 6 : 3, // stronger when featured=true
+              0,
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          createdAtTs: { $toLong: { $toDate: '$_id' } },
+        },
+      },
+      {
+        $addFields: {
+          rotationScore: {
+            $mod: [
+              {
+                $add: [
+                  '$createdAtTs',
+                  Math.floor(Date.now() / (30 * 60 * 1000)),
+                ],
+              },
+              1000,
+            ],
+          },
+        },
+      },
+      {
+        $sort: { rotationScore: 1 },
+      },
+      // 🧮 Final score
+      {
+        $addFields: {
+          finalScore: {
+            $add: [
+              '$relevanceScore',
+              '$featuredBoost',
+              { $multiply: ['$randomFactor', 0.001] },
+            ],
+          },
+        },
+      },
     ];
 
-    if (categories?.length) {
+    // 🎯 Category filter
+    if (subcategories?.length) {
       pipeline.push({
         $match: {
           subcategories: {
-            $in: categories.map((id) => new Types.ObjectId(id)),
+            $in: subcategories.map((id) => new Types.ObjectId(id)),
           },
         },
       });
     }
 
-    if (featured !== undefined) {
-      pipeline.push({ $match: { isFeatured: featured } });
-    }
-
-    this.applySorting(pipeline, sortBy);
+    // 📊 Sort
+    pipeline.push({ $sort: { finalScore: -1 } });
 
     const countPipeline = [...pipeline, { $count: 'total' }];
 
     pipeline.push({ $skip: skip }, { $limit: pageSize });
+
     this.addProviderLookups(pipeline);
 
     const [providers, count] = await Promise.all([
@@ -243,6 +311,7 @@ export class SearchService {
 
     return {
       providers,
+      page: pageNumber,
       totalPages: Math.ceil(total / pageSize),
       featuredRatio:
         providers.length === 0

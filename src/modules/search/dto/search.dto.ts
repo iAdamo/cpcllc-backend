@@ -1,23 +1,44 @@
 import {
   IsOptional,
   IsBoolean,
-  IsNumberString,
   IsString,
+  IsNumber,
   IsArray,
+  IsEnum,
 } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
+
+export enum SearchModel {
+  PROVIDERS = 'providers',
+  SERVICES = 'services',
+  JOBS = 'jobs',
+}
+
+export enum SortBy {
+  RELEVANCE = 'Relevance',
+  NEWEST = 'Newest',
+  OLDEST = 'Oldest',
+  TOP_RATED = 'Top Rated',
+  MOST_REVIEWED = 'Most Reviewed',
+}
 
 export class GlobalSearchDto {
-  @IsString()
-  model: 'providers' | 'services' | 'jobs';
+  @ApiProperty({ enum: SearchModel, default: SearchModel.PROVIDERS })
+  @IsEnum(SearchModel)
+  model: SearchModel;
 
-  @IsNumberString()
-  page: string;
+  @IsNumber()
+  @Type(() => Number)
+  page: number;
 
-  @IsNumberString()
-  limit: string;
+  @IsNumber()
+  @Type(() => Number)
+  limit: number;
 
   @IsOptional()
   @IsBoolean()
+  @Type(() => Boolean)
   engine?: boolean;
 
   @IsOptional()
@@ -29,23 +50,34 @@ export class GlobalSearchDto {
   address?: string;
 
   @IsOptional()
-  @IsString()
-  lat?: string;
+  @IsNumber()
+  @Type(() => Number)
+  lat?: number;
 
   @IsOptional()
-  @IsString()
-  long?: string;
+  @IsNumber()
+  @Type(() => Number)
+  long?: number;
 
   @IsOptional()
-  @IsString()
-  sortBy?: 'Relevance' | 'Newest' | 'Oldest' | 'Top Rated' | 'Most Reviewed';
+  @IsEnum(SortBy)
+  sortBy?: SortBy;
 
   @IsOptional()
   @IsArray()
-  categories?: string[];
+  @Transform(({ value }) => {
+    // Handle both comma-separated string and already-parsed array
+    if (typeof value === 'string') {
+      // Split by comma and filter out empty strings
+      return value.split(',').filter((item) => item.trim() !== '');
+    }
+    return value;
+  })
+  subcategories?: string[];
 
   @IsOptional()
   @IsBoolean()
+  @Type(() => Boolean)
   featured?: boolean;
 
   @IsOptional()
@@ -61,6 +93,7 @@ export class GlobalSearchDto {
   country?: string;
 
   @IsOptional()
-  @IsString()
-  radius?: string;
+  @IsNumber()
+  @Type(() => Number)
+  radius?: number;
 }
