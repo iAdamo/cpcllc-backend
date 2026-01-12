@@ -16,7 +16,6 @@ export class SearchController {
   @Get()
   @UseGuards(JwtAuthGuard)
   async search(@Query() query: GlobalSearchDto) {
-    console.log(query);
     const cacheKey = this.buildCacheKey(query);
 
     const cached = await this.cacheService.get<any>(cacheKey);

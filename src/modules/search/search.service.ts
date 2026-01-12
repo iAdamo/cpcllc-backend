@@ -78,17 +78,40 @@ export class SearchService {
     if (!country) {
       throw new BadRequestException('Country is required');
     }
+    const isAutocomplete = address && (!searchInput || searchInput !== 'pass');
 
-    // ADDRESS AUTOCOMPLETE (typing)
-    if (address && !searchInput) {
+    const isAddressSearch = address && searchInput === 'pass';
+
+    /**
+     * ─────────────────────────────
+     * ADDRESS AUTOCOMPLETE (typing)
+     * ─────────────────────────────
+     */
+    if (isAutocomplete) {
       const suggestions = await this.providerModel.aggregate([
         {
           $match: {
             'location.primary.address.country': country,
-            'location.primary.address.address': {
-              $regex: `^${address}`,
-              $options: 'i',
-            },
+            $or: [
+              {
+                'location.primary.address.address': {
+                  $regex: address,
+                  $options: 'i',
+                },
+              },
+              {
+                'location.primary.address.city': {
+                  $regex: `^${address}`,
+                  $options: 'i',
+                },
+              },
+              {
+                'location.primary.address.state': {
+                  $regex: `^${address}`,
+                  $options: 'i',
+                },
+              },
+            ],
           },
         },
         {
@@ -102,10 +125,68 @@ export class SearchService {
         { $limit: 10 },
       ]);
 
-      return { suggestions };
+      return {
+        type: 'suggestions',
+        data: { suggestions },
+      };
     }
 
-    // FULL SEARCH
+    if (isAddressSearch) {
+      const pipeline: any[] = [
+        {
+          $match: {
+            'location.primary.address.country': country,
+            $or: [
+              {
+                'location.primary.address.address': {
+                  $regex: address,
+                  $options: 'i',
+                },
+              },
+              {
+                'location.primary.address.city': {
+                  $regex: `^${address}`,
+                  $options: 'i',
+                },
+              },
+              {
+                'location.primary.address.state': {
+                  $regex: `^${address}`,
+                  $options: 'i',
+                },
+              },
+            ],
+          },
+        },
+      ];
+
+      this.applySorting(pipeline, sortBy);
+
+      const countPipeline = [...pipeline, { $count: 'total' }];
+
+      pipeline.push({ $skip: skip }, { $limit: pageSize });
+
+      const [providers, count] = await Promise.all([
+        this.providerModel.aggregate(pipeline),
+        this.providerModel.aggregate(countPipeline),
+      ]);
+
+      const total = count[0]?.total || 0;
+
+      return {
+        type: 'providers',
+        data: {
+          providers,
+          totalPages: Math.ceil(total / pageSize),
+        },
+      };
+    }
+
+    /**
+     * ─────────────────────────────
+     * FULL SEARCH
+     * ─────────────────────────────
+     */
     const pipeline: any[] = [
       {
         $match: {
@@ -119,7 +200,7 @@ export class SearchService {
         $match: {
           $or: [
             { providerName: { $regex: searchInput, $options: 'i' } },
-            { providerDescription: { $regex: searchInput, $options: 'i' } },
+            
           ],
         },
       });
@@ -139,7 +220,10 @@ export class SearchService {
     const total = count[0]?.total || 0;
 
     return {
-      providers,
+      type: 'providers',
+      data: {
+        providers,
+      },
       totalPages: Math.ceil(total / pageSize),
     };
   }
@@ -310,7 +394,10 @@ export class SearchService {
     const total = count[0]?.total || 0;
 
     return {
-      providers,
+      type: 'providers',
+      data: {
+        providers,
+      },
       page: pageNumber,
       totalPages: Math.ceil(total / pageSize),
       featuredRatio:
