@@ -10,8 +10,10 @@ import {
   ArrayMaxSize,
   IsDateString,
   IsIn,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { LocationDto } from '@provider/dto/create-provider.dto';
 
 export class CreateJobDto {
   @ApiProperty({ description: 'Provider ID for the job', required: false })
@@ -47,22 +49,10 @@ export class CreateJobDto {
   @IsDateString()
   deadline?: string;
 
-  @ApiProperty({ description: 'Location text', required: false })
   @IsOptional()
-  @IsString()
-  location?: string;
-
-  @ApiProperty({
-    description: 'GeoJSON coordinates [long, lat]',
-    required: false,
-  })
-  @IsOptional()
-  @IsArray()
-  @ArrayMinSize(2)
-  @ArrayMaxSize(2)
-  @Type(() => Number)
-  @IsNumber({}, { each: true })
-  coordinates?: number[];
+  @ValidateNested()
+  @Type(() => LocationDto)
+  location?: LocationDto;
 
   @ApiProperty({
     description: "Urgency: 'normal'|'urgent'|'immediate'",

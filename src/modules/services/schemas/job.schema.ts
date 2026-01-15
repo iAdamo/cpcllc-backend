@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { ProfilePicture } from '@modules/schemas/user.schema';
+import { Location, LocationSchema } from '@provider/schemas/location.schema';
 
 export type CategoryDocument = HydratedDocument<Category>;
 export type SubcategoryDocument = HydratedDocument<Subcategory>;
@@ -71,19 +72,8 @@ export class JobPost {
   @Prop({ type: Date, default: null })
   deadline?: Date;
 
-  /** Location info */
-  @Prop({ type: String, default: null })
-  location?: string;
-
-  @Prop({
-    type: String,
-    enum: ['Point'],
-    default: 'Point',
-  })
-  type: string;
-
-  @Prop({ index: '2dsphere', type: [Number] })
-  coordinates?: number[];
+  @Prop({ type: LocationSchema, required: false })
+  location: Location;
 
   /** Urgency: 'normal' | 'urgent' | 'immediate' */
   @Prop({
@@ -138,3 +128,7 @@ export class JobPost {
 export const CategorySchema = SchemaFactory.createForClass(Category);
 export const SubcategorySchema = SchemaFactory.createForClass(Subcategory);
 export const JobPostSchema = SchemaFactory.createForClass(JobPost);
+
+JobPostSchema.index({
+  'location.coordinates': '2dsphere',
+});

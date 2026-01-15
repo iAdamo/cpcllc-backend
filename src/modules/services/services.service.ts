@@ -278,7 +278,6 @@ export class ServicesService {
     );
 
     const parsedDate = numberToDate(jobData.deadline);
-
     const job = new this.jobPostModel({
       ...jobData,
       deadline: parsedDate,
