@@ -76,6 +76,22 @@ export class GlobalSearchDto {
   subcategories?: string[];
 
   @IsOptional()
+  @IsArray()
+  @Transform(({ value }) => {
+    // Handle both comma-separated string and already-parsed array
+    if (typeof value === 'string') {
+      // Split by comma and filter out empty strings
+      return value.split(',').filter((item) => item.trim() !== '');
+    }
+    return value;
+  })
+  providerSubcategories?: string[];
+
+  @IsOptional()
+  @IsEnum(['Normal', 'Urgent', 'Immediate'])
+  urgency?: string;
+
+  @IsOptional()
   @IsBoolean()
   @Type(() => Boolean)
   featured?: boolean;

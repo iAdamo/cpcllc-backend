@@ -218,7 +218,7 @@ export class JwtService {
       return { message: 'Verification code sent' };
     } catch (error) {
       console.error('Failed to send email:', error);
-      throw new BadRequestException('Failed to send verification code');
+      throw new BadRequestException('Failed to send verification cde');
     }
   }
 
@@ -270,22 +270,19 @@ export class JwtService {
   ): Promise<{ message: string }> {
     if (!email || !password)
       throw new BadRequestException('Email and password are required');
-
-    const user = await this.userModel.findOne({ email }).exec();
+    const user = await this.userModel.findOne({ email });
     if (!user || !user.forgetPassword)
       throw new BadRequestException('Invalid reset request');
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    await this.userModel
-      .findByIdAndUpdate(
-        user._id,
-        {
-          password: hashedPassword,
-          forgetPassword: true,
-        },
-        { new: true, upsert: false },
-      )
-      .exec();
+    await this.userModel.findByIdAndUpdate(
+      user._id,
+      {
+        password: hashedPassword,
+        forgetPassword: false,
+      },
+      { new: true, upsert: false },
+    );
 
     return { message: 'Password reset successful' };
   }
