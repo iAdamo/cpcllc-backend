@@ -1,11 +1,9 @@
-// src/modules/search/search.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Provider, ProviderDocument } from '@schemas/provider.schema';
 import { GlobalSearchDto } from './dto/search.dto';
 import { JobPost, JobPostDocument } from '@services/schemas/job.schema';
-import { AnyCaaRecord } from 'dns';
 
 @Injectable()
 export class SearchService {

@@ -287,7 +287,6 @@ export class ChatService {
       {
         userId,
         chatId: dto.chatId,
-        timestamp: new Date(),
       },
       userId, // Exclude the typing user
     );

@@ -97,7 +97,7 @@ export class PresenceService implements OnModuleInit {
         metadata: dto.metadata,
       },
     });
-    if (server) await this.notifyStatusChange(server, id, {} as PresenceStatus);
+    if (server) await this.notifyStatusChange(server, id);
 
     this.logger.debug(`Updated presence for user ${id}: ${dto.status}`);
 
@@ -388,7 +388,6 @@ export class PresenceService implements OnModuleInit {
   private async notifyStatusChange(
     server: EventHandlerContext['server'],
     userId: string,
-    status: PresenceStatus,
   ): Promise<void> {
     const subscribers = await this.getSubscribers(userId);
     const presence = await this.getPresence({ userId });
@@ -400,7 +399,7 @@ export class PresenceService implements OnModuleInit {
         await this.socketManager.sendToUser({
           server,
           userId: subscriberId,
-          event: this.getStatusEvent(status),
+          event: PresenceEvents.STATUS_CHANGE,
           data: this.toResponse(presence),
         });
       }
