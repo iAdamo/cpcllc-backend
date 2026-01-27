@@ -40,6 +40,10 @@ export class SearchService {
       );
     }
 
+    if (country && country === 'Estados Unidos') {
+      dto.country = 'United States';
+    }
+
     const pageNumber = Math.max(1, Number(page));
     const pageSize = Math.min(Number(limit), 50);
     const skip = (pageNumber - 1) * pageSize;

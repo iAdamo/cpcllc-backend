@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
@@ -65,16 +66,24 @@ export class CreateServiceDto {
   @ApiProperty({ description: 'Minimum price of the service', required: false })
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   minPrice?: number;
 
   @ApiProperty({ description: 'Maximum price of the service', required: false })
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   maxPrice?: number;
 
-  @ApiProperty({ description: 'TIme duration of the service', required: false })
+  @ApiProperty({ description: 'Location of the service', required: false })
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @ApiProperty({ description: 'Time duration of the service', required: false })
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   duration?: number;
 
   @ApiProperty({ description: 'Is the service active?', required: false })

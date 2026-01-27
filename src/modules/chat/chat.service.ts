@@ -210,67 +210,68 @@ export class ChatService {
   async sendMessage(
     dto: SendMessageDto,
     session?: ClientSession,
-  ): Promise<MessageDocument> {
+  ): Promise<void> {
     const { chatId, senderId, type, content, replyTo } = dto;
 
     const sender = new Types.ObjectId(senderId);
+    try {
+      const chat = await this.chatModel.findOne({
+        _id: new Types.ObjectId(chatId),
+        isActive: true,
+        $or: [
+          { clientUserId: sender },
+          { providerUserId: sender },
+          { participantUserIds: sender },
+        ],
+      });
 
-    const chat = await this.chatModel.findOne({
-      _id: new Types.ObjectId(chatId),
-      isActive: true,
-      $or: [
-        { clientUserId: sender },
-        { providerUserId: sender },
-        { participantUserIds: sender },
-      ],
-    });
-
-    if (!chat) {
-      throw new NotFoundException('Chat not found or access denied');
-    }
-
-    const message = new this.messageModel({
-      chatId: new Types.ObjectId(chatId),
-      senderId: sender,
-      type,
-      content,
-      replyTo,
-      status: { sent: true, delivered: [], read: [] },
-    });
-
-    await message.save({ session });
-
-    // Update last message
-    chat.lastMessage = {
-      messageId: message._id,
-      text: this.getMessagePreview(message),
-      sender,
-      createdAt: message['createdAt'],
-    };
-
-    // Update unread counts
-    const receivers = [
-      chat.clientUserId,
-      chat.providerUserId,
-      ...(chat.participantUserIds || []),
-    ];
-
-    for (const uid of receivers) {
-      const id = uid.toString();
-      if (id !== senderId) {
-        chat.unreadCounts.set(id, (chat.unreadCounts.get(id) || 0) + 1);
+      if (!chat) {
+        throw new NotFoundException('Chat not found or access denied');
       }
+
+      const message = new this.messageModel({
+        chatId: new Types.ObjectId(chatId),
+        senderId: sender,
+        type,
+        content,
+        replyTo,
+        status: { sent: true, delivered: [], read: [] },
+      });
+
+      await message.save({ session });
+
+      // Update last message
+      chat.lastMessage = {
+        messageId: message._id,
+        text: this.getMessagePreview(message),
+        sender,
+        createdAt: message['createdAt'],
+      };
+
+      // Update unread counts
+      const receivers = [
+        chat.clientUserId,
+        chat.providerUserId,
+        ...(chat.participantUserIds || []),
+      ];
+
+      for (const uid of receivers) {
+        const id = uid.toString();
+        if (id !== senderId) {
+          chat.unreadCounts.set(id, (chat.unreadCounts.get(id) || 0) + 1);
+        }
+      }
+
+      await chat.save({ session });
+
+      await this.broadcastToChat(chat._id.toString(), ChatEvents.MESSAGE_SENT, {
+        message,
+        chat,
+      });
+    } catch (error) {
+      this.logger.error('Error sending message:', error);
+      throw error;
     }
-
-    await chat.save({ session });
-
-    await this.broadcastToChat(
-      chat._id.toString(),
-      ChatEvents.MESSAGE_SENT,
-      message,
-    );
-
-    return message;
   }
 
   /**
@@ -465,17 +466,19 @@ export class ChatService {
       return;
     }
 
-    await this.chatModel.updateOne(
-      { _id: new Types.ObjectId(dto.chatId) },
+    const chat = await this.chatModel.findByIdAndUpdate(
+      dto.chatId,
       {
         $set: {
           [`unreadCounts.${userId}`]: 0,
         },
       },
+      { new: true },
     );
 
     await this.broadcastToChat(dto.chatId, ChatEvents.MESSAGE_READ, {
-      messageIds: dto.messageIds,
+      chatId: chat._id,
+      unreadCount: chat.unreadCounts?.get(userId) || 0,
       userId,
       readAt: now,
     });

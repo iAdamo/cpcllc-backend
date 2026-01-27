@@ -128,4 +128,8 @@ export class CreateProviderDto {
   @IsString()
   @IsOptional()
   street?: string;
+
+  @ApiProperty({ example: true })
+  @IsOptional()
+  isLiveTrackable?: boolean;
 }

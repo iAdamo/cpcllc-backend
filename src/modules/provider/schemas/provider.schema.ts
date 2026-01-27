@@ -61,8 +61,11 @@ export class Provider {
   @Prop({ default: 0 })
   reviewCount: number;
 
-  // @Prop({ default: 0 })
-  // favoriteCount: number;
+  @Prop({ default: true })
+  isLiveTrackable: boolean;
+
+  @Prop({ default: true })
+  isBookable: boolean;
 
   @Prop({ default: false })
   isFeatured: boolean;

@@ -23,7 +23,7 @@ export class ChatGateway implements EventHandler {
   private readonly logger = new Logger(ChatGateway.name);
   private readonly handledEvents = [
     ChatEvents.SEND_MESSAGE,
-    ChatEvents.MARK_AS_READ,
+    ChatEvents.MESSAGE_READ,
     ChatEvents.TYPING_INDICATOR,
     ChatEvents.JOIN_ROOM,
     ChatEvents.LEAVE_ROOM,
@@ -66,7 +66,7 @@ export class ChatGateway implements EventHandler {
           await this.handleSendMessage(data, socket);
           break;
 
-        case ChatEvents.MARK_AS_READ:
+        case ChatEvents.MESSAGE_READ:
           await this.handleMarkAsRead(userId, data, socket);
           break;
 
