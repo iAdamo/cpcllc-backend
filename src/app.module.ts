@@ -17,6 +17,8 @@ import { ChatModule } from './modules/chat/chat.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { WebSocketModule } from '@modules/websocket.module';
 import { PresenceModule } from '@presence/presence.module';
+import { JwtAuthGuard } from '@auth/jwt/jwt.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -54,7 +56,12 @@ import { PresenceModule } from '@presence/presence.module';
     NotificationModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
   exports: [CacheModule],
 })
 export class AppModule {}

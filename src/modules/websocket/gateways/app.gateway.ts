@@ -13,7 +13,7 @@ import {
 import { Logger, UseGuards, UsePipes, Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SocketEvents, EventEnvelope } from '../events/socket.events';
-import { AuthenticatedSocket } from '../interfaces/websocket.interface';
+import { AuthUser } from '../interfaces/websocket.interface';
 import { EventRouterService } from '../services/event-router.service';
 import { SocketManagerService } from '../services/socket-manager.service';
 import { SocketValidationPipe } from '../socket-validation.pipe';
@@ -38,7 +38,7 @@ import { ResEventEnvelope } from '../interfaces/websocket.interface';
   pingTimeout: 120000,
   pingInterval: 60000,
 })
-@UseGuards(WsJwtGuard)
+// @UseGuards(WsJwtGuard)
 @UsePipes(new SocketValidationPipe())
 export class AppGateway implements OnGatewayInit, OnGatewayConnection {
   @WebSocketServer()
@@ -72,7 +72,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
   /**
    * Handle new client connections
    */
-  async handleConnection(@ConnectedSocket() client: AuthenticatedSocket) {
+  async handleConnection(@ConnectedSocket() client: AuthUser) {
     try {
       const token =
         client.handshake?.auth?.token ||
@@ -85,18 +85,11 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
       const payload = jwt.verify(
         token,
         this.configService.get('JWT_SECRET') || process.env.JWT_SECRET,
-      ) as {
-        sub: string;
-        email: string;
-        phoneNumber?: string;
-        roles: 'Client' | 'Provider' | 'Admin';
-        deviceId: string;
-        sessionId: string;
-      };
+      ) as AuthUser['user'];
       client.user = {} as any;
-      const { sub, ...rest } = payload;
-      client.user = { ...rest, userId: sub };
-      const userId = client.user.userId?.toString();
+      const { userId, ...rest } = payload;
+      client.user = { ...rest, userId };
+      // const userId = client.user.userId?.toString();
       if (!userId) {
         client.disconnect(true);
         return;
@@ -144,7 +137,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
   /**
    * Handle client disconnections
    */
-  async handleDisconnect(@ConnectedSocket() client: AuthenticatedSocket) {
+  async handleDisconnect(@ConnectedSocket() client: AuthUser) {
     try {
       await this.presenceService.handleDisconnect(this.server, client);
     } catch (error) {
@@ -156,7 +149,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
    * Global message handler - routes all events through the event router
    */
   async handleAllEvents(
-    @ConnectedSocket() client: AuthenticatedSocket,
+    @ConnectedSocket() client: AuthUser,
     event: string,
     @MessageBody() data: any,
   ) {

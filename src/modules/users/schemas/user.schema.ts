@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
+import { TermsAcceptance, TermsAcceptanceSchema } from './terms.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -114,6 +115,15 @@ export class User {
   @Prop({ type: [Device], default: [] })
   devices: Device[];
 
+  @Prop({
+    type: [TermsAcceptanceSchema],
+    default: [],
+  })
+  termsAcceptances: TermsAcceptance[];
+
+  @Prop({ type: Date })
+  termsInvalidatedAt?: Date;
+
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Provider' }], default: [] })
   hiredCompanies: Types.ObjectId[];
 
@@ -122,7 +132,7 @@ export class User {
     enum: ['Client', 'Provider', 'Admin'],
     default: 'Client',
   })
-  activeRole: string;
+  activeRole: 'Client' | 'Provider' | 'Admin';
 
   @Prop({ type: Types.ObjectId, refPath: 'activeRole', index: true })
   activeRoleId: Types.ObjectId;

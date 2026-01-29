@@ -8,7 +8,7 @@ import {
 import { Response, Request } from 'express';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import { UsersService } from '@modules/users.service';
+import { UsersService } from '@users/users.service';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Provider, ProviderDocument } from '@modules/schemas/provider.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
@@ -16,6 +16,7 @@ import { Model, Types } from 'mongoose';
 import { MailtrapClient } from 'mailtrap';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from '@modules/dto/login.dto';
+import { AuthUser } from '@websocket/interfaces/websocket.interface';
 
 @Injectable()
 export class JwtService {
@@ -159,14 +160,14 @@ export class JwtService {
     req: Request,
   ): Promise<any> {
     const user = await this.validateUser(loginData.email, loginData.password);
-    const userId = user['_id'];
+    const userId = user['_id'] as Types.ObjectId;
     const payload = {
-      sub: userId as Types.ObjectId,
+      userId: userId.toString(),
       email: user.email,
       phoneNumber: user.phoneNumber,
       role: user.activeRole,
-      deviceId: req.headers['x-device-id'],
-      sessionId: req.headers['x-session-id'],
+      deviceId: req.headers['x-device-id'] as string,
+      sessionId: req.headers['x-session-id'] as string,
     };
     const accessToken = this.jwtService.sign(payload);
 

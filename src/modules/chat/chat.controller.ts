@@ -8,7 +8,6 @@ import {
   Query,
   Req,
   Delete,
-  UseGuards,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
@@ -34,7 +33,6 @@ export interface RequestWithUser extends Request {
 
 @ApiTags('Chat')
 @Controller('chat')
-@UseGuards(JwtAuthGuard)
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
@@ -82,7 +80,6 @@ export class ChatController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('upload')
   @UseInterceptors(FileFieldsInterceptor([{ name: 'file', maxCount: 50 }]))
   async uploadFile(

@@ -3,7 +3,7 @@ import { ChatService } from '../../chat/chat.service';
 import { ChatEvents } from '../events/chat.events';
 import { EventRouterService } from '../services/event-router.service';
 import {
-  AuthenticatedSocket,
+  AuthUser,
   EventHandler,
   EventHandlerContext,
 } from '@websocket/interfaces/websocket.interface';
@@ -96,7 +96,7 @@ export class ChatGateway implements EventHandler {
   private async handleSendMessage(
     // userId: string,
     data: SendMessageDto,
-    socket: AuthenticatedSocket,
+    socket: AuthUser,
   ): Promise<void> {
     data.senderId = socket.user.userId;
     const message = await this.chatService.sendMessage(data);
@@ -115,7 +115,7 @@ export class ChatGateway implements EventHandler {
   private async handleMarkAsRead(
     userId: string,
     data: MarkAsReadDto,
-    socket: AuthenticatedSocket,
+    socket: AuthUser,
   ): Promise<void> {
     await this.chatService.markAsRead(userId, data);
   }
@@ -126,7 +126,7 @@ export class ChatGateway implements EventHandler {
   private async handleTypingIndicator(
     userId: string,
     data: TypingDto,
-    socket: AuthenticatedSocket,
+    socket: AuthUser,
   ): Promise<void> {
     await this.chatService.handleTyping(userId, data);
   }
@@ -137,7 +137,7 @@ export class ChatGateway implements EventHandler {
   private async handleJoinRoom(
     userId: string,
     data: JoinChatDto,
-    socket: AuthenticatedSocket,
+    socket: AuthUser,
   ): Promise<void> {
     await this.chatService.joinChat(socket.user.userId, data.chatId);
   }
@@ -147,14 +147,14 @@ export class ChatGateway implements EventHandler {
    */
   private async handleLeaveRoom(
     data: JoinChatDto,
-    socket: AuthenticatedSocket,
+    socket: AuthUser,
   ): Promise<void> {
     await this.chatService.leaveConversation(socket.user.userId, data.chatId);
   }
 
   // @SubscribeMessage('send_message')
   // async handleSendMessage(
-  //   @ConnectedSocket() client: AuthenticatedSocket,
+  //   @ConnectedSocket() client: AuthUser,
   //   @MessageBody()
   //   data: {
   //     chatId: string;

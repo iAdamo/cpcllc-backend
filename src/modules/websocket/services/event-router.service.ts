@@ -1,7 +1,7 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { SocketEvents, EventEnvelope } from '../events/socket.events';
 import {
-  AuthenticatedSocket,
+  AuthUser,
   EventHandler,
 } from '../interfaces/websocket.interface';
 
@@ -31,7 +31,7 @@ export class EventRouterService {
     server: any,
     event: string,
     data: EventEnvelope,
-    socket: AuthenticatedSocket,
+    socket: AuthUser,
   ): Promise<void> {
     try {
       // Validate event envelope

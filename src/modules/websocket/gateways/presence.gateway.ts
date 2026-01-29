@@ -5,7 +5,7 @@ import { EventRouterService } from '@websocket/services/event-router.service';
 import {
   EventHandler,
   ResEventEnvelope,
-  AuthenticatedSocket,
+  AuthUser,
   EventHandlerContext,
 } from '@websocket/interfaces/websocket.interface';
 import { PresenceService } from '@presence/presence.service';
@@ -117,7 +117,7 @@ export class PresenceGateway implements EventHandler {
     server: EventHandlerContext['server'],
     userId: string,
     data: UpdatePresenceDto,
-    socket: AuthenticatedSocket,
+    socket: AuthUser,
   ): Promise<void> {
     const deviceId = socket.user.deviceId;
     const presence = await this.presenceService.updatePresence({
@@ -217,7 +217,7 @@ export class PresenceGateway implements EventHandler {
     userId: string,
     deviceId: string,
     data: UpdatePresenceDto,
-    socket: AuthenticatedSocket,
+    socket: AuthUser,
     server: EventHandlerContext['server'],
   ): Promise<void> {
     await this.presenceService.updatePresence({
@@ -241,7 +241,7 @@ export class PresenceGateway implements EventHandler {
     userId: string,
     deviceId: string,
     data: UpdatePresenceDto,
-    socket: AuthenticatedSocket,
+    socket: AuthUser,
   ): Promise<void> {
     await this.presenceService.updatePresence({
       dto: data,

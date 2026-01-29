@@ -21,7 +21,7 @@ async function bootstrap() {
     .setTitle('CPCLLC API')
     .setDescription('CPCLLC API Description')
     .setVersion('1.0')
-    .addTag('companiescenterllc')
+    .addTag('companiescenter')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);

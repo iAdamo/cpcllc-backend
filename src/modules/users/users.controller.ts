@@ -13,7 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { UsersService } from '@modules/users.service';
+import { UsersService } from '@users/users.service';
 import { AdminService } from '../admin/admin.service';
 import { ProviderService } from 'src/modules/provider/provider.service';
 // import { CreateProviderDto } from '../provider/dto/update-provider.dto';
@@ -40,7 +40,6 @@ export class UsersController {
   ) {}
 
   @Patch('profile')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'profilePicture', maxCount: 1 }]),
   )
@@ -57,20 +56,18 @@ export class UsersController {
   }
 
   @Get('profile')
-  @UseGuards(JwtAuthGuard)
   async userProfile(@Req() req: RequestWithUser) {
     const id = req.user.userId;
     return this.usersService.userProfile(id);
   }
 
-  @UseGuards(JwtAuthGuard, ProfileViewOnceGuard)
+  @UseGuards(ProfileViewOnceGuard)
   @Get('profile/:id')
   async getUserById(@Param('id') id: string) {
     return this.usersService.userProfile(id);
   }
 
   @Patch('follow/:providerId')
-  @UseGuards(JwtAuthGuard)
   async followProvider(
     @Param('providerId') providerId: string,
     @Req() req: RequestWithUser,
@@ -85,7 +82,6 @@ export class UsersController {
    * @returns Deletion result
    **/
   @Post('delete-files')
-  @UseGuards(JwtAuthGuard)
   async deleteFiles(
     @Body('fileUrls') fileUrls: string[],
     @Req() req: RequestWithUser,

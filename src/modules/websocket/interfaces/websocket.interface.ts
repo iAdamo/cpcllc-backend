@@ -3,11 +3,13 @@ import { Server, DefaultEventsMap } from 'socket.io';
 /**
  * Extended Socket interface with user context
  */
-export interface AuthenticatedSocket extends Socket {
+export interface AuthUser extends Socket {
   user: {
     userId: string;
     email: string;
-    roles: 'Client' | 'Provider' | 'Admin';
+    phoneNumber: string;
+    role: 'Client' | 'Provider' | 'Admin';
+    tokenIssuedAt?: number;
     deviceId: string;
     sessionId: string;
   };
@@ -45,7 +47,7 @@ export interface EventHandlerContext {
   server: Server<DefaultEventsMap, any>;
   event: string;
   data: any;
-  socket: AuthenticatedSocket;
+  socket: AuthUser;
 }
 
 export interface EventHandler {
@@ -63,7 +65,7 @@ export interface EventHandler {
 //     server: Server<DefaultEventsMap, any>,
 //     event: string,
 //     data: any,
-//     socket: AuthenticatedSocket,
+//     socket: AuthUser,
 //   ): Promise<void>;
 // }
 

@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { User, UserSchema } from '@schemas/user.schema';
 // import { Admin, AdminSchema } from 'src/modules/admin/schemas/admin.schema';
+import { Terms, TermsSchema } from './schemas/terms.schema';
 import {
   Provider,
   ProviderSchema,
@@ -23,6 +24,7 @@ import { DbStorageService } from 'src/common/utils/dbStorage';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Provider.name, schema: ProviderSchema },
+      { name: Terms.name, schema: TermsSchema },
     ]),
   ],
   providers: [UsersService, DbStorageService],

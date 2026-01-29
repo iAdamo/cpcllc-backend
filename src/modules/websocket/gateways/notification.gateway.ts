@@ -1,21 +1,19 @@
 import { Logger, Injectable, OnModuleInit } from '@nestjs/common';
 import {
-  WebSocketGateway,
-  WebSocketServer,
   SubscribeMessage,
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UseGuards, UsePipes } from '@nestjs/common';
-import { WsJwtGuard } from '@auth/jwt/jwt.guard';
-import { SocketValidationPipe } from '@websocket/socket-validation.pipe';
 import { EventRouterService } from '@websocket/services/event-router.service';
-import { EventHandler, EventHandlerContext } from '@websocket/interfaces/websocket.interface';
+import {
+  EventHandler,
+  EventHandlerContext,
+} from '@websocket/interfaces/websocket.interface';
 import { NotificationService } from '../../notification/services/notification.service';
 import { PreferenceService } from '../../notification/services/preference.service';
 // import { NotificationEvents } from '../../notification/constants/notification.constants';
-import {NotificationEvents } from '../events/notification.events'
+import { NotificationEvents } from '../events/notification.events';
 import {
   CreateNotificationDto,
   CreateBulkNotificationDto,
@@ -50,13 +48,13 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     return this.handledEvents.includes(event);
   }
 
- async handle({
+  async handle({
     server,
     event,
     data,
     socket,
   }: EventHandlerContext): Promise<void> {
-        const userId = (socket as any).user?.id;
+    const userId = (socket as any).user?.id;
 
     if (!userId) {
       throw new Error('User not authenticated');

@@ -20,7 +20,7 @@ import {
 import { PresenceEvents } from '@websocket/events/presence.events';
 import { SocketManagerService } from '@websocket/services/socket-manager.service';
 import {
-  AuthenticatedSocket,
+  AuthUser,
   EventHandlerContext,
   UserSession,
 } from '@websocket/interfaces/websocket.interface';
@@ -61,7 +61,7 @@ export class PresenceService implements OnModuleInit {
     dto: UpdatePresenceDto;
     userId?: string;
     session?: UserSession;
-    socket?: AuthenticatedSocket;
+    socket?: AuthUser;
     server?: EventHandlerContext['server'];
   }): Promise<PresenceResponse> {
     const now = new Date();
@@ -343,7 +343,7 @@ export class PresenceService implements OnModuleInit {
 
   async handleDisconnect(
     server: EventHandlerContext['server'],
-    client: AuthenticatedSocket,
+    client: AuthUser,
   ) {
     try {
       await this.updatePresence({

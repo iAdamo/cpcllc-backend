@@ -30,7 +30,6 @@ export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
   @Post(':id')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'images', maxCount: 10 }]))
   async createReview(
     @Body() reviewDto: CreateReviewDto,
@@ -47,13 +46,11 @@ export class ReviewsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
   async getReviews(@Req() req: RequestWithUser, @Param('id') id: string) {
     return this.reviewsService.getReviews(id, req.user.userId);
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'images', maxCount: 10 }]))
   async updateReview(
     @Param('id') reviewId: string,

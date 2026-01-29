@@ -32,7 +32,6 @@ import { UpdateJobDto } from '@modules/dto/update-job.dto';
 import { CreateProposalDto } from '@modules/dto/create-proposal.dto';
 import { UpdateProposalDto } from '@modules/dto/update-proposal.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from '@guards/jwt.guard';
 import { CacheService } from 'src/modules/cache/cache.service';
 import { UsePipes, ValidationPipe } from '@nestjs/common';
 
@@ -55,7 +54,6 @@ export class ServicesController {
 
   /* Jobs */
   @Post('jobs')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'media', maxCount: 10 }]))
   async createJob(
     @Body() jobDto: CreateJobDto,
@@ -66,7 +64,6 @@ export class ServicesController {
   }
 
   @Patch('jobs/:id')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'media', maxCount: 10 }]))
   async patchJob(
     @Param('id') jobId: string,
@@ -78,13 +75,11 @@ export class ServicesController {
   }
 
   @Delete('jobs/:id')
-  @UseGuards(JwtAuthGuard)
   async deleteJob(@Param('id') jobId: string, @Req() req: RequestWithUser) {
     return this.servicesService.deleteJobPost(jobId, req.user);
   }
 
   @Get('jobs/:id')
-  @UseGuards(JwtAuthGuard)
   async getJobsByUser(
     @Req() req: RequestWithUser,
     @Param('id') userId: UserParam,
@@ -96,7 +91,6 @@ export class ServicesController {
 
   /* Proposals */
   @Post('jobs/:id/proposals')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'attachments', maxCount: 10 }]),
   )
@@ -115,7 +109,6 @@ export class ServicesController {
   }
 
   @Patch('jobs/:jobId/proposals/:proposalId')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([{ name: 'attachments', maxCount: 10 }]),
   )
@@ -136,7 +129,6 @@ export class ServicesController {
   }
 
   @Delete('jobs/:jobId/proposals/:proposalId')
-  @UseGuards(JwtAuthGuard)
   async deleteProposal(
     @Param('jobId') jobId: string,
     @Param('proposalId') proposalId: string,
@@ -146,7 +138,6 @@ export class ServicesController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'media', maxCount: 10 }]))
   async createService(
     @Body() serviceDto: CreateServiceDto,
@@ -186,7 +177,6 @@ export class ServicesController {
   }
 
   @Get('provider/:id')
-  @UseGuards(JwtAuthGuard)
   async getServicesByProvider(
     @Param('id') providerId: string,
   ): Promise<Service[]> {
@@ -201,13 +191,11 @@ export class ServicesController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
   async getServiceById(@Param('id') serviceId: string): Promise<Service> {
     return this.servicesService.getServiceById(serviceId);
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'media', maxCount: 10 }]))
   async updateService(
     @Param('id') serviceId: string,
@@ -225,7 +213,6 @@ export class ServicesController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
   async deleteService(@Param('id') serviceId: string): Promise<Service> {
     return this.servicesService.deleteService(serviceId);
   }

@@ -12,7 +12,7 @@ import { Response, Request } from 'express';
 import { LoginDto } from '@dto/login.dto';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from './jwt.guard';
+import { SkipTerms, Public } from 'src/common/decorators/skip-guard.decorator';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -30,6 +30,7 @@ export class JwtController {
     return this.jwtService.createUser(userDto, tokenType, res);
   }
 
+  @Public()
   @Post('login')
   async login(
     @Body() loginDto: LoginDto,
@@ -40,8 +41,8 @@ export class JwtController {
     await this.jwtService.login(loginDto, tokenType, res, req);
   }
 
+  @SkipTerms()
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
   async logout(@Res() res: Response) {
     res.clearCookie('authentication');
     return res.status(200).json({

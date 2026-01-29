@@ -17,27 +17,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: process.env.JWT_SECRET,
     });
   }
-  async validate(payload: {
-    sub: string;
-    email: string;
-    phoneNumber?: string;
-    admin: boolean;
-    roles: 'Client' | 'Provider' | 'Admin';
-    deviceId: string | unknown;
-    sessionId: string;
-  }): Promise<{
+  async validate(payload: any): Promise<{
     userId: string;
     email: string;
     phoneNumber?: string;
-    roles: 'Client' | 'Provider' | 'Admin';
+    role: 'Client' | 'Provider' | 'Admin';
+    tokenIssuedAt: Date;
     deviceId: string | unknown;
     sessionId: string;
   }> {
     return {
-      userId: payload.sub,
+      userId: payload.userId,
       email: payload.email,
       phoneNumber: payload.phoneNumber,
-      roles: payload.roles,
+      role: payload.role,
+      tokenIssuedAt: payload.iat as any,
       deviceId: payload.deviceId,
       sessionId: payload.sessionId,
     };

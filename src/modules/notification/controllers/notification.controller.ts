@@ -18,7 +18,6 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@auth/jwt/jwt.guard';
 import { Notification } from '@notification/schemas/notification.schema';
 import { NotificationService } from '@notification/services/notification.service';
 import { PreferenceService } from '../services/preference.service';
@@ -49,7 +48,6 @@ export interface RequestWithUser extends Request {
 @ApiTags('notifications')
 @ApiBearerAuth()
 @Controller('notifications')
-@UseGuards(JwtAuthGuard)
 export class NotificationController {
   constructor(
     private readonly notificationService: NotificationService,

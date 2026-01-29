@@ -18,7 +18,6 @@ import { ProviderService } from './provider.service';
 import { CreateProviderDto } from '@dto/create-provider.dto';
 import { UpdateProviderDto } from '@dto/update-provider.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from '@guards/jwt.guard';
 import { Provider } from 'src/modules/provider/schemas/provider.schema';
 import { CacheService } from '@cache/cache.service';
 
@@ -53,7 +52,6 @@ export class ProviderController {
     return this.providerService.getAllCompanies(page, limit);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch(':id/favorite')
   async toggleFavorite(
     @Param('id') providerId: string,
@@ -67,7 +65,6 @@ export class ProviderController {
   }
 
   @Post('')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'providerLogo', maxCount: 1 },
@@ -88,7 +85,6 @@ export class ProviderController {
   }
 
   @Patch('')
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor([
       {
