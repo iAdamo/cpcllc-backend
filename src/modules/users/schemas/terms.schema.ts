@@ -2,27 +2,30 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export type TermsDocument = Terms & Document;
+export enum TermsType {
+  SERVICE = 'service',
+  PRIVACY = 'privacy',
+  PAYMENTS = 'payments',
+}
 
 @Schema({ timestamps: true })
 export class Terms {
-  @Prop({ type: String,
-    enum: ['general', 'privacy', 'payments'],
-    default: 'Client',
-  required: true })
-  termsType: string;
+  @Prop({ enum: TermsType, required: true })
+  termsType: TermsType;
 
   @Prop({ required: true })
-  version: string; // "v2.0"
+  version: string;
 
   @Prop({ required: true })
-  isActive: boolean; // ONLY ONE ACTIVE PER TYPE
+  contentUrl: string;
 
-  @Prop({ required: true })
-  contentUrl: string; // link to hosted terms
+  @Prop({ default: false })
+  isActive: boolean;
 
   @Prop()
   effectiveFrom?: Date;
 }
+
 
 export const TermsSchema = SchemaFactory.createForClass(Terms);
 
@@ -39,11 +42,14 @@ export class TermsAcceptance {
   @Prop({ required: true })
   version: string;
 
+  @Prop({ enum: ['accepted', 'declined'], required: true })
+  status: 'accepted' | 'declined';
+
   @Prop({ type: Date, required: true })
-  acceptedAt: Date;
+  decidedAt: Date;
 
   @Prop({ required: true })
-  platform: string; // ios | android | web
+  platform: string;
 }
 
 export const TermsAcceptanceSchema =

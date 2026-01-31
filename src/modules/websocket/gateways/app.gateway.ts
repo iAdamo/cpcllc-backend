@@ -1,4 +1,3 @@
-import { WsJwtGuard } from '@modules/jwt/jwt.guard';
 import * as jwt from 'jsonwebtoken';
 import {
   WebSocketGateway,

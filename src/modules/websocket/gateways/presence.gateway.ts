@@ -14,7 +14,7 @@ import {
   UpdatePresenceDto,
   SubscribePresenceDto,
 } from '@presence/interfaces/presence.interface';
-import { UsersService } from '@users/users.service';
+import { UsersService } from '@users/service/users.service';
 import { SocketManagerService } from '@websocket/services/socket-manager.service';
 
 @Injectable()

@@ -8,7 +8,7 @@ import {
 import { Response, Request } from 'express';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import { UsersService } from '@users/users.service';
+import { UsersService } from '@users/service/users.service';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Provider, ProviderDocument } from '@modules/schemas/provider.schema';
 import { CreateUserDto } from '@dto/create-user.dto';

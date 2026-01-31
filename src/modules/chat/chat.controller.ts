@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '@modules/jwt/jwt.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { BadRequestException } from '@nestjs/common';
 import { CreateChatDto } from './dto/create-chat.dto';
+import { SkipTerms } from 'src/common/decorators/guard.decorator';
 
 export interface RequestWithUser extends Request {
   user: {

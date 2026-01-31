@@ -7,7 +7,10 @@ import * as cookieParser from 'cookie-parser';
 import { logger } from './common/middleware/logger.middleware';
 import { RedisSocketAdapter } from '@modules/socket.adapter';
 import { Redis } from 'ioredis';
-
+import { Model } from 'mongoose';
+import { Terms } from '@users/schemas/terms.schema';
+import { seedTerms } from './scripts/terms';
+import { getModelToken } from '@nestjs/mongoose';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
@@ -64,6 +67,11 @@ async function bootstrap() {
         : 'http://localhost:3000',
     credentials: true,
   });
+
+
+  // const termsModel = app.get<Model<Terms>>(getModelToken(Terms.name));
+
+  // await seedTerms(termsModel);
 
   await app.listen(process.env.PORT ?? 3000);
 }

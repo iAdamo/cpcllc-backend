@@ -14,8 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from '@services/admin.service';
-import { AdminGuard } from '@modules/jwt/jwt.guard';
-
+import { Roles } from 'src/common/decorators/guard.decorator';
 export interface RequestWithUser extends Request {
   user: {
     email: string;
@@ -25,11 +24,11 @@ export interface RequestWithUser extends Request {
 
 @ApiTags('Admin')
 @Controller('admin')
+@Roles('Admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get('profile')
-  @UseGuards(AdminGuard)
   async getAdminProfile(@Req() req: RequestWithUser) {
     const userId = req.user.userId;
     return this.adminService.getAdminById(userId);

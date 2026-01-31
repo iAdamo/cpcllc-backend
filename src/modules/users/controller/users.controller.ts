@@ -13,8 +13,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { UsersService } from '@users/users.service';
-import { AdminService } from '../admin/admin.service';
+import { UsersService } from '@users/service/users.service';
+import { AdminService } from '../../admin/admin.service';
 import { ProviderService } from 'src/modules/provider/provider.service';
 // import { CreateProviderDto } from '../provider/dto/update-provider.dto';
 import { CreateAdminDto } from '@dto/create-admin.dto';

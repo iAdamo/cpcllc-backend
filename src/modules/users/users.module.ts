@@ -10,8 +10,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ServicesModule } from '@modules/services.module';
 import { ProviderModule } from 'src/modules/provider/provider.module';
 import { AdminModule } from '../admin/admin.module';
-import { UsersService } from './users.service';
-import { UsersController } from './users.controller';
+import { UsersService } from './service/users.service';
+import { UsersController } from './controller/users.controller';
+import { TermsService } from './service/terms.service';
+import { TermsController } from './controller/terms.controller';
 import { CacheModule } from '@modules/cache.module';
 import { DbStorageService } from 'src/common/utils/dbStorage';
 
@@ -27,8 +29,8 @@ import { DbStorageService } from 'src/common/utils/dbStorage';
       { name: Terms.name, schema: TermsSchema },
     ]),
   ],
-  providers: [UsersService, DbStorageService],
-  controllers: [UsersController],
-  exports: [UsersService, MongooseModule],
+  providers: [UsersService, DbStorageService, TermsService],
+  controllers: [UsersController, TermsController],
+  exports: [UsersService, MongooseModule, TermsService],
 })
 export class UsersModule {}

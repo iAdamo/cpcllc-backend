@@ -25,6 +25,7 @@ import { Reviews } from '@modules/schemas/reviews.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
 import { DbStorageService } from 'src/common/utils/dbStorage';
+import { AcceptTermsDto } from '../dto/accept-terms.dto';
 
 @Injectable()
 export class UsersService {
@@ -269,43 +270,5 @@ export class UsersService {
 
       return await user.save();
     }
-  }
-
-  async getActiveTerms(termsType: string) {
-    return this.termsModel.findOne({
-      termsType,
-      isActive: true,
-    });
-  }
-
-  async hasAcceptedLatest(
-    userId: string,
-    termsType: string,
-    tokenIssuedAt?: number,
-  ): Promise<boolean> {
-    const activeTerms = await this.getActiveTerms(termsType);
-    if (!activeTerms) return true; // no terms configured
-
-    const user = await this.userModel.findById(userId).lean();
-    if (!user) return false;
-
-    // Enforce session invalidation
-    if (tokenIssuedAt && user.termsInvalidatedAt) {
-      const tokenIssuedAtMs = tokenIssuedAt * 1000;
-      const termsInvalidatedAtMs = new Date(user.termsInvalidatedAt).getTime();
-
-      if (tokenIssuedAtMs < termsInvalidatedAtMs) {
-        return false; // token is invalid → must re-login
-      }
-    }
-
-    // Enforce latest terms acceptance
-    return (
-      user.termsAcceptances?.some(
-        (t) =>
-          t.termsId.toString() === activeTerms._id.toString() &&
-          t.version === activeTerms.version,
-      ) ?? false
-    );
   }
 }

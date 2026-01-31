@@ -12,7 +12,7 @@ import { Response, Request } from 'express';
 import { LoginDto } from '@dto/login.dto';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { SkipTerms, Public } from 'src/common/decorators/skip-guard.decorator';
+import { SkipTerms, Public } from 'src/common/decorators/guard.decorator';
 
 @Controller('auth')
 @ApiTags('auth')
