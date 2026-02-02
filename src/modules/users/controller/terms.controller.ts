@@ -4,6 +4,7 @@ import { TermsService } from '@users/service/terms.service';
 import { SkipTerms } from 'src/common/decorators/guard.decorator';
 import { AuthUser } from '@websocket/interfaces/websocket.interface';
 import { AcceptTermsDto } from '@users/dto/accept-terms.dto';
+import { Public } from 'src/common/decorators/guard.decorator';
 
 export interface RequestWithUser extends Request {
   user: {

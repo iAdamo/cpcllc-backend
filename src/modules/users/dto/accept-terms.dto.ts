@@ -10,9 +10,6 @@ export class AcceptTermsDto {
   status: 'accepted' | 'declined';
 
   @IsString()
-  version: string;
-
-  @IsString()
   platform: string;
 }
 

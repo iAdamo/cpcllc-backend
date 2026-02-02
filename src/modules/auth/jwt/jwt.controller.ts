@@ -20,14 +20,16 @@ export class JwtController {
   constructor(private readonly jwtService: JwtService) {}
 
   @Post('register')
+  @Public()
   async createUser(
     @Body()
     userDto: CreateUserDto,
     @Query('tokenType')
     tokenType: string,
     @Res() res: Response,
+    @Req() req: Request,
   ) {
-    return this.jwtService.createUser(userDto, tokenType, res);
+    return this.jwtService.createUser(userDto, tokenType, res, req);
   }
 
   @Public()
@@ -51,16 +53,19 @@ export class JwtController {
   }
 
   @Post('send-code')
+  @Public()
   async sendCode(@Body() body: { email: string }) {
     return this.jwtService.getVerificationCode(body.email);
   }
 
   @Post('verify-email')
+  @Public()
   async verifyEmail(@Body() body: { code: string }) {
     return this.jwtService.verifyEmail(body.code);
   }
 
   @Post('reset-password')
+  @Public()
   async resetPassword(@Body() body: { email: string; password: string }) {
     return this.jwtService.resetPassword(body.email, body.password);
   }

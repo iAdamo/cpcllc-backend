@@ -94,58 +94,58 @@ export class TermsService {
       const result = await this.decideLatestTerms(userId, dto);
       results.push(result);
     }
-
-    return {
-      accepted: results,
-    };
+    return results;
   }
 
   async decideLatestTerms(userId: string, dto: AcceptTermsDto) {
-    const activeTerms = await this.termsModel.findOne({
-      termsType: dto.termsType,
-      isActive: true,
-    });
+    try {
+      const activeTerms = await this.termsModel.findOne({
+        termsType: dto.termsType,
+        isActive: true,
+      });
 
-    if (!activeTerms) {
-      throw new BadRequestException(`No active ${dto.termsType} terms found`);
-    }
+      if (!activeTerms) {
+        throw new BadRequestException(`No active ${dto.termsType} terms found`);
+      }
 
-    const updateResult = await this.userModel.updateOne(
-      {
-        _id: userId,
-        'termsAcceptances.termsId': activeTerms._id,
-        'termsAcceptances.version': activeTerms.version,
-      },
-      {
-        $set: {
-          'termsAcceptances.$.status': dto.status,
-          'termsAcceptances.$.decidedAt': new Date(),
-          'termsAcceptances.$.platform': dto.platform,
-        },
-      },
-    );
-
-    if (updateResult.matchedCount === 0) {
-      await this.userModel.updateOne(
-        { _id: userId },
+      const updateResult = await this.userModel.updateOne(
         {
-          $push: {
-            termsAcceptances: {
-              termsId: activeTerms._id,
-              version: activeTerms.version,
-              status: dto.status,
-              decidedAt: new Date(),
-              platform: dto.platform,
-            },
+          _id: userId,
+          'termsAcceptances.termsId': activeTerms._id,
+          'termsAcceptances.version': activeTerms.version,
+        },
+        {
+          $set: {
+            'termsAcceptances.$.status': dto.status,
+            'termsAcceptances.$.decidedAt': new Date(),
+            'termsAcceptances.$.platform': dto.platform,
           },
         },
       );
-    }
+      if (updateResult.matchedCount === 0) {
+        await this.userModel.updateOne(
+          { _id: userId },
+          {
+            $push: {
+              termsAcceptances: {
+                termsId: activeTerms._id,
+                version: activeTerms.version,
+                status: dto.status,
+                decidedAt: new Date(),
+                platform: dto.platform,
+              },
+            },
+          },
+        );
+      }
 
-    return {
-      status: dto.status,
-      termsType: dto.termsType,
-      version: activeTerms.version,
-    };
+      return {
+        status: dto.status,
+        termsType: dto.termsType,
+        version: activeTerms.version,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
   }
 }

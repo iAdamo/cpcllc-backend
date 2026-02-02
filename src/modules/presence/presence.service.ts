@@ -1,18 +1,15 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { Model, Types, Connection } from 'mongoose';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Presence } from './schemas/presence.schema';
 import {
   UpdatePresenceDto,
-  SubscribePresenceDto,
   PresenceResponse,
   BatchPresenceResponse,
   PresenceStats,
-  HeartbeatDto,
-  DeviceInfo,
   PRESENCE_STATUS,
   PRESENCE_CONFIG,
   PresenceStatus,
@@ -24,13 +21,13 @@ import {
   EventHandlerContext,
   UserSession,
 } from '@websocket/interfaces/websocket.interface';
-import { AppGateway } from '@websocket/gateways/app.gateway';
 
 @Injectable()
 export class PresenceService implements OnModuleInit {
   private readonly logger = new Logger(PresenceService.name);
 
   constructor(
+    @InjectConnection() private readonly mongoConnection: Connection,
     @InjectModel(Presence.name)
     private readonly presenceModel: Model<Presence>,
     @InjectRedis()
@@ -46,6 +43,31 @@ export class PresenceService implements OnModuleInit {
     // Clean up any stale presence data on startup
     await this.cleanupStalePresence();
     this.logger.log('Presence system initialized');
+  }
+
+  /**
+   * Health check
+   * @returns
+   */
+  async check() {
+    const mongoStatus = this.mongoConnection.readyState === 1 ? 'up' : 'down';
+
+    let redisStatus = 'down';
+    try {
+      const pong = await this.redis.ping();
+      if (pong === 'PONG') redisStatus = 'up';
+    } catch (_) {}
+
+    return {
+      status: mongoStatus === 'up' && redisStatus === 'up' ? 'ok' : 'degraded',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      services: {
+        api: 'up',
+        database: mongoStatus,
+        redis: redisStatus,
+      },
+    };
   }
 
   /**

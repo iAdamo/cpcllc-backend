@@ -464,7 +464,7 @@ export class SearchService {
       throw new BadRequestException('Location fields are required');
     }
 
-    // 🔁 changes every 30 minutes
+    // changes every 30 minutes
     const rotationSeed = Math.floor(Date.now() / (1000 * 60 * 30));
 
     const pipeline: any[] = [
@@ -484,7 +484,7 @@ export class SearchService {
         },
       },
 
-      // 📍 Location priority
+      // Location priority
       {
         $addFields: {
           locationPriority: {
@@ -509,7 +509,7 @@ export class SearchService {
         },
       },
 
-      // 🎯 Base relevance score
+      // Base relevance score
       {
         $addFields: {
           relevanceScore: {
@@ -522,7 +522,7 @@ export class SearchService {
         },
       },
 
-      // ⭐ Featured boost (≈60% dominance)
+      // Featured boost (≈60% dominance)
       {
         $addFields: {
           featuredBoost: {
@@ -557,7 +557,7 @@ export class SearchService {
       {
         $sort: { rotationScore: 1 },
       },
-      // 🧮 Final score
+      // Final score
       {
         $addFields: {
           finalScore: {
@@ -571,7 +571,7 @@ export class SearchService {
       },
     ];
 
-    // 🎯 Category filter
+    // Category filter
     if (subcategories?.length) {
       pipeline.push({
         $match: {
@@ -582,7 +582,7 @@ export class SearchService {
       });
     }
 
-    // 📊 Sort
+    // Sort
     pipeline.push({ $sort: { finalScore: -1 } });
 
     const countPipeline = [...pipeline, { $count: 'total' }];
@@ -696,7 +696,7 @@ export class SearchService {
           },
         },
       },
-      // 🎯 Filter by provider's subcategories
+      // Filter by provider's subcategories
       ...(providerSubcategories?.length
         ? [
             {
@@ -711,7 +711,7 @@ export class SearchService {
           ]
         : []),
 
-      // 🎯 Additional subcategory filter if provided
+      // Additional subcategory filter if provided
       ...(subcategories?.length
         ? [
             {

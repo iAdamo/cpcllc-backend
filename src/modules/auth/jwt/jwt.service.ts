@@ -95,7 +95,8 @@ export class JwtService {
   async createUser(
     createUsersDto: CreateUserDto,
     tokenType: string,
-    res: any,
+    res: Response,
+    req: Request,
   ): Promise<User> {
     const { email, phoneNumber, password } = createUsersDto;
 
@@ -132,10 +133,12 @@ export class JwtService {
     const user = await this.userModel.create(createUsersDto);
     const userId = user['_id'];
     const payload = {
-      sub: userId as Types.ObjectId,
+      userId: userId.toString(),
       email: user.email,
       phoneNumber: user.phoneNumber,
-      admin: user.activeRole === 'Admin' || false,
+      role: user.activeRole,
+      deviceId: req.headers['x-device-id'] as string,
+      sessionId: req.headers['x-session-id'] as string,
     };
     const accessToken = this.jwtService.sign(payload);
 
@@ -160,7 +163,7 @@ export class JwtService {
     req: Request,
   ): Promise<any> {
     const user = await this.validateUser(loginData.email, loginData.password);
-    const userId = user['_id'] as Types.ObjectId;
+    const userId = user['_id'];
     const payload = {
       userId: userId.toString(),
       email: user.email,
@@ -219,7 +222,7 @@ export class JwtService {
       return { message: 'Verification code sent' };
     } catch (error) {
       console.error('Failed to send email:', error);
-      throw new BadRequestException('Failed to send verification cde');
+      throw new BadRequestException('Failed to send verification code');
     }
   }
 
