@@ -189,18 +189,6 @@ export class PresenceGateway implements EventHandler {
     let subscribers = [] as string[];
     let payload = [] as string[];
 
-    const user = await this.userService.userProfile(data.userIds[0]);
-
-    // for (const subscriber of subscribers) {
-    //   users.push(subscriber);
-    // }
-    const hhh = {
-      providerId: user.activeRoleId.toString(),
-      // followersCount: number;
-      // isFollowing: boolean;
-      // followedBy: string[];
-    };
-
     this.socketManager.sendToUser({
       server,
       userId,

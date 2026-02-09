@@ -251,10 +251,10 @@ export class SocketManagerService {
     data,
     server,
   }: {
-    server: EventHandlerContext['server'];
     userId: string;
     event: string;
     data: any;
+    server: EventHandlerContext['server'];
   }): Promise<void> {
     const sockets = await this.getUserSockets({
       userId,
@@ -265,7 +265,6 @@ export class SocketManagerService {
       this.logger.debug(`User ${userId} has no active sockets`);
       return;
     }
-
     const envelope: ResEventEnvelope = {
       version: '1.0.0',
       timestamp: new Date(),

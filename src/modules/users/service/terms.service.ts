@@ -66,7 +66,7 @@ export class TermsService {
     const missingTerms = activeTermsList.filter((activeTerms) => {
       return !user.termsAcceptances?.some(
         (t) =>
-          t.termsId.equals(activeTerms._id) &&
+          t.termsId.equals(activeTerms['_id'] as Types.ObjectId) &&
           t.version === activeTerms.version &&
           t.status === 'accepted',
       );

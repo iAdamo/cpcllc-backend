@@ -17,11 +17,12 @@ import {
 import { Notification as NotificationDocument } from '../schemas/notification.schema';
 import { PreferenceService } from './preference.service';
 import { DeliveryService } from './delivery.service';
+import { ForbiddenException } from '@nestjs/common';
 
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
-  
+
   constructor(
     @InjectModel(NotificationDocument.name)
     private readonly notificationModel: Model<NotificationDocument>,
@@ -33,6 +34,9 @@ export class NotificationService {
     private readonly deliveryService: DeliveryService,
   ) {}
 
+  /**
+   * Create a single notification and deliver/queue it
+   */
   async create(dto: CreateNotificationDto): Promise<NotificationResponse> {
     // Check user preferences
     const canSend = await this.preferenceService.canSendNotification(
@@ -41,7 +45,10 @@ export class NotificationService {
     );
 
     if (!canSend.canSend) {
-      throw new Error(`Cannot send notification: ${canSend.reason}`);
+      throw new ForbiddenException({
+        code: 'Cannot send notification',
+        reason: `${canSend.reason}`,
+      });
     }
 
     // Determine channels based on preferences
@@ -65,7 +72,7 @@ export class NotificationService {
       channels,
       deliveries: channels.map((channel) => ({
         channel,
-        status: 'PENDING',
+        status: NotificationStatus.PENDING,
         retryCount: 0,
       })),
       expiresAt: dto.expiresAt,
@@ -85,6 +92,9 @@ export class NotificationService {
     return this.toResponse(notification);
   }
 
+  /**
+   * Bulk notifications
+   */
   async createBulk(
     dto: CreateBulkNotificationDto,
   ): Promise<{ success: number; failed: number }> {
@@ -146,30 +156,36 @@ export class NotificationService {
     return notifications.map((notification) => this.toResponse(notification));
   }
 
-  async markAsRead(userId: string, notificationIds: string[]): Promise<void> {
-    await this.notificationModel.updateMany(
-      {
-        _id: { $in: notificationIds },
-        userId,
+  /**
+   * Mark notifications as read
+   */
+  async markAsRead(userId: string, notificationIds?: string[]): Promise<void> {
+    const filter: any = { userId };
+
+    // If IDs are provided, scope to those notifications
+    if (Array.isArray(notificationIds) && notificationIds.length > 0) {
+      filter._id = { $in: notificationIds };
+    }
+
+    await this.notificationModel.updateMany(filter, {
+      $set: {
+        readAt: new Date(),
+        status: NotificationStatus.READ,
       },
-      {
-        $set: {
-          readAt: new Date(),
-          status: NotificationStatus.READ,
-          updatedAt: new Date(),
-        },
-      },
-    );
+    });
 
     this.logger.log(
       `Marked ${notificationIds.length} notifications as read for user: ${userId}`,
     );
   }
 
+  /**
+   * Update overall notification status
+   */
   async updateStatus(
     notificationId: string,
     channel: NotificationChannel,
-    status: 'SENT' | 'DELIVERED' | 'FAILED',
+    status: NotificationStatus,
     error?: string,
   ): Promise<void> {
     const update: any = {
@@ -179,9 +195,9 @@ export class NotificationService {
 
     if (status === 'SENT') {
       update['deliveries.$.sentAt'] = new Date();
-    } else if (status === 'DELIVERED') {
+    } else if (status === NotificationStatus.DELIVERED) {
       update['deliveries.$.deliveredAt'] = new Date();
-    } else if (status === 'FAILED') {
+    } else if (status === NotificationStatus.FAILED) {
       update['deliveries.$.error'] = error;
     }
 
@@ -194,6 +210,9 @@ export class NotificationService {
     await this.updateOverallStatus(notificationId);
   }
 
+  /**
+   * Get unread count
+   */
   async getUnreadCount(userId: string, tenantId?: string): Promise<number> {
     const query: any = {
       userId,
@@ -206,6 +225,9 @@ export class NotificationService {
     return this.notificationModel.countDocuments(query);
   }
 
+  /**
+   * Determine which channels to send, respecting preferences and priority
+   */
   private async determineChannels(
     dto: CreateNotificationDto,
     preferredChannels: NotificationChannel[],
@@ -248,10 +270,13 @@ export class NotificationService {
     // Update status to PROCESSING
     await this.notificationModel.findByIdAndUpdate(notification['_id'], {
       status: NotificationStatus.PROCESSING,
-      updatedAt: new Date(),
+      // updatedAt: new Date(),
     });
   }
 
+  /**
+   * Schedule notification for future delivery
+   */
   private async scheduleNotification(
     notification: NotificationDocument,
   ): Promise<void> {
@@ -297,6 +322,30 @@ export class NotificationService {
         updatedAt: new Date(),
       });
     }
+  }
+
+  /**
+   * Delete notifications
+   * - If notificationIds is provided → delete only those
+   * - If not provided → delete ALL notifications for the user
+   */
+  async deleteNotifications(
+    userId: string,
+    notificationIds?: string[],
+  ): Promise<{ deletedCount: number }> {
+    const filter: any = { userId };
+
+    if (Array.isArray(notificationIds) && notificationIds.length > 0) {
+      filter._id = { $in: notificationIds };
+    }
+
+    const result = await this.notificationModel.deleteMany(filter);
+
+    this.logger.log(
+      `Deleted ${result.deletedCount} notifications for user: ${userId}`,
+    );
+
+    return { deletedCount: result.deletedCount };
   }
 
   private toResponse(notification: NotificationDocument): NotificationResponse {

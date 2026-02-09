@@ -23,6 +23,7 @@ import {
   UpdatePreferenceDto,
   UpdatePushTokenDto,
 } from '../../notification/interfaces/preference.interface';
+import { SocketManagerService } from '@websocket/services/socket-manager.service';
 
 @Injectable()
 export class NotificationGateway implements EventHandler, OnModuleInit {
@@ -35,6 +36,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     private readonly eventRouter: EventRouterService,
     private readonly notificationService: NotificationService,
     private readonly preferenceService: PreferenceService,
+    private readonly socketManager: SocketManagerService,
   ) {}
 
   onModuleInit() {
@@ -54,7 +56,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     data,
     socket,
   }: EventHandlerContext): Promise<void> {
-    const userId = (socket as any).user?.id;
+    const userId = socket.user.userId;
 
     if (!userId) {
       throw new Error('User not authenticated');
@@ -75,7 +77,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
           break;
 
         case NotificationEvents.GET_NOTIFICATIONS:
-          await this.handleGetNotifications(userId, data, socket);
+          await this.handleGetNotifications(server, userId, data, socket);
           break;
 
         case NotificationEvents.GET_UNREAD_COUNT:
@@ -83,15 +85,19 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
           break;
 
         case NotificationEvents.UPDATE_PREFERENCE:
-          await this.handleUpdatePreference(userId, data, socket);
+          await this.handleUpdatePreference(server, userId, data, socket);
           break;
 
-        case NotificationEvents.UPDATE_PUSH_TOKEN:
-          await this.handleUpdatePushToken(userId, data, socket);
+        case NotificationEvents.DELETE_NOTIFICATIONS:
+          await this.handleDeleteNotifications(server, userId, data, socket);
           break;
+
+        // case NotificationEvents.UPDATE_PUSH_TOKEN:
+        //   await this.handleUpdatePushToken(userId, data, socket);
+        //   break;
 
         case NotificationEvents.GET_PREFERENCE:
-          await this.handleGetPreference(userId, socket);
+          await this.handleGetPreference(server, userId, socket);
           break;
       }
     } catch (error: any) {
@@ -136,17 +142,27 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
 
   private async handleMarkAsRead(
     userId: string,
-    data: { notificationIds: string[] },
+    data: string[],
     socket: Socket,
   ): Promise<void> {
-    await this.notificationService.markAsRead(userId, data.notificationIds);
+    await this.notificationService.markAsRead(userId, data);
     socket.emit(NotificationEvents.NOTIFICATION_READ, {
-      notificationIds: data.notificationIds,
+      notificationIds: data,
       readAt: new Date(),
     });
   }
 
+  private async handleDeleteNotifications(
+    server: EventHandlerContext['server'],
+    userId: string,
+    data: string[],
+    socket: Socket,
+  ): Promise<void> {
+    await this.notificationService.deleteNotifications(userId, data);
+  }
+
   private async handleGetNotifications(
+    server: EventHandlerContext['server'],
     userId: string,
     data: FilterNotificationsDto,
     socket: Socket,
@@ -155,7 +171,13 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
       ...data,
       userId,
     });
-    socket.emit(NotificationEvents.NOTIFICATIONS_FETCHED, notifications);
+    await this.socketManager.sendToUser({
+      server,
+      userId,
+      event: NotificationEvents.NOTIFICATIONS_FETCHED,
+      data: notifications,
+    });
+    // socket.emit(NotificationEvents.NOTIFICATIONS_FETCHED, notifications);
   }
 
   private async handleGetUnreadCount(
@@ -171,31 +193,48 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
   }
 
   private async handleUpdatePreference(
+    server: EventHandlerContext['server'],
     userId: string,
     data: UpdatePreferenceDto,
     socket: Socket,
   ): Promise<void> {
     const preference = await this.preferenceService.update(userId, data);
-    socket.emit(NotificationEvents.PREFERENCE_UPDATED, preference);
+    await this.socketManager.sendToUser({
+      server,
+      userId,
+      event: NotificationEvents.PREFERENCE_UPDATED,
+      data: { ...preference },
+    });
   }
 
-  private async handleUpdatePushToken(
-    userId: string,
-    data: UpdatePushTokenDto,
-    socket: Socket,
-  ): Promise<void> {
-    await this.preferenceService.updatePushToken(userId, data);
-    socket.emit(NotificationEvents.PUSH_TOKEN_UPDATED, { success: true });
-  }
+  // private async handleUpdatePushToken(
+  //   userId: string,
+  //   data: UpdatePushTokenDto,
+  //   socket: Socket,
+  // ): Promise<void> {
+  //   await this.preferenceService.updatePushToken(userId, data);
+  //   socket.emit(NotificationEvents.PUSH_TOKEN_UPDATED, { success: true });
+  // }
 
   private async handleGetPreference(
+    server: EventHandlerContext['server'],
     userId: string,
     socket: Socket,
   ): Promise<void> {
     const preference = await this.preferenceService.getOrCreate(userId);
-    socket.emit(NotificationEvents.PREFERENCE_FETCHED, preference);
+    await this.socketManager.sendToUser({
+      server,
+      userId,
+      event: NotificationEvents.PREFERENCE_FETCHED,
+      data: { ...preference },
+    });
+    // socket.emit(NotificationEvents.PREFERENCE_FETCHED, {
+    //   version: '1.0.0',
+    //   timestamp: new Date(),
+    //   targetId: userId,
+    //   payload: preference,
+    // });
   }
-
   // Helper method to send real-time notifications
   async sendRealTimeNotification(
     userId: string,

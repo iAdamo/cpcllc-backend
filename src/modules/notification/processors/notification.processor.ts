@@ -7,6 +7,7 @@ import {
 } from '../interfaces/delivery.interface';
 import { NotificationService } from '../services/notification.service';
 import { DeliveryService } from '../services/delivery.service';
+import { NotificationStatus } from '@notification/interfaces/notification.interface';
 
 @Processor('notification.delivery', {
   concurrency: 10,
@@ -36,13 +37,13 @@ export class NotificationProcessor extends WorkerHost {
         await this.notificationService.updateStatus(
           job.data.notificationId,
           job.data.channel,
-          'SENT',
+          NotificationStatus.SENT,
         );
       } else if (result.error && result.retryCount >= 3) {
         await this.notificationService.updateStatus(
           job.data.notificationId,
           job.data.channel,
-          'FAILED',
+          NotificationStatus.FAILED,
           result.error,
         );
       }

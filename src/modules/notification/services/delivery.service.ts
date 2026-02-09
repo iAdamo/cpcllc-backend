@@ -32,6 +32,9 @@ export class DeliveryService {
     private readonly smsService: SmsService,
   ) {}
 
+  /**
+   * Queue delivery jobs for all channels of a notification
+   */
   async queueNotificationDelivery(
     notificationId: string,
     userId: string,
@@ -82,6 +85,9 @@ export class DeliveryService {
     }
   }
 
+  /**
+   * Deliver a single notification job
+   */
   async deliver(jobData: DeliveryJobData): Promise<DeliveryResult> {
     const { channel, notificationId, retryCount } = jobData;
     const channelConfig = this.config[channel];
@@ -162,6 +168,8 @@ export class DeliveryService {
       title,
       body,
       data: metadata,
+      priority:
+        jobData.priority === NotificationPriority.HIGH ? 'high' : 'normal',
     });
 
     return {
@@ -207,6 +215,9 @@ export class DeliveryService {
     };
   }
 
+  /**
+   * Queue a retry for failed delivery
+   */
   private async queueRetry(
     jobData: DeliveryJobData,
     newRetryCount: number,
@@ -228,6 +239,9 @@ export class DeliveryService {
     );
   }
 
+  /**
+   * Convert notification priority to job priority for BullMQ
+   */
   private getJobPriority(priority: NotificationPriority): number {
     return PRIORITY_MAPPING[priority] || 5;
   }

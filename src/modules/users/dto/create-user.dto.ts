@@ -8,6 +8,7 @@ import {
   IsArray,
   IsMongoId,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserDto {
@@ -55,6 +56,12 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   isPhoneVerified: boolean;
+
+  @ApiProperty({ example: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  isOnboardingComplete: boolean;
 
   @ApiProperty({ example: 0, default: 0 })
   @IsOptional()

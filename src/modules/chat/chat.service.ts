@@ -1,3 +1,4 @@
+import { Notification } from './../notification/schemas/notification.schema';
 import {
   Injectable,
   Logger,
@@ -27,7 +28,14 @@ import {
   MarkAsReadDto,
 } from './interfaces/chat.interface';
 import { PRESENCE_STATUS } from '@presence/interfaces/presence.interface';
-
+import { NotificationService } from '@notification/services/notification.service';
+import { PresenceService } from '@presence/presence.service';
+import { PresenceStatus } from '@presence/interfaces/presence.interface';
+import {
+  NotificationCategory,
+  NotificationChannel,
+  NotificationPriority,
+} from '@notification/interfaces/notification.interface';
 type LeanMessage = FlattenMaps<MessageDocument> & { _id: Types.ObjectId };
 
 @Injectable()
@@ -45,6 +53,8 @@ export class ChatService {
     private readonly storage: DbStorageService,
     private readonly appGateway: AppGateway,
     private readonly socketManager: SocketManagerService,
+    private readonly notificationService: NotificationService,
+    private readonly presenceService: PresenceService,
   ) {}
 
   private async chatEligibilyStatus(
@@ -259,6 +269,24 @@ export class ChatService {
         const id = uid.toString();
         if (id !== senderId) {
           chat.unreadCounts.set(id, (chat.unreadCounts.get(id) || 0) + 1);
+          const presence = await this.presenceService.getPresence({
+            userId: id,
+          });
+          console.log({ presence });
+          if (
+            presence.status !== 'online' ||
+            presence.metadata.state === 'background'
+          ) {
+            const data = {
+              userId: id,
+              title: 'New Message',
+              body: message.content.text,
+              category: NotificationCategory.MESSAGE,
+              priority: NotificationPriority.NORMAL,
+              channels: [NotificationChannel.PUSH],
+            };
+            await this.notificationService.create(data);
+          }
         }
       }
 

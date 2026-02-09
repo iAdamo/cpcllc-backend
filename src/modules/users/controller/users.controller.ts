@@ -18,7 +18,7 @@ import { AdminService } from '../../admin/admin.service';
 import { ProviderService } from 'src/modules/provider/provider.service';
 // import { CreateProviderDto } from '../provider/dto/update-provider.dto';
 import { CreateAdminDto } from '@dto/create-admin.dto';
-import { UpdateUserDto } from '@modules/dto/update-user.dto';
+import { UpdateUserDto } from '@dto/update-user.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard, ProfileViewOnceGuard } from '@guards/jwt.guard';
 

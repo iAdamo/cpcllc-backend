@@ -8,7 +8,6 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -18,11 +17,13 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+
 import { Notification } from '@notification/schemas/notification.schema';
 import { NotificationService } from '@notification/services/notification.service';
 import { PreferenceService } from '../services/preference.service';
 import { TemplateService } from '../services/template.service';
 import { QueueService } from '../queues/queue.service';
+
 import {
   CreateNotificationDto,
   CreateBulkNotificationDto,
@@ -30,20 +31,23 @@ import {
   UpdateNotificationDto,
   NotificationResponse,
 } from '../interfaces/notification.interface';
+
 import {
   UpdatePreferenceDto,
   UpdatePushTokenDto,
-  UserPreference,
 } from '../interfaces/preference.interface';
-import { UserPreference as UserPreferenceDoc } from '@notification/schemas/user-preference.schema';
 
-export interface RequestWithUser extends Request {
-  user: {
-    email: string;
-    userId: string;
-    phoneNumber?: string;
-  };
-}
+import { UserPreference } from '@notification/schemas/user-preference.schema';
+
+import { AuthUser } from '@websocket/interfaces/websocket.interface';
+
+// export interface AuthUser extends Request {
+//   user: {
+//     email: string;
+//     userId: string;
+//     phoneNumber?: string;
+//   };
+// }
 
 @ApiTags('notifications')
 @ApiBearerAuth()
@@ -60,7 +64,7 @@ export class NotificationController {
   @ApiOperation({ summary: 'Create a notification' })
   @ApiResponse({ status: 201, type: Notification })
   async create(
-    @Req() req: RequestWithUser,
+    @Req() req: AuthUser,
     @Body() dto: CreateNotificationDto,
   ): Promise<NotificationResponse> {
     return this.notificationService.create({
@@ -71,10 +75,7 @@ export class NotificationController {
 
   @Post('bulk')
   @ApiOperation({ summary: 'Create bulk notifications' })
-  @ApiResponse({ status: 201 })
   async createBulk(
-    @Req() req: RequestWithUser,
-
     @Body() dto: CreateBulkNotificationDto,
   ): Promise<{ success: number; failed: number }> {
     return this.notificationService.createBulk(dto);
@@ -84,8 +85,7 @@ export class NotificationController {
   @ApiOperation({ summary: 'Get user notifications' })
   @ApiResponse({ status: 200, type: [Notification] })
   async findAll(
-    @Req() req: RequestWithUser,
-
+    @Req() req: AuthUser,
     @Query() filter: FilterNotificationsDto,
   ): Promise<NotificationResponse[]> {
     return this.notificationService.findByUser({
@@ -96,25 +96,23 @@ export class NotificationController {
 
   @Get('unread/count')
   @ApiOperation({ summary: 'Get unread notification count' })
-  @ApiResponse({ status: 200 })
   async getUnreadCount(
-    @Req() req: RequestWithUser,
-
+    @Req() req: AuthUser,
     @Query('tenantId') tenantId?: string,
   ): Promise<{ count: number }> {
-    const count = await this.notificationService.getUnreadCount(
-      req.user.userId,
-      tenantId,
-    );
-    return { count };
+    return {
+      count: await this.notificationService.getUnreadCount(
+        req.user.userId,
+        tenantId,
+      ),
+    };
   }
 
   @Put('read')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Mark notifications as read' })
   async markAsRead(
-    @Req() req: RequestWithUser,
-
+    @Req() req: AuthUser,
     @Body('notificationIds') notificationIds: string[],
   ): Promise<void> {
     await this.notificationService.markAsRead(req.user.userId, notificationIds);
@@ -122,38 +120,46 @@ export class NotificationController {
 
   @Get('preferences')
   @ApiOperation({ summary: 'Get user notification preferences' })
-  @ApiResponse({ status: 200, type: UserPreferenceDoc })
-  async getPreferences(@Req() req: RequestWithUser): Promise<UserPreference> {
+  @ApiResponse({ status: 200 })
+  async getPreferences(@Req() req: AuthUser): Promise<UserPreference> {
     return this.preferenceService.getOrCreate(req.user.userId);
   }
 
   @Put('preferences')
   @ApiOperation({ summary: 'Update user notification preferences' })
-  @ApiResponse({ status: 200, type: UserPreferenceDoc })
+  @ApiResponse({ status: 200 })
   async updatePreferences(
-    @Req() req: RequestWithUser,
+    @Req() req: AuthUser,
     @Body() dto: UpdatePreferenceDto,
   ): Promise<UserPreference> {
     return this.preferenceService.update(req.user.userId, dto);
   }
 
-  @Put('push-token')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post('push-token')
   @ApiOperation({ summary: 'Update push notification token' })
+  @HttpCode(HttpStatus.NO_CONTENT)
   async updatePushToken(
-    @Req() req: RequestWithUser,
-
+    @Req() req: AuthUser,
     @Body() dto: UpdatePushTokenDto,
   ): Promise<void> {
-    await this.preferenceService.updatePushToken(req.user.userId, dto);
+    await this.preferenceService.updatePushToken(req.user, dto);
+  }
+
+  @Post('push-token/disable')
+  @ApiOperation({ summary: 'Disable push notification token' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async disablePushToken(@Req() req: AuthUser['user']): Promise<void> {
+    await this.preferenceService.disablePushTokensForUserDevice(
+      req.userId,
+      req.deviceId,
+    );
   }
 
   @Delete('push-token/:token')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove push notification token' })
   async removePushToken(
-    @Req() req: RequestWithUser,
-
+    @Req() req: AuthUser,
     @Param('token') token: string,
   ): Promise<void> {
     await this.preferenceService.removePushToken(req.user.userId, token);
@@ -175,10 +181,11 @@ export class NotificationController {
   @ApiOperation({ summary: 'Retry failed jobs in a queue' })
   async retryFailedJobs(
     @Param('queueName') queueName: string,
-    @Query('count') count: number = 100,
+    @Query('count') count = 100,
   ): Promise<{ retried: number }> {
-    const retried = await this.queueService.retryFailedJobs(queueName, count);
-    return { retried };
+    return {
+      retried: await this.queueService.retryFailedJobs(queueName, count),
+    };
   }
 
   @Post('queues/:queueName/cleanup')
@@ -186,14 +193,15 @@ export class NotificationController {
   async cleanupStalledJobs(
     @Param('queueName') queueName: string,
   ): Promise<{ cleaned: number }> {
-    const cleaned = await this.queueService.cleanupStalledJobs();
-    return { cleaned };
+    return {
+      cleaned: await this.queueService.cleanupStalledJobs(),
+    };
   }
 
   @Get('health')
   @ApiOperation({ summary: 'Notification system health check' })
   async healthCheck() {
-    const [queueStats, redisInfo] = await Promise.all([
+    const [queues, redis] = await Promise.all([
       this.queueService.getQueueMetrics(),
       this.queueService.getRedisInfo(),
     ]);
@@ -201,8 +209,8 @@ export class NotificationController {
     return {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      queues: queueStats,
-      redis: redisInfo,
+      queues,
+      redis,
     };
   }
 }

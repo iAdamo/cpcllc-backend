@@ -56,7 +56,7 @@ export interface UpdatePreferenceDto {
 export interface UpdatePushTokenDto {
   token: string;
   platform: 'IOS' | 'ANDROID' | 'WEB';
-  deviceId: string;
+  // deviceId: string;
   enabled?: boolean;
 }
 

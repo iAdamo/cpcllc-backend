@@ -10,11 +10,13 @@ export enum NotificationEvents {
   UPDATE_PREFERENCE = 'notification:update_preference',
   UPDATE_PUSH_TOKEN = 'notification:update_push_token',
   GET_PREFERENCE = 'notification:get_preference',
+  DELETE_NOTIFICATIONS = 'notification:delete',
 
   // Outgoing events
   NOTIFICATION_RECEIVED = SocketEvents.NOTIFICATION_RECEIVED,
   NOTIFICATION_READ = SocketEvents.NOTIFICATION_READ,
   NOTIFICATIONS_FETCHED = 'notification:fetched',
+  NOTIFICATIONS_DELETED = 'notification:deleted',
   UNREAD_COUNT = 'notification:unread_count',
   PREFERENCE_UPDATED = 'notification:preference_updated',
   PREFERENCE_FETCHED = 'notification:preference_fetched',

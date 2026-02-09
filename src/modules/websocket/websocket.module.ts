@@ -31,7 +31,7 @@ export class WebSocketModule {
 
       imports: [
         forwardRef(() => ChatModule),
-        // forwardRef(() => NotificationModule),
+        //  forwardRef(() => NotificationModule),
         forwardRef(() => PresenceModule),
         forwardRef(() => UsersModule),
         NotificationModule,

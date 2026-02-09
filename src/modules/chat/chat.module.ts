@@ -19,6 +19,7 @@ import {
   UserPreference,
   UserPreferenceSchema,
 } from '@schemas/user-preference.schema';
+import { PresenceModule } from '@presence/presence.module';
 
 @Module({
   imports: [
@@ -34,6 +35,8 @@ import {
       { name: UserPreference.name, schema: UserPreferenceSchema },
     ]),
     forwardRef(() => WebSocketModule),
+    forwardRef(() => NotificationModule),
+    forwardRef(() => PresenceModule),
     CacheModule,
   ],
   providers: [ChatService, DbStorageService],

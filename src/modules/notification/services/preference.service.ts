@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -6,30 +6,57 @@ import {
   NotificationCategory,
 } from '../interfaces/notification.interface';
 import {
-  UserPreference,
   UpdatePreferenceDto,
   UpdatePushTokenDto,
   NotificationPreferenceCheck,
 } from '../interfaces/preference.interface';
-import { UserPreference as UserPreferenceDocument } from '../schemas/user-preference.schema';
+import {
+  UserPreferenceDocument,
+  UserPreference,
+} from '../schemas/user-preference.schema';
+import { AuthUser } from '@websocket/interfaces/websocket.interface';
 
 @Injectable()
 export class PreferenceService {
   private readonly logger = new Logger(PreferenceService.name);
 
   constructor(
-    @InjectModel(UserPreferenceDocument.name)
+    @InjectModel(UserPreference.name)
     private readonly preferenceModel: Model<UserPreferenceDocument>,
   ) {}
 
-  async getOrCreate(userId: string): Promise<UserPreference> {
-    let preference = await this.preferenceModel.findOne({ userId });
+  /* -------------------------------------------------------------------------- */
+  /*                               CORE HELPERS                                  */
+  /* -------------------------------------------------------------------------- */
+
+  async getOrCreate(userId: string): Promise<UserPreferenceDocument> {
+    let preference: any;
+    preference = await this.preferenceModel.findOne({ userId });
 
     if (!preference) {
-      preference = await this.createDefault(userId) as any;
+      preference = await this.createDefault(userId);
     }
 
-    return this.toResponse(preference);
+    return preference;
+  }
+
+  private async createDefault(userId: string): Promise<UserPreferenceDocument> {
+    const preference = new this.preferenceModel({
+      userId,
+      enabledChannels: Object.values(NotificationChannel),
+      mutedCategories: [],
+      quietHours: {
+        start: '22:00',
+        end: '08:00',
+        timezone: 'UTC',
+        enabled: false,
+      },
+      pushTokens: [],
+      language: 'en',
+    });
+
+    await preference.save();
+    return preference;
   }
 
   async update(
@@ -41,62 +68,106 @@ export class PreferenceService {
       {
         $set: {
           ...dto,
-          updatedAt: new Date(),
         },
       },
       { new: true, upsert: true },
     );
 
     this.logger.log(`Updated preferences for user: ${userId}`);
-    return this.toResponse(preference);
+    return preference;
   }
 
+  /**
+   * Called on LOGIN / APP START
+   * Guarantees: one device → one active user
+   */
   async updatePushToken(
-    userId: string,
+    user: AuthUser['user'],
     dto: UpdatePushTokenDto,
   ): Promise<void> {
-    const preference = await this.preferenceModel.findOne({ userId });
+    const { userId, deviceId } = user;
 
-    if (!preference) {
-      throw new NotFoundException(`Preferences not found for user: ${userId}`);
+    await this.disableDeviceTokensForOtherUsers(deviceId, userId);
+
+    const preference = await this.getOrCreate(userId);
+
+    if (!Array.isArray(preference.pushTokens)) {
+      preference.pushTokens = [];
     }
 
-    const tokenIndex = preference.pushTokens.findIndex(
-      (token) => token.token === dto.token || token.deviceId === dto.deviceId,
+    const index = preference.pushTokens.findIndex(
+      (t) => t.deviceId === deviceId,
     );
 
     const tokenData = {
       token: dto.token,
       platform: dto.platform,
-      deviceId: dto.deviceId,
-      enabled: dto.enabled ?? true,
+      deviceId,
+      enabled: true,
       createdAt: new Date(),
     };
 
-    if (tokenIndex >= 0) {
-      preference.pushTokens[tokenIndex] = tokenData;
+    if (index >= 0) {
+      preference.pushTokens[index] = tokenData;
     } else {
       preference.pushTokens.push(tokenData);
     }
 
-    preference['updatedAt'] = new Date();
     await preference.save();
 
     this.logger.log(
-      `Updated push token for user: ${userId}, device: ${dto.deviceId}`,
+      `Push token registered | user=${userId} device=${deviceId}`,
+    );
+  }
+
+  /**
+   * Disable device tokens for all OTHER users
+   */
+  private async disableDeviceTokensForOtherUsers(
+    deviceId: string,
+    currentUserId: string,
+  ): Promise<void> {
+    await this.preferenceModel.updateMany(
+      {
+        userId: { $ne: currentUserId },
+        'pushTokens.deviceId': deviceId,
+      },
+      {
+        $set: {
+          'pushTokens.$[token].enabled': false,
+        },
+      },
+      {
+        arrayFilters: [{ 'token.deviceId': deviceId }],
+      },
     );
   }
 
   async removePushToken(userId: string, token: string): Promise<void> {
     await this.preferenceModel.updateOne(
       { userId },
+      { $pull: { pushTokens: { token } }, $set: { updatedAt: new Date() } },
+    );
+    this.logger.log(`Removed push token for user: ${userId}`);
+  }
+
+  /**
+   * MUST be called on LOGOUT
+   */
+  async disablePushTokensForUserDevice(
+    userId: string,
+    deviceId: string,
+  ): Promise<void> {
+    await this.preferenceModel.updateOne(
+      { userId, 'pushTokens.deviceId': deviceId },
       {
-        $pull: { pushTokens: { token } },
-        $set: { updatedAt: new Date() },
+        $set: {
+          'pushTokens.$.enabled': false,
+        },
       },
     );
 
-    this.logger.log(`Removed push token for user: ${userId}`);
+    this.logger.log(`Push tokens disabled | user=${userId} device=${deviceId}`);
   }
 
   async canSendNotification(
@@ -105,8 +176,7 @@ export class PreferenceService {
   ): Promise<NotificationPreferenceCheck> {
     const preference = await this.getOrCreate(userId);
 
-    const isCategoryMuted = preference.mutedCategories.includes(category);
-    if (isCategoryMuted) {
+    if (preference.mutedCategories.includes(category)) {
       return {
         userId,
         canSend: false,
@@ -138,6 +208,9 @@ export class PreferenceService {
     };
   }
 
+  /**
+   * FINAL SAFETY GATE
+   */
   async getActivePushTokens(userId: string): Promise<string[]> {
     const preference = await this.preferenceModel.findOne({ userId });
 
@@ -146,29 +219,8 @@ export class PreferenceService {
     }
 
     return preference.pushTokens
-      .filter((token) => token.enabled)
-      .map((token) => token.token);
-  }
-
-  private async createDefault(userId: string): Promise<UserPreferenceDocument> {
-    const preference = new this.preferenceModel({
-      userId,
-      enabledChannels: Object.values(NotificationChannel),
-      mutedCategories: [],
-      quietHours: {
-        start: '22:00',
-        end: '08:00',
-        timezone: 'UTC',
-        enabled: false,
-      },
-      pushTokens: [],
-      language: 'en',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    await preference.save();
-    return preference;
+      .filter((t) => t.enabled === true)
+      .map((t) => t.token);
   }
 
   private isQuietHours(preference: UserPreference): boolean {
@@ -176,8 +228,9 @@ export class PreferenceService {
       return false;
     }
 
-    const { start, end, timezone } = preference.quietHours;
+    const { start, end } = preference.quietHours;
     const now = new Date();
+
     const [startHour, startMinute] = start.split(':').map(Number);
     const [endHour, endMinute] = end.split(':').map(Number);
 
@@ -192,27 +245,5 @@ export class PreferenceService {
     }
 
     return now >= startTime && now <= endTime;
-  }
-
-  private toResponse(preference: UserPreferenceDocument): UserPreference {
-    return {
-      userId: preference.userId.toString(),
-      enabledChannels: preference.enabledChannels as NotificationChannel[],
-      mutedCategories: preference.mutedCategories as NotificationCategory[],
-      quietHours: preference.quietHours,
-      pushTokens: preference.pushTokens.map((token) => ({
-        token: token.token,
-        platform: token.platform as 'IOS' | 'ANDROID' | 'WEB',
-        deviceId: token.deviceId,
-        enabled: token.enabled,
-        createdAt: token.createdAt,
-      })),
-      email: preference.email,
-      phone: preference.phone,
-      language: preference.language,
-      deviceInfo: preference.deviceInfo,
-      createdAt: preference['createdAt'],
-      updatedAt: preference['updatedAt'],
-    };
   }
 }

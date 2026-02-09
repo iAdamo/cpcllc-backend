@@ -112,6 +112,9 @@ export class User {
   @Prop({ required: false })
   status: string;
 
+  @Prop({ default: false })
+  isOnboardingComplete: boolean;
+
   @Prop({ type: [Device], default: [] })
   devices: Device[];
 
