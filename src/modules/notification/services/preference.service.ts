@@ -9,12 +9,14 @@ import {
   UpdatePreferenceDto,
   UpdatePushTokenDto,
   NotificationPreferenceCheck,
+  IUserPreference,
 } from '../interfaces/preference.interface';
 import {
   UserPreferenceDocument,
   UserPreference,
 } from '../schemas/user-preference.schema';
 import { AuthUser } from '@websocket/interfaces/websocket.interface';
+import { User } from '@users/schemas/user.schema';
 
 @Injectable()
 export class PreferenceService {
@@ -29,7 +31,7 @@ export class PreferenceService {
   /*                               CORE HELPERS                                  */
   /* -------------------------------------------------------------------------- */
 
-  async getOrCreate(userId: string): Promise<UserPreferenceDocument> {
+  async getOrCreate(userId: string): Promise<any> {
     let preference: any;
     preference = await this.preferenceModel.findOne({ userId });
 
@@ -89,7 +91,7 @@ export class PreferenceService {
 
     await this.disableDeviceTokensForOtherUsers(deviceId, userId);
 
-    const preference = await this.getOrCreate(userId);
+    const preference: UserPreferenceDocument = await this.getOrCreate(userId);
 
     if (!Array.isArray(preference.pushTokens)) {
       preference.pushTokens = [];
@@ -102,6 +104,7 @@ export class PreferenceService {
     const tokenData = {
       token: dto.token,
       platform: dto.platform,
+      activeUserId: user.userId,
       deviceId,
       enabled: true,
       createdAt: new Date(),
@@ -134,11 +137,16 @@ export class PreferenceService {
       },
       {
         $set: {
-          'pushTokens.$[token].enabled': false,
+          'pushTokens.$[token].activeUserId': null,
         },
       },
       {
-        arrayFilters: [{ 'token.deviceId': deviceId }],
+        arrayFilters: [
+          {
+            'token.deviceId': deviceId,
+            'token.activeUserId': { $ne: null },
+          },
+        ],
       },
     );
   }
@@ -154,15 +162,14 @@ export class PreferenceService {
   /**
    * MUST be called on LOGOUT
    */
-  async disablePushTokensForUserDevice(
-    userId: string,
-    deviceId: string,
-  ): Promise<void> {
+  async disablePushTokensForUserDevice(user: AuthUser['user']): Promise<void> {
+    const { userId, deviceId } = user;
+
     await this.preferenceModel.updateOne(
       { userId, 'pushTokens.deviceId': deviceId },
       {
         $set: {
-          'pushTokens.$.enabled': false,
+          'pushTokens.$.activeUserId': null,
         },
       },
     );
@@ -174,7 +181,7 @@ export class PreferenceService {
     userId: string,
     category: NotificationCategory,
   ): Promise<NotificationPreferenceCheck> {
-    const preference = await this.getOrCreate(userId);
+    const preference: UserPreferenceDocument = await this.getOrCreate(userId);
 
     if (preference.mutedCategories.includes(category)) {
       return {
@@ -206,21 +213,6 @@ export class PreferenceService {
       isQuietHours: false,
       isCategoryMuted: false,
     };
-  }
-
-  /**
-   * FINAL SAFETY GATE
-   */
-  async getActivePushTokens(userId: string): Promise<string[]> {
-    const preference = await this.preferenceModel.findOne({ userId });
-
-    if (!preference) {
-      return [];
-    }
-
-    return preference.pushTokens
-      .filter((t) => t.enabled === true)
-      .map((t) => t.token);
   }
 
   private isQuietHours(preference: UserPreference): boolean {

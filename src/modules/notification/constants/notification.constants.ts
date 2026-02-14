@@ -30,12 +30,12 @@ export const DEFAULT_CHANNEL_CONFIG: DeliveryConfig = {
     timeout: 60000,
     rateLimit: { maxRequests: 50, timeWindow: 3600 },
   },
-  [NotificationChannel.IN_APP]: {
-    enabled: true,
-    maxRetries: 1,
-    retryDelay: 1000,
-    timeout: 5000,
-  },
+  // [NotificationChannel.IN_APP]: {
+  //   enabled: true,
+  //   maxRetries: 1,
+  //   retryDelay: 1000,
+  //   timeout: 5000,
+  // },
 };
 
 export const PRIORITY_MAPPING: Record<NotificationPriority, number> = {

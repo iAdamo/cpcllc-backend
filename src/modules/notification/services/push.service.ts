@@ -83,10 +83,14 @@ export class PushService {
         let result: PushResult;
         const tokens = await this.getUserPushTokens(recipient);
         for (const token of tokens) {
-          if (this.isExpoToken(token)) {
-            result = await this.sendToExpo(token, message);
-          } else if (this.isWebPushToken(token)) {
-            result = await this.sendToWebPush(token, message);
+          if (this.isExpoToken(token.token)) {
+            result = await this.sendToExpo(token.token, message);
+          } else if (this.isWebPushToken(token.token)) {
+            result = await this.sendToWebPush(token.token, message);
+          } else if (token.success) {
+            result = {
+              success: token.success,
+            };
           } else {
             result = {
               success: false,
@@ -114,24 +118,6 @@ export class PushService {
       messageId: `batch_${Date.now()}`,
       ...(failedCount > 0 && { error: `${failedCount} tokens failed` }),
     };
-  }
-
-  /**
-   * Send push to all active tokens for a user
-   */
-  async sendToUser(
-    userId: string,
-    title: string,
-    body: string,
-    data?: Record<string, any>,
-  ): Promise<PushResult> {
-    const tokens = await this.getUserPushTokens(userId);
-
-    if (tokens.length === 0) {
-      return { success: false, error: 'No push tokens available for user' };
-    }
-
-    return this.send({ to: tokens, title, body, data, priority: 'high' });
   }
 
   private async sendToExpo(
@@ -193,11 +179,29 @@ export class PushService {
     }
   }
 
-  private async getUserPushTokens(userId: string): Promise<string[]> {
-    const preference = await this.preferenceModel.findOne({ userId });
-    if (!preference) return [];
+  private async getUserPushTokens(
+    userId: string,
+  ): Promise<{ token: string; success: boolean }[]> {
+    const preference = await this.preferenceModel.findOne({ userId }).lean();
 
-    return preference.pushTokens.filter((t) => t.enabled).map((t) => t.token);
+    // User has no preference record → real failure
+    if (!preference) {
+      return [{ token: '', success: false }];
+    }
+
+    const tokens = preference.pushTokens.filter(
+      (t) => t.enabled && t.activeUserId === userId,
+    );
+
+    // No usable tokens, but still a successful notification lifecycle
+    if (tokens.length === 0) {
+      return [{ token: '', success: true }];
+    }
+
+    return tokens.map((t) => ({
+      token: t.token,
+      success: true,
+    }));
   }
 
   private isExpoToken(token: string): boolean {

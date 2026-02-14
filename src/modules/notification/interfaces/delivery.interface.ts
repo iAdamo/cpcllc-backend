@@ -53,5 +53,4 @@ export interface DeliveryConfig {
   [NotificationChannel.EMAIL]: ChannelConfig;
   [NotificationChannel.PUSH]: ChannelConfig;
   [NotificationChannel.SMS]: ChannelConfig;
-  [NotificationChannel.IN_APP]: ChannelConfig;
 }

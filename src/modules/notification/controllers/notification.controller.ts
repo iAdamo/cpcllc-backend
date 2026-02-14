@@ -148,11 +148,8 @@ export class NotificationController {
   @Post('push-token/disable')
   @ApiOperation({ summary: 'Disable push notification token' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  async disablePushToken(@Req() req: AuthUser['user']): Promise<void> {
-    await this.preferenceService.disablePushTokensForUserDevice(
-      req.userId,
-      req.deviceId,
-    );
+  async disablePushToken(@Req() req: AuthUser): Promise<void> {
+    await this.preferenceService.disablePushTokensForUserDevice(req.user);
   }
 
   @Delete('push-token/:token')

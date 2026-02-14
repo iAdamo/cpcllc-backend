@@ -22,7 +22,7 @@ import { PresenceEvents } from '@websocket/events/presence.events';
 import { PRESENCE_STATUS } from '@presence/constants/presence.constants';
 import { PresenceService } from '@presence/presence.service';
 import { ResEventEnvelope } from '../interfaces/websocket.interface';
-
+import { NotificationService } from '@notification/services/notification.service';
 /**
  * Main WebSocket Gateway - Single entry point for all WebSocket communications
  * Handles connection lifecycle, authentication, routing, and rate limiting
@@ -51,6 +51,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
     private readonly rateLimiter: RateLimiterService,
     private readonly configService: ConfigService,
     private readonly presenceService: PresenceService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -93,8 +94,6 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
         client.disconnect(true);
         return;
       }
-      // const userIdStr = userId.toString();
-      // client.join(`user:${userIdStr}`);
 
       // Register user session
       await this.socketManager.addUserSession(
@@ -105,11 +104,11 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection {
       );
 
       // Update last seen
-      await this.socketManager.updateSession({
-        userId: client.user.userId,
-        deviceId: client.user.deviceId,
-        updates: { lastSeen: new Date(), status: PRESENCE_STATUS.ONLINE },
-      });
+      // await this.socketManager.updateSession({
+      //   userId: client.user.userId,
+      //   deviceId: client.user.deviceId,
+      //   updates: { lastSeen: new Date(), status: PRESENCE_STATUS.ONLINE },
+      // });
 
       // Notify presence system
       client.emit(SocketEvents.CONNECTION, {

@@ -57,6 +57,7 @@ export class UserPreference {
           enum: ['IOS', 'ANDROID', 'WEB'],
           required: true,
         },
+        activeUserId: { type: String, default: null },
         deviceId: { type: String, required: true },
         enabled: { type: Boolean, default: true },
         createdAt: { type: Date, default: Date.now },
@@ -67,6 +68,7 @@ export class UserPreference {
   pushTokens: Array<{
     token: string;
     platform: string;
+    activeUserId: string;
     deviceId: string;
     enabled: boolean;
     createdAt: Date;

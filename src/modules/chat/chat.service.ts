@@ -1,4 +1,3 @@
-import { Notification } from './../notification/schemas/notification.schema';
 import {
   Injectable,
   Logger,
@@ -35,6 +34,8 @@ import {
   NotificationCategory,
   NotificationChannel,
   NotificationPriority,
+  CreateNotificationDto,
+  ActionType,
 } from '@notification/interfaces/notification.interface';
 type LeanMessage = FlattenMaps<MessageDocument> & { _id: Types.ObjectId };
 
@@ -269,24 +270,18 @@ export class ChatService {
         const id = uid.toString();
         if (id !== senderId) {
           chat.unreadCounts.set(id, (chat.unreadCounts.get(id) || 0) + 1);
-          const presence = await this.presenceService.getPresence({
+
+          const data: CreateNotificationDto = {
             userId: id,
-          });
-          console.log({ presence });
-          if (
-            presence.status !== 'online' ||
-            presence.metadata.state === 'background'
-          ) {
-            const data = {
-              userId: id,
-              title: 'New Message',
-              body: message.content.text,
-              category: NotificationCategory.MESSAGE,
-              priority: NotificationPriority.NORMAL,
-              channels: [NotificationChannel.PUSH],
-            };
-            await this.notificationService.create(data);
-          }
+            title: 'New Message',
+            body: message.content.text,
+            category: NotificationCategory.MESSAGE,
+            priority: NotificationPriority.NORMAL,
+            channels: [NotificationChannel.PUSH],
+            actionType: ActionType.OPEN_CHAT,
+            actionUrl: chatId,
+          };
+          await this.notificationService.create(data);
         }
       }
 
@@ -384,6 +379,47 @@ export class ChatService {
         },
       ])
       .lean();
+  }
+
+  async getChatById(userId: Types.ObjectId, chatId: string) {
+    const user = await this.userModel.findById(userId);
+
+    if (!user || !user.isActive) {
+      throw new BadRequestException('Invalid user');
+    }
+
+    const baseQuery: any = {
+      _id: chatId,
+      isActive: true,
+    };
+
+    if (user.activeRole === 'Client') {
+      baseQuery.clientUserId = userId;
+    } else {
+      baseQuery.providerUserId = userId;
+    }
+
+    const chat = await this.chatModel
+      .findOne(baseQuery)
+      .populate([
+        { path: 'clientUserId', select: 'firstName lastName profilePicture' },
+        {
+          path: 'providerUserId',
+          select: 'firstName lastName profilePicture activeRoleId',
+          populate: {
+            path: 'activeRoleId',
+            model: 'Provider',
+            select: 'providerName providerLogo',
+          },
+        },
+      ])
+      .lean();
+
+    if (!chat) {
+      throw new NotFoundException('Chat not found');
+    }
+
+    return chat;
   }
 
   /**

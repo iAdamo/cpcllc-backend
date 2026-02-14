@@ -63,6 +63,16 @@ export class ChatController {
     );
   }
 
+  @Get(':chatId')
+  async getChatById(
+    @Req() req: RequestWithUser,
+    @Param('chatId') chatId: string,
+  ) {
+    const userId = new Types.ObjectId(req.user.userId);
+
+    return this.chatService.getChatById(userId, chatId);
+  }
+
   @Get(':chatId/messages')
   async getChatMessages(
     @Param('chatId') chatId: string,

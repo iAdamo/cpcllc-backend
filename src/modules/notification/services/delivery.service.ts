@@ -109,9 +109,6 @@ export class DeliveryService {
         case NotificationChannel.SMS:
           result = await this.deliverSms(jobData);
           break;
-        case NotificationChannel.IN_APP:
-          result = await this.deliverInApp(jobData);
-          break;
         default:
           throw new Error(`Unsupported channel: ${channel}`);
       }
@@ -197,19 +194,6 @@ export class DeliveryService {
       success: result.success,
       channel: NotificationChannel.SMS,
       messageId: result.messageId,
-      deliveredAt: new Date(),
-      retryCount: jobData.retryCount,
-    };
-  }
-
-  private async deliverInApp(
-    jobData: DeliveryJobData,
-  ): Promise<DeliveryResult> {
-    // In-app delivery is handled by WebSocket gateway
-    // This just marks it as delivered
-    return {
-      success: true,
-      channel: NotificationChannel.IN_APP,
       deliveredAt: new Date(),
       retryCount: jobData.retryCount,
     };

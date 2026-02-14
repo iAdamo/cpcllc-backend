@@ -3,7 +3,7 @@ import {
   NotificationCategory,
 } from './notification.interface';
 
-export interface UserPreference {
+export interface IUserPreference {
   userId: string;
   enabledChannels: NotificationChannel[];
   mutedCategories: NotificationCategory[];
@@ -25,6 +25,7 @@ export interface UserPreference {
 export interface PushToken {
   token: string;
   platform: 'IOS' | 'ANDROID' | 'WEB';
+  activeUserId?: string;
   deviceId: string;
   enabled: boolean;
   createdAt: Date;

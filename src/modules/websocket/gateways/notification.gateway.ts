@@ -20,6 +20,7 @@ import {
   FilterNotificationsDto,
 } from '../../notification/interfaces/notification.interface';
 import {
+  IUserPreference,
   UpdatePreferenceDto,
   UpdatePushTokenDto,
 } from '../../notification/interfaces/preference.interface';
@@ -81,7 +82,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
           break;
 
         case NotificationEvents.GET_UNREAD_COUNT:
-          await this.handleGetUnreadCount(userId, data, socket);
+          await this.handleGetUnreadCount(server, userId, data, socket);
           break;
 
         case NotificationEvents.UPDATE_PREFERENCE:
@@ -181,6 +182,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
   }
 
   private async handleGetUnreadCount(
+    server: EventHandlerContext['server'],
     userId: string,
     data: { tenantId?: string },
     socket: Socket,
@@ -189,7 +191,12 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
       userId,
       data?.tenantId,
     );
-    socket.emit(NotificationEvents.UNREAD_COUNT, { count });
+    await this.socketManager.sendToUser({
+      server,
+      userId,
+      event: NotificationEvents.UNREAD_COUNT,
+      data: { count },
+    });
   }
 
   private async handleUpdatePreference(
@@ -203,7 +210,7 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
       server,
       userId,
       event: NotificationEvents.PREFERENCE_UPDATED,
-      data: { ...preference },
+      data: preference,
     });
   }
 
@@ -221,12 +228,14 @@ export class NotificationGateway implements EventHandler, OnModuleInit {
     userId: string,
     socket: Socket,
   ): Promise<void> {
-    const preference = await this.preferenceService.getOrCreate(userId);
+    const preference: IUserPreference =
+      await this.preferenceService.getOrCreate(userId);
+    console.log({ preference });
     await this.socketManager.sendToUser({
       server,
       userId,
       event: NotificationEvents.PREFERENCE_FETCHED,
-      data: { ...preference },
+      data: preference,
     });
     // socket.emit(NotificationEvents.PREFERENCE_FETCHED, {
     //   version: '1.0.0',

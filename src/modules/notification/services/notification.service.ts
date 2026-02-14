@@ -221,7 +221,7 @@ export class NotificationService {
     };
 
     if (tenantId) query.tenantId = tenantId;
-
+    console.log({ query });
     return this.notificationModel.countDocuments(query);
   }
 
@@ -232,24 +232,14 @@ export class NotificationService {
     dto: CreateNotificationDto,
     preferredChannels: NotificationChannel[],
   ): Promise<NotificationChannel[]> {
-    let channels = dto.channels || [NotificationChannel.IN_APP];
+    let channels = dto.channels;
 
     // Filter by user preferences
     channels = channels.filter((channel) =>
       preferredChannels.includes(channel),
     );
 
-    // Always include IN_APP for high priority
-    if (
-      dto.priority === NotificationPriority.HIGH ||
-      dto.priority === NotificationPriority.URGENT
-    ) {
-      if (!channels.includes(NotificationChannel.IN_APP)) {
-        channels.push(NotificationChannel.IN_APP);
-      }
-    }
-
-    return channels.length > 0 ? channels : [NotificationChannel.IN_APP];
+    return channels;
   }
 
   async queueNotificationDelivery(

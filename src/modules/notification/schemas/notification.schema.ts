@@ -61,7 +61,7 @@ export class Notification {
   @Prop({
     type: [String],
     enum: Object.values(NotificationChannel),
-    default: [NotificationChannel.IN_APP],
+    default: [NotificationChannel.EMAIL],
   })
   channels: NotificationChannel[];
 
