@@ -5,9 +5,11 @@ import { PresenceController } from './presence.controller';
 import { Presence, PresenceSchema } from '@presence/schemas/presence.schema';
 import { WebSocketModule } from '@websocket/websocket.module';
 import { CacheModule } from '@cache/cache.module';
+import { NotificationModule } from '@notification/notification.module';
 
 @Module({
   imports: [
+    NotificationModule,
     MongooseModule.forFeature([
       { name: Presence.name, schema: PresenceSchema },
     ]),

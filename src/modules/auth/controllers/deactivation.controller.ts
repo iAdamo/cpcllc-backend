@@ -17,7 +17,7 @@ export class DeactivationController {
 
   @Post('deactivate')
   async deactivateAccount(
-    @Req() user: AuthUser['user'],
+    @Req() req: AuthUser,
     @Body()
     body: {
       password: string;
@@ -25,7 +25,7 @@ export class DeactivationController {
       shouldDeleteAfter30Days?: boolean;
     },
   ) {
-    return this.deactivationService.deactivateAccount(user.userId, {
+    return this.deactivationService.deactivateAccount(req.user.userId, {
       ...body,
       initiatedBy: 'Client',
     });
@@ -41,14 +41,14 @@ export class DeactivationController {
 
   @Post('cancel-deletion')
   async cancelDeletion(
-    @Req() user: AuthUser['user'],
+    @Req() req: AuthUser,
     @Body('password') password?: string,
   ) {
-    return this.deactivationService.cancelDeletion(user.userId, password);
+    return this.deactivationService.cancelDeletion(req.user.userId, password);
   }
 
   @Get('deactivation-status')
-  async getDeactivationStatus(@Req() user: AuthUser['user']) {
-    return this.deactivationService.getDeactivationStatus(user.userId);
+  async getDeactivationStatus(@Req() req: AuthUser) {
+    return this.deactivationService.getDeactivationStatus(req.user.userId);
   }
 }

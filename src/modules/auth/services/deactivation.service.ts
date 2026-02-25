@@ -213,9 +213,7 @@ export class DeactivationService {
         throw new NotFoundException('User not found');
       }
 
-      if (user.isActive) {
-        throw new BadRequestException('Account is already active');
-      }
+      if (user.isActive) return;
 
       if (user.isDeleted) {
         throw new BadRequestException(

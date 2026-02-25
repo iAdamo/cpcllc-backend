@@ -21,6 +21,14 @@ import {
   EventHandlerContext,
   UserSession,
 } from '@websocket/interfaces/websocket.interface';
+import { NotificationService } from '@notification/services/notification.service';
+import {
+  CreateNotificationDto,
+  NotificationCategory,
+  NotificationChannel,
+  NotificationPriority,
+  ActionType,
+} from '@notification/interfaces/notification.interface';
 
 @Injectable()
 export class PresenceService implements OnModuleInit {
@@ -33,6 +41,7 @@ export class PresenceService implements OnModuleInit {
     @InjectRedis()
     private readonly redis: Redis,
     private readonly socketManager: SocketManagerService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async onModuleInit() {
@@ -134,45 +143,68 @@ export class PresenceService implements OnModuleInit {
   async subscribeToPresence(
     server: EventHandlerContext['server'],
     subscriberId: string,
-    targetIds: string[],
+    targetId: string,
+    response?: {
+      providerId: string;
+      userId: string;
+      userName: string;
+      userImage: string;
+      followersCount: number;
+      isFollowing: boolean;
+      followedBy: string[];
+    },
   ): Promise<void> {
-    const presence = await this.getPresence({
-      userId: subscriberId,
-    });
-    for (const targetId of targetIds) {
-      if (subscriberId === targetId) continue;
+    // const presence = await this.getPresence({
+    //   userId: subscriberId,
+    // });
+    if (subscriberId === targetId) return;
 
-      if (subscriberId && targetId) {
-        const subscriptionKey = this.getSubscriptionKey(subscriberId);
-        await this.redis.sadd(subscriptionKey, targetId);
+    if (subscriberId && targetId) {
+      const subscriptionKey = this.getSubscriptionKey(subscriberId);
+      await this.redis.sadd(subscriptionKey, targetId);
 
-        const subscriberKey = this.getSubscriberKey(targetId);
-        await this.redis.sadd(subscriberKey, subscriberId);
+      const subscriberKey = this.getSubscriberKey(targetId);
+      await this.redis.sadd(subscriberKey, subscriberId);
 
-        // const afterSubscriptions = await this.redis.smembers(subscriptionKey);
-        // const afterSubscribers = await this.redis.smembers(subscriberKey);
+      // const afterSubscriptions = await this.redis.smembers(subscriptionKey);
+      // const afterSubscribers = await this.redis.smembers(subscriberKey);
 
-        // console.log({ afterSubscriptions, afterSubscribers });
-      } else {
-        this.logger.error(
-          'Presence error: subscriberId or targetId is undefined',
-        );
-        return;
-      }
-      // console.log('from sub', { presence });
-      if (presence) {
-        await this.socketManager.sendToUser({
-          server,
-          userId: targetId,
-          event: PresenceEvents.SUBSCRIBE,
-          data: this.toResponse({ ...presence, message: 'subscribed' }),
-        });
-      }
+      // console.log({ afterSubscriptions, afterSubscribers });
+    } else {
+      this.logger.error(
+        'Presence error: subscriberId or targetId is undefined',
+      );
+      return;
     }
 
-    this.logger.debug(
-      `User ${subscriberId} subscribed to ${targetIds.length} users`,
-    );
+    await this.socketManager.sendToUser({
+      userId: subscriberId,
+      event: PresenceEvents.SUBSCRIBED,
+      data: response,
+      server,
+    });
+
+    await this.socketManager.sendToUser({
+      userId: targetId,
+      event: PresenceEvents.SUBSCRIBED,
+      data: response,
+      server,
+    });
+
+    const notifData: CreateNotificationDto = {
+      userId: targetId,
+      title: 'You have a new follower',
+      body: `${response.userName}`,
+      metadata: { thumbnail: response.userImage },
+      category: NotificationCategory.FRIEND_REQUEST,
+      priority: NotificationPriority.NORMAL,
+      channels: [NotificationChannel.PUSH],
+      actionType: ActionType.VIEW_PROFILE,
+      // actionUrl: chatId,
+    };
+
+    await this.notificationService.create(notifData);
+    this.logger.debug(`User ${subscriberId} subscribed to ${targetId} users`);
   }
 
   /**
@@ -181,30 +213,41 @@ export class PresenceService implements OnModuleInit {
   async unsubscribeFromPresence(
     server: EventHandlerContext['server'],
     subscriberId: string,
-    targetIds: string[],
+    targetId: string,
+    response?: {
+      providerId: string;
+      userId: string;
+      userName: string;
+      userImage: string;
+      followersCount: number;
+      isFollowing: boolean;
+      followedBy: string[];
+    },
   ): Promise<void> {
-    const presence = await this.getPresence({
+    // const presence = await this.getPresence({
+    //   userId: subscriberId,
+    // });
+    const subscriptionKey = this.getSubscriptionKey(subscriberId);
+    await this.redis.srem(subscriptionKey, targetId);
+
+    const subscriberKey = this.getSubscriberKey(targetId);
+    await this.redis.srem(subscriberKey, subscriberId);
+    await this.socketManager.sendToUser({
       userId: subscriberId,
+      event: PresenceEvents.SUBSCRIBED,
+      data: response,
+      server,
     });
-    for (const targetId of targetIds) {
-      const subscriptionKey = this.getSubscriptionKey(subscriberId);
-      await this.redis.srem(subscriptionKey, targetId);
 
-      const subscriberKey = this.getSubscriberKey(targetId);
-      await this.redis.srem(subscriberKey, subscriberId);
-
-      if (presence) {
-        await this.socketManager.sendToUser({
-          server,
-          userId: targetId,
-          event: PresenceEvents.SUBSCRIBE,
-          data: this.toResponse({ ...presence, message: 'unsubscribed' }),
-        });
-      }
-    }
+    await this.socketManager.sendToUser({
+      userId: targetId,
+      event: PresenceEvents.SUBSCRIBED,
+      data: response,
+      server,
+    });
 
     this.logger.debug(
-      `User ${subscriberId} unsubscribed from ${targetIds.length} users`,
+      `User ${subscriberId} unsubscribed from ${targetId} users`,
     );
   }
 
@@ -479,16 +522,7 @@ export class PresenceService implements OnModuleInit {
   private getSubscriberKey(userId: string): string {
     return `presence:subscribers:${userId}`;
   }
-  //  presence: {
-  //     _id: new ObjectId('6922b0b15107d07ee7e58a4b'),
-  //     userId: '69223f4bd76b5cfba0a7cbc8',
-  //     __v: 0,
-  //     isOnline: false,
-  //     lastSeen: 2025-12-10T05:24:00.088Z,
-  //     availability: 'available',
-  //     status: 'offline',
-  //     updatedAt: 2025-12-10T11:28:28.824Z
-  //   }
+
   private toResponse(presence: Presence): PresenceResponse {
     return {
       userId: presence.userId.toString(),

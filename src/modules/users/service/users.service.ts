@@ -184,6 +184,9 @@ export class UsersService {
     providerId: string,
   ): Promise<{
     providerId: string;
+    userId: string;
+    userName: string;
+    userImage: string;
     followersCount: number;
     isFollowing: boolean;
     followedBy: string[];
@@ -233,6 +236,9 @@ export class UsersService {
       .lean();
     return {
       providerId: newProvider['_id'].toString(),
+      userId,
+      userName: `${user.firstName} ${user.lastName}`,
+      userImage: user.profilePicture.thumbnail,
       followersCount: newProvider.followersCount,
       isFollowing: newProvider.followedBy.some((p) => p.toString() === userId),
       followedBy: newProvider.followedBy.map((id) => id.toString()),

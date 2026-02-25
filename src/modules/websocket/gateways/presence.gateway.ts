@@ -1,6 +1,5 @@
 import { Logger, Injectable } from '@nestjs/common';
-import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
 import { EventRouterService } from '@websocket/services/event-router.service';
 import {
   EventHandler,
@@ -147,36 +146,28 @@ export class PresenceGateway implements EventHandler {
   ): Promise<void> {
     const response = await this.userService.toggleFollowProvider(
       userId,
-      data.userIds[0],
+      data.userId,
     );
     // console.log({ userId, data });
     if (!response.isFollowing) {
       await this.presenceService.unsubscribeFromPresence(
         server,
         userId,
-        data.userIds,
+        data.userId,
+        response,
       );
     } else {
       await this.presenceService.subscribeToPresence(
         server,
         userId,
-        data.userIds,
+        data.userId,
+        response,
       );
     }
     // Send current status of subscribed users
     // const batchResponse = await this.presenceService.getBulkPresence(
     //   data.userIds,
     // );
-
-    socket.emit(PresenceEvents.SUBSCRIBED, {
-      ...response,
-      userIds: data.userIds,
-      // ...batchResponse,
-    });
-
-    this.logger.debug(
-      `User ${userId} subscribed to ${data.userIds.length} users`,
-    );
   }
 
   private async handleGetSubscriptions(

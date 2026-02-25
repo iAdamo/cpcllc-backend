@@ -119,7 +119,7 @@ export class ChatService {
       throw new NotFoundException('User not found');
     }
 
-    // 🔒 RULE: only clients can initiate chats
+    // RULE: only clients can initiate chats
     if (initiator.activeRole !== 'Client') {
       throw new BadRequestException('Only clients can initiate conversations');
     }

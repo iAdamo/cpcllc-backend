@@ -21,7 +21,7 @@ export interface UpdatePresenceDto {
 }
 
 export interface SubscribePresenceDto {
-  userIds: string[];
+  userId: string;
 }
 
 export interface PresenceResponse {

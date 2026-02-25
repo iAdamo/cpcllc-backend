@@ -166,6 +166,12 @@ export class JwtService {
   ): Promise<any> {
     const user = await this.validateUser(loginData.email, loginData.password);
     const userId = user['_id'];
+
+    await this.deactivationService.reactivateAccount(userId, {
+      password: loginData.password,
+      initiatedBy: 'Client',
+    });
+
     const payload = {
       userId: userId.toString(),
       email: user.email,
