@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ScheduleModule } from '@nestjs/schedule';
 import { PresenceService } from '@presence/presence.service';
 import { PresenceController } from './presence.controller';
 import { Presence, PresenceSchema } from '@presence/schemas/presence.schema';
@@ -14,7 +13,6 @@ import { CacheModule } from '@cache/cache.module';
     ]),
     forwardRef(() => WebSocketModule),
     CacheModule,
-    ScheduleModule.forRoot(),
   ],
   controllers: [PresenceController],
   providers: [PresenceService],

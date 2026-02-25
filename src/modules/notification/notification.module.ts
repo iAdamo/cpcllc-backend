@@ -1,7 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BullModule } from '@nestjs/bullmq';
-import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationService } from './services/notification.service';
 import { PreferenceService } from './services/preference.service';
 import { DeliveryService } from './services/delivery.service';
@@ -61,7 +60,6 @@ import {
       NOTIFICATION_CLEANUP_QUEUE_CONFIG,
     ),
 
-    ScheduleModule.forRoot(),
   ],
 
   providers: [

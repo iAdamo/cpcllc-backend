@@ -13,6 +13,7 @@ import { LoginDto } from '@dto/login.dto';
 import { CreateUserDto } from '@dto/create-user.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { SkipTerms, Public } from 'src/common/decorators/guard.decorator';
+import { AuthUser } from '@websocket/interfaces/websocket.interface';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -68,5 +69,29 @@ export class JwtController {
   @Public()
   async resetPassword(@Body() body: { email: string; password: string }) {
     return this.jwtService.resetPassword(body.email, body.password);
+  }
+
+  @Post('change-password')
+  async changePassword(
+    @Req() req: AuthUser,
+    @Body() body: { currentPassword: string; password: string },
+  ) {
+    return this.jwtService.changePassword(
+      req.user.userId,
+      body.currentPassword,
+      body.password,
+    );
+  }
+  @Post('deactivate')
+  async deactivateAccount(
+    @Req() req: AuthUser,
+    data: {
+      type: string;
+      password: string;
+      reason: string;
+    },
+  ) {
+    const userId = req.user.userId;
+    return this.jwtService.deactivateAccount(userId, data);
   }
 }

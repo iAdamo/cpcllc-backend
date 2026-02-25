@@ -127,6 +127,31 @@ export class User {
   @Prop({ type: Date })
   termsInvalidatedAt?: Date;
 
+  @Prop({ type: Date, required: false })
+  passwordChangedAt: Date;
+
+  @Prop({
+    type: {
+      reason: { type: String },
+      date: { type: Date, default: Date.now },
+      initiatedBy: { type: String, enum: ['Client', 'Admin'] },
+    },
+  })
+  deactivation?: {
+    reason: string;
+    date: Date;
+    initiatedBy: 'Client' | 'Admin';
+  };
+
+  @Prop({ default: false })
+  isDeleted: boolean;
+
+  @Prop({ type: Date })
+  deletionRequestedAt?: Date;
+
+  @Prop({ type: Date })
+  scheduledDeletionAt?: Date;
+
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Provider' }], default: [] })
   hiredCompanies: Types.ObjectId[];
 
@@ -162,6 +187,13 @@ UserSchema.set('toJSON', {
     return ret;
   },
 });
+
+// Add these indexes to your User schema for performance:
+
+UserSchema.index({ scheduledDeletionAt: 1 }, { sparse: true });
+UserSchema.index({ isDeleted: 1, scheduledDeletionAt: 1 });
+UserSchema.index({ 'deactivation.date': 1 });
+UserSchema.index({ deletionRetryCount: 1, lastDeletionAttempt: 1 });
 
 UserSchema.pre<UserDocument>('save', async function (next) {
   if (!this.isModified('password')) return next();

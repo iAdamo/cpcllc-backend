@@ -110,4 +110,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsMongoId()
   activeRoleId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  passwordChangedAt?: Date;
 }

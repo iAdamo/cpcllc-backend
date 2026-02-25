@@ -35,7 +35,8 @@
         "src/modules/review/schemas/*",
         "src/modules/provider/schemas/*",
         "src/modules/chat/schemas/*",
-        "src/modules/notification/schemas/*"
+        "src/modules/notification/schemas/*",
+        "src/modules/presence/schemas/*"
       ],
       "@dto/*": [
         "src/modules/users/dto/*",

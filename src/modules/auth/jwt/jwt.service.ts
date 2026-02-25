@@ -9,6 +9,7 @@ import { Response, Request } from 'express';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { UsersService } from '@users/service/users.service';
+import { DeactivationService } from '@auth/services/deactivation.service';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Provider, ProviderDocument } from '@modules/schemas/provider.schema';
 import { CreateUserDto } from '@dto/create-user.dto';
@@ -26,6 +27,7 @@ export class JwtService {
     @InjectModel(Provider.name)
     private readonly providerModel: Model<ProviderDocument>,
     private readonly usersService: UsersService,
+    private readonly deactivationService: DeactivationService,
   ) {}
 
   private readonly ERROR_MESSAGES = {
@@ -289,5 +291,83 @@ export class JwtService {
     );
 
     return { message: 'Password reset successful' };
+  }
+
+  /**
+   * Change the user's password
+   * @param userId - ID of the authenticated user
+   * @param currentPassword - User's current password
+   * @param password - New password
+   * @returns Confirmation message
+   */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    password: string,
+  ) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+
+    const user = await this.userModel.findById(userId);
+
+    if (!user || !user.isActive) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const isSamePassword = await bcrypt.compare(password, user.password);
+
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
+    }
+
+    const saltRounds = 10;
+    const salt = await bcrypt.genSalt(saltRounds);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    user.password = hashedPassword;
+    user.passwordChangedAt = new Date();
+
+    await user.save();
+
+    return {
+      message: 'Password changed successfully',
+    };
+  }
+
+  /**
+   * Deactivate client's account
+   * @param userId
+   * @param data
+   * @returns
+   */
+  async deactivateAccount(
+    userId: string,
+    data: {
+      type: string;
+      password: string;
+      reason: string;
+      shouldDeleteAfter30Days?: boolean;
+    },
+  ) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid user ID');
+    }
+
+    // Use the new deactivation service
+    return this.deactivationService.deactivateAccount(userId, {
+      password: data.password,
+      reason: data.reason,
+      initiatedBy: 'Client',
+      shouldDeleteAfter30Days: data.shouldDeleteAfter30Days ?? true,
+    });
   }
 }
