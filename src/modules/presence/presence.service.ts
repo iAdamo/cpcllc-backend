@@ -147,16 +147,13 @@ export class PresenceService implements OnModuleInit {
     response?: {
       providerId: string;
       userId: string;
-      userName: string;
-      userImage: string;
+      senderName: string;
+      senderImage: string;
+      isFirstTime: boolean;
       followersCount: number;
       isFollowing: boolean;
-      followedBy: string[];
     },
   ): Promise<void> {
-    // const presence = await this.getPresence({
-    //   userId: subscriberId,
-    // });
     if (subscriberId === targetId) return;
 
     if (subscriberId && targetId) {
@@ -190,20 +187,21 @@ export class PresenceService implements OnModuleInit {
       data: response,
       server,
     });
+    if (response.isFirstTime) {
+      const notifData: CreateNotificationDto = {
+        userId: targetId,
+        title: 'You have a new follower',
+        body: `${response.senderName}`,
+        metadata: { thumbnail: response.senderImage },
+        category: NotificationCategory.FRIEND_REQUEST,
+        priority: NotificationPriority.NORMAL,
+        channels: [NotificationChannel.PUSH],
+        actionType: ActionType.VIEW_PROFILE,
+        // actionUrl: chatId,
+      };
 
-    const notifData: CreateNotificationDto = {
-      userId: targetId,
-      title: 'You have a new follower',
-      body: `${response.userName}`,
-      metadata: { thumbnail: response.userImage },
-      category: NotificationCategory.FRIEND_REQUEST,
-      priority: NotificationPriority.NORMAL,
-      channels: [NotificationChannel.PUSH],
-      actionType: ActionType.VIEW_PROFILE,
-      // actionUrl: chatId,
-    };
-
-    await this.notificationService.create(notifData);
+      await this.notificationService.create(notifData);
+    }
     this.logger.debug(`User ${subscriberId} subscribed to ${targetId} users`);
   }
 
@@ -217,11 +215,11 @@ export class PresenceService implements OnModuleInit {
     response?: {
       providerId: string;
       userId: string;
-      userName: string;
-      userImage: string;
+      // senderName: string;
+      // senderImage: string;
+      isFirstTime: boolean;
       followersCount: number;
       isFollowing: boolean;
-      followedBy: string[];
     },
   ): Promise<void> {
     // const presence = await this.getPresence({

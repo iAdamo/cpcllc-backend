@@ -15,6 +15,7 @@ import { DbStorageService } from 'src/common/utils/dbStorage';
 import { NotificationService } from '../notification/services/notification.service';
 import { NotificationModule } from '@notification/notification.module';
 import { Notification, NotificationSchema } from '@schemas/notification.schema';
+import { Follow, FollowSchema } from '@users/schemas/follow.schema';
 import {
   UserPreference,
   UserPreferenceSchema,
@@ -33,6 +34,7 @@ import { PresenceModule } from '@presence/presence.module';
       { name: Proposal.name, schema: ProposalSchema },
       { name: Notification.name, schema: NotificationSchema },
       { name: UserPreference.name, schema: UserPreferenceSchema },
+      { name: Follow.name, schema: FollowSchema },
     ]),
     forwardRef(() => WebSocketModule),
     forwardRef(() => NotificationModule),

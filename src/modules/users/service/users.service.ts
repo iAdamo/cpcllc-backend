@@ -5,8 +5,8 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { model, Model, Types } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { model, Model, Types, Connection } from 'mongoose';
 import { User, UserDocument, sanitizeUser } from '@schemas/user.schema';
 import {
   Provider,
@@ -26,14 +26,17 @@ import { CreateUserDto } from '@dto/create-user.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
 import { DbStorageService } from 'src/common/utils/dbStorage';
 import { AcceptTermsDto } from '../dto/accept-terms.dto';
+import { Follow, FollowDocument } from '@users/schemas/follow.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
+    @InjectConnection() private readonly connection: Connection,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
     @InjectModel(Subcategory.name)
     private subcategoryModel: Model<SubcategoryDocument>,
+    @InjectModel(Follow.name) private followModel: Model<FollowDocument>,
     @InjectModel(Terms.name) private termsModel: Model<TermsDocument>,
     private readonly storage: DbStorageService,
   ) {}
@@ -92,11 +95,11 @@ export class UsersService {
           runValidators: true,
         })
         .populate('hiredCompanies')
-        .populate({
-          path: 'followedProviders',
-          model: 'Provider',
-          select: 'providerName providerLogo',
-        })
+        // .populate({
+        //   path: 'followedProviders',
+        //   model: 'Provider',
+        //   select: 'providerName providerLogo',
+        // })
         .populate({
           path: 'activeRoleId',
           model: 'Provider',
@@ -144,11 +147,11 @@ export class UsersService {
         ],
       })
       .populate('hiredCompanies')
-      .populate({
-        path: 'followedProviders',
-        model: 'Provider',
-        select: 'providerName providerLogo',
-      })
+      // .populate({
+      //   path: 'followedProviders',
+      //   model: 'Provider',
+      //   select: 'providerName providerLogo',
+      // })
       .populate({
         path: 'activeRoleId',
         model: 'Provider',
@@ -171,79 +174,6 @@ export class UsersService {
     // console.log(populatedUser);
 
     return sanitizeUser(populatedUser);
-  }
-
-  /**
-   * Toggle follow/unfollow a provider
-   * @param userId User ID
-   * @param providerId Provider ID
-   * @return Updated User
-   */
-  async toggleFollowProvider(
-    userId: string,
-    providerId: string,
-  ): Promise<{
-    providerId: string;
-    userId: string;
-    userName: string;
-    userImage: string;
-    followersCount: number;
-    isFollowing: boolean;
-    followedBy: string[];
-  }> {
-    if (!userId || !providerId) {
-      throw new BadRequestException('User ID and Provider ID are required');
-    }
-    const userObjectId = new Types.ObjectId(userId);
-    const ownerId = new Types.ObjectId(providerId);
-
-    const user = await this.userModel.findById(userObjectId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    const provider = await this.providerModel.findOne({ owner: ownerId });
-    if (!provider) {
-      throw new NotFoundException('Provider not found');
-    }
-    const isFollowing = user.followedProviders.includes(provider._id);
-
-    const userUpdate = isFollowing
-      ? {
-          $pull: { followedProviders: provider._id },
-          $inc: { followingCount: -1 },
-        }
-      : {
-          $addToSet: { followedProviders: provider._id },
-          $inc: { followingCount: 1 },
-        };
-    const providerUpdate = isFollowing
-      ? {
-          $pull: { followedBy: userObjectId },
-          $inc: { followersCount: -1 },
-        }
-      : {
-          $addToSet: { followedBy: userObjectId },
-          $inc: { followersCount: 1 },
-        };
-
-    const newProvider = await this.providerModel.findByIdAndUpdate(
-      provider._id,
-      providerUpdate,
-      { new: true },
-    );
-    const newUser = await this.userModel
-      .findByIdAndUpdate(userObjectId, userUpdate, { new: true })
-      .lean();
-    return {
-      providerId: newProvider['_id'].toString(),
-      userId,
-      userName: `${user.firstName} ${user.lastName}`,
-      userImage: user.profilePicture.thumbnail,
-      followersCount: newProvider.followersCount,
-      isFollowing: newProvider.followedBy.some((p) => p.toString() === userId),
-      followedBy: newProvider.followedBy.map((id) => id.toString()),
-    };
-    // return sanitizeUser(updatedUser);
   }
 
   async removeMediaFiles(userId: string, fileUrl: string[]): Promise<User> {

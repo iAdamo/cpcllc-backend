@@ -12,6 +12,7 @@ import { Message, MessageDocument } from '@schemas/message.schema';
 import { User, UserDocument } from '@modules/schemas/user.schema';
 import { Proposal, ProposalDocument } from '@schemas/proposal.schema';
 import { JobPost, JobPostDocument } from '@schemas/job.schema';
+import { Follow, FollowDocument } from '@users/schemas/follow.schema';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { format, isToday, isYesterday } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
@@ -48,6 +49,7 @@ export class ChatService {
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Provider.name) private providerModel: Model<ProviderDocument>,
+    @InjectModel(Follow.name) private followModel: Model<FollowDocument>,
     @InjectModel(Proposal.name)
     private proposalModel: Model<ProposalDocument>,
     @InjectModel(JobPost.name) private jobPostModel: Model<JobPostDocument>,
@@ -62,28 +64,34 @@ export class ChatService {
     currentUserId: Types.ObjectId,
     otherUserId: Types.ObjectId,
   ) {
-    // get the other user provider id
+    // Get the other user (must be a provider)
     const otherUser = await this.userModel
       .findById(otherUserId)
-      .select('activeRoleId')
+      .select('activeRoleId activeRole')
       .lean();
+
     if (!otherUser) {
       throw new NotFoundException('The other user does not exist');
     }
-    if (!otherUser.activeRoleId) {
+
+    if (!otherUser.activeRoleId || otherUser.activeRole !== 'Provider') {
       throw new BadRequestException('Can only initiate chat with providers');
     }
-    // Check if current user follows the provider
-    const isFollowing = await this.userModel.exists({
-      _id: currentUserId,
-      followedProviders: otherUser.activeRoleId,
+
+    const isFollowing = await this.followModel.exists({
+      user: currentUserId,
+      provider: otherUser.activeRoleId,
+      isActive: true,
     });
+
     if (isFollowing) return true;
 
+    // Check job-based eligibility
     const jobs = await this.jobPostModel
       .find({ userId: currentUserId })
       .select('_id')
       .lean();
+
     if (!jobs.length) return false;
 
     const jobIds = jobs.map((j: any) => j._id);
@@ -100,6 +108,7 @@ export class ChatService {
 
     return false;
   }
+
   async createChat(
     currentUserId: string,
     dto: CreateChatDto,

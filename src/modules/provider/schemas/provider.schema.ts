@@ -109,9 +109,6 @@ export class Provider {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Reviews' }], default: [] })
   reviews: Types.ObjectId[];
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
-  followedBy: Types.ObjectId[];
 }
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);

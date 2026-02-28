@@ -1,6 +1,7 @@
 import { Logger, Injectable } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import { EventRouterService } from '@websocket/services/event-router.service';
+import { FollowsService } from '@users/service/follows.services';
 import {
   EventHandler,
   ResEventEnvelope,
@@ -25,6 +26,7 @@ export class PresenceGateway implements EventHandler {
     private readonly eventRouter: EventRouterService,
     private readonly presenceService: PresenceService,
     private readonly userService: UsersService,
+    private readonly followsService: FollowsService,
     private readonly socketManager: SocketManagerService,
   ) {}
 
@@ -144,7 +146,7 @@ export class PresenceGateway implements EventHandler {
     data: SubscribePresenceDto,
     socket: Socket,
   ): Promise<void> {
-    const response = await this.userService.toggleFollowProvider(
+    const response = await this.followsService.toggleFollow(
       userId,
       data.userId,
     );

@@ -165,9 +165,6 @@ export class User {
   @Prop({ type: Types.ObjectId, refPath: 'activeRole', index: true })
   activeRoleId: Types.ObjectId;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Provider' }], default: [] })
-  followedProviders: Types.ObjectId[];
-
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Reviews' }], default: [] })
   reviews: Types.ObjectId[];
 

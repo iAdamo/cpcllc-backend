@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import {
   Controller,
   Get,
@@ -16,6 +17,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from '@users/service/users.service';
 import { AdminService } from '../../admin/admin.service';
 import { ProviderService } from 'src/modules/provider/provider.service';
+import { FollowsService } from '@users/service/follows.services';
 // import { CreateProviderDto } from '../provider/dto/update-provider.dto';
 import { CreateAdminDto } from '@dto/create-admin.dto';
 import { UpdateUserDto } from '@dto/update-user.dto';
@@ -35,6 +37,7 @@ export interface RequestWithUser extends Request {
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
+    private readonly followsService: FollowsService,
     private readonly providerService: ProviderService,
     private readonly adminService: AdminService,
   ) {}
@@ -73,7 +76,7 @@ export class UsersController {
     @Req() req: RequestWithUser,
   ) {
     const userId = req.user.userId;
-    return this.usersService.toggleFollowProvider(userId, providerId);
+    return this.followsService.toggleFollow(userId, providerId);
   }
 
   /**
@@ -88,5 +91,31 @@ export class UsersController {
   ) {
     const userId = req.user.userId;
     return this.usersService.removeMediaFiles(userId, fileUrls);
+  }
+
+  /**
+   * Get followers of a user's provider
+   * GET /users/:id/followers
+   */
+  @Get(':id/followers')
+  async getFollowers(@Param('id') id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new Error('Invalid user id');
+    }
+
+    return this.followsService.getFollowers(id);
+  }
+
+  /**
+   * Get providers the user is following
+   * GET /users/:id/following
+   */
+  @Get(':id/following')
+  async getFollowing(@Param('id') id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new Error('Invalid user id');
+    }
+
+    return this.followsService.getFollowing(id);
   }
 }
