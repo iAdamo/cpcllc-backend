@@ -192,6 +192,7 @@ export class PushService {
     const tokens = preference.pushTokens.filter(
       (t) => t.enabled && t.activeUserId === userId,
     );
+    console.log('Retrieved tokens for user', userId, tokens);
 
     // No usable tokens, but still a successful notification lifecycle
     if (tokens.length === 0) {

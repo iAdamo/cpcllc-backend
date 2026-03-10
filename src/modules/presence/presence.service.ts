@@ -55,31 +55,6 @@ export class PresenceService implements OnModuleInit {
   }
 
   /**
-   * Health check
-   * @returns
-   */
-  async check() {
-    const mongoStatus = this.mongoConnection.readyState === 1 ? 'up' : 'down';
-
-    let redisStatus = 'down';
-    try {
-      const pong = await this.redis.ping();
-      if (pong === 'PONG') redisStatus = 'up';
-    } catch (_) {}
-
-    return {
-      status: mongoStatus === 'up' && redisStatus === 'up' ? 'ok' : 'degraded',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-      services: {
-        api: 'up',
-        database: mongoStatus,
-        redis: redisStatus,
-      },
-    };
-  }
-
-  /**
    * Update user presence status
    */
   async updatePresence({
@@ -192,7 +167,7 @@ export class PresenceService implements OnModuleInit {
         userId: targetId,
         title: 'You have a new follower',
         body: `${response.senderName}`,
-        metadata: { thumbnail: response.senderImage },
+        metadata: { name: response.senderName, picture: response.senderImage },
         category: NotificationCategory.FRIEND_REQUEST,
         priority: NotificationPriority.NORMAL,
         channels: [NotificationChannel.PUSH],

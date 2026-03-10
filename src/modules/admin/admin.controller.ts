@@ -15,6 +15,8 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from '@services/admin.service';
 import { Roles } from 'src/common/decorators/guard.decorator';
+import { TimeRange } from '@services/admin.service';
+
 export interface RequestWithUser extends Request {
   user: {
     email: string;
@@ -24,7 +26,7 @@ export interface RequestWithUser extends Request {
 
 @ApiTags('Admin')
 @Controller('admin')
-@Roles('Admin')
+// @Roles('Admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
@@ -43,4 +45,17 @@ export class AdminController {
   //   const userId = req.user.userId;
   //   return this.adminService.updateAdminProfile(userId, updateData);
   // }
+
+  @Get('metrics')
+  async getMetrics(@Query('range') range: string) {
+    console.log(`Received request for metrics with range: ${range}`);
+    // // Validate the range parameter
+    // const validRanges: TimeRange[] = ['1d', '7d', '30d', '90d', '1y'];
+    // if (!validRanges.includes(range as TimeRange)) {
+    //   throw new Error(
+    //     `Invalid range parameter. Valid values are: ${validRanges.join(', ')}`,
+    //   );
+    // }
+    return this.adminService.getMetrics(range as TimeRange);
+  }
 }

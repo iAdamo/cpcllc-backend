@@ -20,6 +20,7 @@ import { PresenceModule } from '@presence/presence.module';
 import { JwtAuthGuard } from '@auth/jwt/jwt.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AppConfigModule } from './modules/app-config/app-config.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ProviderModule,
     CacheModule,
     NotificationModule,
+    AppConfigModule,
   ],
   controllers: [],
   providers: [

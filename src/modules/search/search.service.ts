@@ -15,6 +15,9 @@ export class SearchService {
   ) {}
 
   async globalSearch(dto: GlobalSearchDto) {
+    if (dto.country && dto.country === 'Estados Unidos') {
+      dto.country = 'United States';
+    }
     const {
       model,
       engine = false,
@@ -38,10 +41,6 @@ export class SearchService {
       throw new BadRequestException(
         'Only providers and jobs are supported for now',
       );
-    }
-
-    if (country && country === 'Estados Unidos') {
-      dto.country = 'United States';
     }
 
     const pageNumber = Math.max(1, Number(page));

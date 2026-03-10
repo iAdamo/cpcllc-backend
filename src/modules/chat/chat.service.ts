@@ -318,7 +318,7 @@ export class ChatService {
       dto.chatId,
       event,
       {
-        userId,
+        status: dto.isTyping ? true : false,
         chatId: dto.chatId,
       },
       userId, // Exclude the typing user
