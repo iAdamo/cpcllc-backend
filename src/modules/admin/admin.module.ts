@@ -7,13 +7,21 @@ import { AdminController } from './admin.controller';
 import { DbStorageService } from 'src/common/utils/dbStorage';
 import { AdminTermsController } from './controller/terms.controller';
 import { AdminTermsService } from './service/terms.service';
+import { AdminMetricService } from './service/metrics.service';
+import { CacheModule } from '@cache/cache.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
     MongooseModule.forFeature([{ name: Admin.name, schema: AdminSchema }]),
+    CacheModule,
   ],
-  providers: [AdminService, DbStorageService, AdminTermsService],
+  providers: [
+    AdminService,
+    DbStorageService,
+    AdminTermsService,
+    AdminMetricService,
+  ],
   controllers: [AdminController, AdminController],
   exports: [AdminService, MongooseModule],
 })

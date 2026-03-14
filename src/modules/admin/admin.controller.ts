@@ -15,7 +15,9 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from '@services/admin.service';
 import { Roles } from 'src/common/decorators/guard.decorator';
-import { TimeRange } from '@services/admin.service';
+import { AdminMetricService } from './service/metrics.service';
+import { CacheService } from '@cache/cache.service';
+import { MetricsRequest, MetricsResponse } from '@types';
 
 export interface RequestWithUser extends Request {
   user: {
@@ -28,7 +30,11 @@ export interface RequestWithUser extends Request {
 @Controller('admin')
 // @Roles('Admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly metricService: AdminMetricService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   @Get('profile')
   async getAdminProfile(@Req() req: RequestWithUser) {
@@ -46,16 +52,19 @@ export class AdminController {
   //   return this.adminService.updateAdminProfile(userId, updateData);
   // }
 
+  // Metrics endpoint
+  // metrics service getMetrics
   @Get('metrics')
-  async getMetrics(@Query('range') range: string) {
-    console.log(`Received request for metrics with range: ${range}`);
-    // // Validate the range parameter
-    // const validRanges: TimeRange[] = ['1d', '7d', '30d', '90d', '1y'];
-    // if (!validRanges.includes(range as TimeRange)) {
-    //   throw new Error(
-    //     `Invalid range parameter. Valid values are: ${validRanges.join(', ')}`,
-    //   );
-    // }
-    return this.adminService.getMetrics(range as TimeRange);
+  async getMetrics(@Query() query: MetricsRequest): Promise<MetricsResponse> {
+    const cacheKey = `metrics:${JSON.stringify(query)}`;
+    const cached = await this.cacheService.get<MetricsResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.metricService.getMetrics(query);
+    await this.cacheService.set(cacheKey, result, 300); // Cache for 5 minutes
+
+    return result;
   }
 }

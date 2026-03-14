@@ -61,10 +61,10 @@ import { AppConfigModule } from './modules/app-config/app-config.module';
   ],
   controllers: [],
   providers: [
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: JwtAuthGuard,
+    // },
   ],
   exports: [CacheModule],
 })
